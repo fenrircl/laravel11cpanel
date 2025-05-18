@@ -1,0 +1,25 @@
+# To prevent access to .env and other files
+<Files .*>
+# Apache 2.2
+<IfModule !mod_authz_core.c>
+Order deny,allow
+Deny from all
+</IfModule>
+# Apache 2.4
+<IfModule mod_authz_core.c>
+Require all denied
+</IfModule>
+</Files>
+
+<IfModule mod_fastcgi.c>
+    AddHandler php8.2-fcgi .php
+    Action php8.2-fcgi /php8.2-fcgi
+    Alias /php8.2-fcgi /usr/lib/cgi-bin/php8.2
+    FastCgiExternalServer /usr/lib/cgi-bin/php8.2 -socket /run/php/php8.2-fpm.sock -pass-header Authorization
+</IfModule>
+
+<IfModule mod_proxy_fcgi.c>
+    <FilesMatch \.php$>
+        SetHandler "proxy:unix:/run/php/php8.2-fpm.sock|fcgi://localhost/"
+    </FilesMatch>
+</IfModule>
