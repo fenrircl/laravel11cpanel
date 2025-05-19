@@ -1,0 +1,8 @@
+# .cpanel.yml
+# Archivo de configuración para despliegue automático en cPanel
+
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/$CPANELUSER/public_html
+    - /bin/cp -R * $DEPLOYPATH
+    - /bin/echo "Despliegue completado en $DEPLOYPATH"
