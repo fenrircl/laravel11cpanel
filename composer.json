@@ -64,8 +64,7 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        },
-        "cache-dir": "/home/estudiop/public_html/test/cache"
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true
