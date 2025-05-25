@@ -1,3 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* 
+ * Archivo CSS principal de la aplicación 
+ * Se han eliminado las directivas de Tailwind ya que la aplicación utiliza Bootstrap
+ */

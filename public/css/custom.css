@@ -1,0 +1,208 @@
+body {
+    margin: 0;
+    font-family: 'Nunito', sans-serif; /* O la fuente que prefieras */
+    background-color: #f8f9fa; /* Un fondo claro para el contenido principal */
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    width: 260px; /* Ancho del sidebar */
+    background-color: #2c3e50; /* Color de fondo oscuro como en la imagen */
+    color: #ecf0f1; /* Color de texto claro */
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: fixed; /* Para que se mantenga fijo al hacer scroll */
+    height: 100%;
+    overflow-y: auto; /* Scroll si el contenido es muy largo */
+}
+
+.sidebar-header {
+    padding: 20px 15px;
+    text-align: center;
+    background-color: #3498db; /* Color para la cabecera del sidebar */
+    border-bottom: 1px solid #4a6fa5; /* Un borde sutil */
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.5rem;
+}
+
+.sidebar-menu {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1; /* Para que ocupe el espacio restante */
+}
+
+.sidebar-menu .menu-header {
+    padding: 15px 20px 5px 20px;
+    font-size: 0.8rem;
+    color: #bdc3c7; /* Un color más tenue para los encabezados de sección */
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.sidebar-menu li a {
+    display: flex; /* Para alinear icono y texto */
+    align-items: center;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #ecf0f1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    border-left: 3px solid transparent; /* Para el indicador activo */
+}
+
+.sidebar-menu li a:hover,
+.sidebar-menu li a.active { /* Clase 'active' para el enlace actual */
+    background-color: #34495e; /* Un fondo ligeramente diferente al pasar el mouse o activo */
+    color: #ffffff;
+    border-left-color: #3498db; /* Indicador activo */
+}
+
+.sidebar-menu li a .icon-placeholder { /* Reemplaza esto con tu clase de icono real */
+    margin-right: 10px;
+    width: 16px; /* Ajusta según tus iconos */
+    height: 16px;
+    /* background-color: #fff; // Temporal para ver el espacio del icono */
+}
+
+.app-main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 260px; /* Mismo ancho que el sidebar para evitar superposición */
+    background-color: #ffffff; /* Fondo blanco para el área de contenido */
+}
+
+.app-header {
+    background-color: #ffffff; /* O el color que prefieras para el header superior */
+    padding: 15px 20px;
+    border-bottom: 1px solid #e7e7e7;
+    /* Aquí puedes añadir estilos para un header superior si lo tienes */
+}
+
+.app-page-content {
+    padding: 20px;
+    flex-grow: 1; /* Para que el contenido principal ocupe el espacio */
+}
+
+.app-footer {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid #e7e7e7;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+body {
+    margin: 0;
+    font-family: 'Nunito', sans-serif; /* O la fuente que prefieras */
+    background-color: #f8f9fa; /* Un fondo claro para el contenido principal */
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.app-sidebar {
+    width: 260px; /* Ancho del sidebar */
+    background-color: #2c3e50; /* Color de fondo oscuro como en la imagen */
+    color: #ecf0f1; /* Color de texto claro */
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    position: fixed; /* Para que se mantenga fijo al hacer scroll */
+    height: 100%;
+    overflow-y: auto; /* Scroll si el contenido es muy largo */
+}
+
+.sidebar-header {
+    padding: 20px 15px;
+    text-align: center;
+    background-color: #3498db; /* Color para la cabecera del sidebar */
+    border-bottom: 1px solid #4a6fa5; /* Un borde sutil */
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #ffffff;
+    font-size: 1.5rem;
+}
+
+.sidebar-menu {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1; /* Para que ocupe el espacio restante */
+}
+
+.sidebar-menu .menu-header {
+    padding: 15px 20px 5px 20px;
+    font-size: 0.8rem;
+    color: #bdc3c7; /* Un color más tenue para los encabezados de sección */
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.sidebar-menu li a {
+    display: flex; /* Para alinear icono y texto */
+    align-items: center;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #ecf0f1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    border-left: 3px solid transparent; /* Para el indicador activo */
+}
+
+.sidebar-menu li a:hover,
+.sidebar-menu li a.active { /* Clase 'active' para el enlace actual */
+    background-color: #34495e; /* Un fondo ligeramente diferente al pasar el mouse o activo */
+    color: #ffffff;
+    border-left-color: #3498db; /* Indicador activo */
+}
+
+.sidebar-menu li a .icon-placeholder { /* Reemplaza esto con tu clase de icono real */
+    margin-right: 10px;
+    width: 16px; /* Ajusta según tus iconos */
+    height: 16px;
+    /* background-color: #fff; // Temporal para ver el espacio del icono */
+}
+
+.app-main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    margin-left: 260px; /* Mismo ancho que el sidebar para evitar superposición */
+    background-color: #ffffff; /* Fondo blanco para el área de contenido */
+}
+
+.app-header {
+    background-color: #ffffff; /* O el color que prefieras para el header superior */
+    padding: 15px 20px;
+    border-bottom: 1px solid #e7e7e7;
+    /* Aquí puedes añadir estilos para un header superior si lo tienes */
+}
+
+.app-page-content {
+    padding: 20px;
+    flex-grow: 1; /* Para que el contenido principal ocupe el espacio */
+}
+
+.app-footer {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid #e7e7e7;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
