@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Tus estilos personalizados -->
-    <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/custom.css') }}" rel="stylesheet">
 
     <style>
         body {
@@ -133,7 +133,18 @@
             }
         }
     </style>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
+    <!-- Bootstrap Bundle JS (incluye Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @stack('styles')
 </head>
 <body>
@@ -152,9 +163,8 @@
         <!-- Contenedor principal -->
         <div id="content" class="d-flex flex-column w-100">
             <!-- Header -->
-            <div class="header">
-                <h2 class="h4 mb-0">Laravel</h2>
-            </div>
+            @include('layouts.header')
+
 
             <!-- Contenido principal -->
             <div class="container-fluid py-3">
@@ -163,18 +173,7 @@
         </div>
     </div>
 
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-    <!-- Bootstrap Bundle JS (incluye Popper) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- DataTables JS -->
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-    <!-- SweetAlert2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         $(document).ready(function() {

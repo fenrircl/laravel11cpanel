@@ -24,3 +24,24 @@
         @endauth
     </nav>
 </div>
+
+{{-- Carga dinámica de assets JS y CSS --}}
+@if(isset($asset_css) && is_array($asset_css))
+    @foreach($asset_css as $css_file)
+        <link rel="stylesheet" href="{{ asset('assets/css/' . $css_file) }}.css">
+    @endforeach
+@endif
+
+@if(isset($asset_js) && is_array($asset_js))
+    @foreach($asset_js as $js_file)
+        <script src="{{ asset('assets/js/' . $js_file) }}.js"></script>
+    @endforeach
+@endif
+
+
+@if(isset($asset_plugins_js) && is_array($asset_plugins_js))
+    @foreach($asset_plugins_js as $js_file)
+        <script src="{{ asset('assets/js/plugins/' . $js_file) }}.js"></script>
+        echo "<!-- Plugin JS: $js_file -->";
+    @endforeach
+@endif

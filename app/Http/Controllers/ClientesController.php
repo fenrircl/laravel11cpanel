@@ -13,8 +13,12 @@ class ClientesController extends Controller
     public function index()
     {
         $clientes = Cliente::all();
-        // Retornar una vista o JSON según sea necesario
-        return view('clientes.index', compact('clientes')); 
+        $data["clientes"] = $clientes;
+        // Ejemplo de carga dinámica de assets
+        // Estos archivos deben existir en public/assets/css y public/assets/js respectivamente
+        // $data["asset_css"] = ['clientes.css']; // Ejemplo de archivo CSS específico para clientes
+        $data["asset_js"] = ['clientes'];   // Ejemplo de archivo JS específico para clientes
+        return view('clientes.index', $data);
     }
 
     /**
