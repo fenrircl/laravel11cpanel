@@ -3,21 +3,21 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Cliente; 
+use App\Models\Proveedor;
 
-class ClientesController extends Controller
+class ProveedoresController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $clientes = Cliente::all();
-        $data["clientes"] = $clientes;
+        $proveedores = Proveedor::all();
+        $data["proveedores"] = $proveedores;
         // Agregar CSS y JS específicos y generales
-        $data["asset_css"] = ['tablas'];
-        $data["asset_js"] = ['main', 'clientes'];
-        return view('clientes.index', $data);
+        $data["asset_css"] = ['tablas', 'proveedores'];
+        $data["asset_js"] = ['main', 'proveedores'];
+        return view('proveedores.index', $data);
     }
 
     /**
@@ -25,7 +25,7 @@ class ClientesController extends Controller
      */
     public function create()
     {
-        return view('clientes.create');
+        return view('proveedores.create');
     }
 
     /**
@@ -33,7 +33,6 @@ class ClientesController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos del request
         $validatedData = $request->validate([
             'nombre' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -49,39 +48,36 @@ class ClientesController extends Controller
             'address' => $validatedData['direccion'],
         ];
 
-        $cliente = Cliente::create($mappedData);
+        $proveedor = Proveedor::create($mappedData);
         
         if ($request->ajax()) {
-            return response()->json(['success' => true, 'cliente' => $cliente]);
+            return response()->json(['success' => true, 'proveedor' => $proveedor]);
         }
         
-        // Redirigir o retornar JSON según sea necesario
-        return redirect()->route('clientes.index')->with('success', 'Cliente creado exitosamente.');
+        return redirect()->route('proveedores.index')->with('success', 'Proveedor creado exitosamente.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Cliente $cliente)
+    public function show(Proveedor $proveedor)
     {
-        return view('clientes.show', compact('cliente'));
+        return view('proveedores.show', compact('proveedor'));
     }
 
-  
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Cliente $cliente)
+    public function edit(Proveedor $proveedor)
     {
-        return view('clientes.edit', compact('cliente'));
+        return view('proveedores.edit', compact('proveedor'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Cliente $cliente)
+    public function update(Request $request, Proveedor $proveedor)
     {
-        // Validar los datos del request
         $validatedData = $request->validate([
             'nombre' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
@@ -97,24 +93,22 @@ class ClientesController extends Controller
             'address' => $validatedData['direccion'],
         ];
 
-        $cliente->update($mappedData);
+        $proveedor->update($mappedData);
         
         if ($request->ajax()) {
-            return response()->json(['success' => true, 'cliente' => $cliente]);
+            return response()->json(['success' => true, 'proveedor' => $proveedor]);
         }
         
-        // Redirigir o retornar JSON según sea necesario
-        return redirect()->route('clientes.index')->with('success', 'Cliente actualizado exitosamente.');
+        return redirect()->route('proveedores.index')->with('success', 'Proveedor actualizado exitosamente.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Cliente $cliente)
+    public function destroy(Proveedor $proveedor)
     {
-        $cliente->delete();
+        $proveedor->delete();
         // Redirigir o retornar JSON según sea necesario
-        return redirect()->route('clientes.index')->with('success', 'Cliente eliminado exitosamente.');
+        return redirect()->route('proveedores.index')->with('success', 'Proveedor eliminado exitosamente.');
     }
 }
-

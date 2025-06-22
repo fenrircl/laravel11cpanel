@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Cargar configuración del menú
+        $this->mergeConfigFrom(
+            app_path('Config/menu.php'), 'menu'
+        );
     }
 }

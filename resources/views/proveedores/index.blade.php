@@ -2,7 +2,7 @@
 
 @section('content')
 <script>
-var CLIENTES = {!! $clientes !!};
+var PROVEEDORES = {!! $proveedores !!};
 </script>
 <div class="container-fluid">
     <div class="row">
@@ -10,15 +10,15 @@ var CLIENTES = {!! $clientes !!};
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Listado de Clientes</h4>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clienteModal" onclick="openCreateModal()">
-                            <i class="fas fa-plus me-1"></i> Nuevo Cliente
+                        <h4 class="mb-0">Listado de Proveedores</h4>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#proveedorModal" onclick="openCreateModal()">
+                            <i class="fas fa-plus me-1"></i> Nuevo Proveedor
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="clientes-table" class="table table-striped table-hover">
+                        <table id="proveedores-table" class="table table-striped table-hover">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -41,18 +41,18 @@ var CLIENTES = {!! $clientes !!};
     </div>
 </div>
 
-<!-- Modal para CRUD de Clientes -->
-<div class="modal fade" id="clienteModal" tabindex="-1" aria-labelledby="clienteModalLabel" aria-hidden="true">
+<!-- Modal para CRUD de Proveedores -->
+<div class="modal fade" id="proveedorModal" tabindex="-1" aria-labelledby="proveedorModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="clienteModalLabel">Cliente</h5>
+                <h5 class="modal-title" id="proveedorModalLabel">Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="clienteForm">
+            <form id="proveedorForm">
                 <div class="modal-body">
                     @csrf
-                    <input type="hidden" id="clienteId" name="id">
+                    <input type="hidden" id="proveedorId" name="id">
                     
                     <div class="row">
                         <div class="col-md-6">
@@ -94,15 +94,15 @@ var CLIENTES = {!! $clientes !!};
 </div>
 
 <!-- Modal para Ver Detalles -->
-<div class="modal fade" id="viewClienteModal" tabindex="-1" aria-labelledby="viewClienteModalLabel" aria-hidden="true">
+<div class="modal fade" id="viewProveedorModal" tabindex="-1" aria-labelledby="viewProveedorModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="viewClienteModalLabel">Detalles del Cliente</h5>
+                <h5 class="modal-title" id="viewProveedorModalLabel">Detalles del Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="cliente-details">
+                <div class="proveedor-details">
                     <div class="detail-item">
                         <strong>ID:</strong> <span id="viewId"></span>
                     </div>
@@ -135,65 +135,65 @@ var CLIENTES = {!! $clientes !!};
 <script>
 // Variables globales
 var isEdit = false;
-var currentCliente = null;
+var currentProveedor = null;
 
 // Función para abrir modal de creación
 function openCreateModal() {
     isEdit = false;
-    document.getElementById('clienteModalLabel').textContent = 'Nuevo Cliente';
-    document.getElementById('clienteForm').reset();
-    document.getElementById('clienteId').value = '';
+    document.getElementById('proveedorModalLabel').textContent = 'Nuevo Proveedor';
+    document.getElementById('proveedorForm').reset();
+    document.getElementById('proveedorId').value = '';
     document.getElementById('saveBtn').textContent = 'Crear';
 }
 
 // Función para abrir modal de edición
 function openEditModal(id) {
     isEdit = true;
-    currentCliente = CLIENTES.find(c => c.id == id);
+    currentProveedor = PROVEEDORES.find(p => p.id == id);
     
-    if (currentCliente) {
-        document.getElementById('clienteModalLabel').textContent = 'Editar Cliente';
-        document.getElementById('clienteId').value = currentCliente.id;
-        document.getElementById('nombre').value = currentCliente.name || '';
-        document.getElementById('email').value = currentCliente.email || '';
-        document.getElementById('telefono').value = currentCliente.phone || '';
-        document.getElementById('direccion').value = currentCliente.address || '';
+    if (currentProveedor) {
+        document.getElementById('proveedorModalLabel').textContent = 'Editar Proveedor';
+        document.getElementById('proveedorId').value = currentProveedor.id;
+        document.getElementById('nombre').value = currentProveedor.name || '';
+        document.getElementById('email').value = currentProveedor.email || '';
+        document.getElementById('telefono').value = currentProveedor.phone || '';
+        document.getElementById('direccion').value = currentProveedor.address || '';
         document.getElementById('saveBtn').textContent = 'Actualizar';
         
-        var modal = new bootstrap.Modal(document.getElementById('clienteModal'));
+        var modal = new bootstrap.Modal(document.getElementById('proveedorModal'));
         modal.show();
     }
 }
 
 // Función para ver detalles
-function viewCliente(id) {
-    var cliente = CLIENTES.find(c => c.id == id);
+function viewProveedor(id) {
+    var proveedor = PROVEEDORES.find(p => p.id == id);
     
-    if (cliente) {
-        document.getElementById('viewId').textContent = cliente.id;
-        document.getElementById('viewNombre').textContent = cliente.name || 'N/A';
-        document.getElementById('viewEmail').textContent = cliente.email || 'N/A';
-        document.getElementById('viewTelefono').textContent = cliente.phone || 'N/A';
-        document.getElementById('viewDireccion').textContent = cliente.address || 'N/A';
+    if (proveedor) {
+        document.getElementById('viewId').textContent = proveedor.id;
+        document.getElementById('viewNombre').textContent = proveedor.name || 'N/A';
+        document.getElementById('viewEmail').textContent = proveedor.email || 'N/A';
+        document.getElementById('viewTelefono').textContent = proveedor.phone || 'N/A';
+        document.getElementById('viewDireccion').textContent = proveedor.address || 'N/A';
         
-        if (cliente.created_at) {
-            let date = new Date(cliente.created_at);
+        if (proveedor.created_at) {
+            let date = new Date(proveedor.created_at);
             document.getElementById('viewCreatedAt').textContent = date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES');
         } else {
             document.getElementById('viewCreatedAt').textContent = 'N/A';
         }
         
-        var modal = new bootstrap.Modal(document.getElementById('viewClienteModal'));
+        var modal = new bootstrap.Modal(document.getElementById('viewProveedorModal'));
         modal.show();
     }
 }
 
 // Manejo del formulario
-document.getElementById('clienteForm').addEventListener('submit', function(e) {
+document.getElementById('proveedorForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     var formData = new FormData(this);
-    var url = isEdit ? `/clientes/${formData.get('id')}` : '/clientes';
+    var url = isEdit ? `/proveedores/${formData.get('id')}` : '/proveedores';
     var method = isEdit ? 'PUT' : 'POST';
     
     // Agregar método para PUT
@@ -208,10 +208,10 @@ document.getElementById('clienteForm').addEventListener('submit', function(e) {
         processData: false,
         contentType: false,
         success: function(response) {
-            $('#clienteModal').modal('hide');
+            $('#proveedorModal').modal('hide');
             Swal.fire({
                 title: 'Éxito',
-                text: isEdit ? 'Cliente actualizado correctamente' : 'Cliente creado correctamente',
+                text: isEdit ? 'Proveedor actualizado correctamente' : 'Proveedor creado correctamente',
                 icon: 'success'
             }).then(() => {
                 location.reload();
@@ -233,44 +233,6 @@ document.getElementById('clienteForm').addEventListener('submit', function(e) {
 <style>
     .btn-group .btn {
         margin-right: 3px;
-    }
-    
-    .cliente-details {
-        padding: 20px 0;
-    }
-
-    .detail-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 0;
-        border-bottom: 1px solid #f1f3f4;
-        transition: background-color 0.2s ease;
-    }
-
-    .detail-item:hover {
-        background-color: #f8f9fa;
-        padding-left: 10px;
-        padding-right: 10px;
-        margin-left: -10px;
-        margin-right: -10px;
-        border-radius: 6px;
-    }
-
-    .detail-item:last-child {
-        border-bottom: none;
-    }
-
-    .detail-item strong {
-        color: #495057;
-        font-weight: 600;
-        min-width: 120px;
-    }
-
-    .detail-item span {
-        color: #6c757d;
-        text-align: right;
-        flex: 1;
     }
 </style>
 @endpush

@@ -1,7 +1,7 @@
 $(document).ready(function() {
-    console.log('Clientes DataTable initialized');
+    console.log('Provider DataTable initialized');
     
-    // Configuración de columnas para la tabla de clientes
+    // Configuración de columnas para la tabla de proveedores
     const columns = [
         {data: 'id', name: 'id'},
         {data: 'name', name: 'name'},
@@ -21,17 +21,17 @@ $(document).ready(function() {
             orderable: false, 
             searchable: false,
             render: function(data, type, row) {
-                return generateActionButtons(row.id, 'clientes');
+                return generateActionButtons(row.id, 'proveedores');
             }
         }
     ];
     
     // Inicializar DataTable usando la función reutilizable
-    initDataTable('clientes-table', CLIENTES, columns);
+    initDataTable('proveedores-table', PROVEEDORES, columns);
 
     // Manejo de eliminación usando la función reutilizable
-    $(document).on('click', '.delete-cliente', function() {
+    $(document).on('click', '.delete-proveedor', function() {
         const id = $(this).data('id');
-        handleDelete('cliente', id, `/clientes/${id}`);
+        handleDelete('proveedor', id, `/proveedores/${id}`);
     });
 });

@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginRegisterController;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\FacturasController;
 use App\Http\Controllers\ClientesController;
+use App\Http\Controllers\ProveedoresController;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -39,6 +40,7 @@ Route::middleware(['auth'])->group(function () {
     // Rutas para Facturas (ahora protegidas)
     Route::get('/facturas', [FacturasController::class, 'index'])->name('facturas.index');
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
+    Route::get('/proveedores', [ProveedoresController::class, 'index'])->name('proveedores.index');
 
     // Si usas Route::resource para facturas, también iría aquí:
     // Route::resource('facturas', FacturasController::class);
@@ -46,5 +48,23 @@ Route::middleware(['auth'])->group(function () {
     // Puedes agregar más rutas protegidas aquí
     // Ruta para DataTables de clientes
 Route::get('clientes/data', [ClientesController::class, 'getData'])->name('clientes.data');
+
+    // Rutas resource para clientes
+    Route::resource('clientes', ClientesController::class);
+    
+    // Rutas resource para proveedores
+    Route::resource('proveedores', ProveedoresController::class);
+    
+    // Ruta para DataTables de clientes (si se necesita)
+    Route::get('clientes/data', [ClientesController::class, 'getData'])->name('clientes.data');
 });
+
+// Rutas para proveedores
+// Route::resource('proveedores', ProveedoresController::class);ex'])->name('proveedores.index');
+// Route::get('proveedores/create', [ProveedoresController::class, 'create'])->name('proveedores.create');
+// Route::post('proveedores', [ProveedoresController::class, 'store'])->name('proveedores.store');
+// Route::get('proveedores/{proveedor}', [ProveedoresController::class, 'show'])->name('proveedores.show');
+// Route::get('proveedores/{proveedor}/edit', [ProveedoresController::class, 'edit'])->name('proveedores.edit');
+// Route::put('proveedores/{proveedor}', [ProveedoresController::class, 'update'])->name('proveedores.update');
+// Route::delete('proveedores/{proveedor}', [ProveedoresController::class, 'destroy'])->name('proveedores.destroy');
 

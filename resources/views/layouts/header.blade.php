@@ -1,9 +1,9 @@
 <div class="d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center">
-        <button id="sidebarToggle" class="btn btn-link text-white me-3">
+        {{-- <button id="sidebarToggle" class="btn btn-link text-white me-3">
             <i class="fas fa-bars"></i>
-        </button>
-        <h1 class="h4 mb-0">{{ config('app.name', 'Mi Aplicación') }}</h1>
+        </button> --}}
+        {{-- <h1 class="h4 mb-0">{{ config('app.name', 'Mi Aplicación') }}</h1> --}}
     </div>
     
     <nav>
