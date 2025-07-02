@@ -1,0 +1,289 @@
+/* Estilos específicos para el módulo de facturas */
+
+/* Card de facturas */
+.facturas-card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.facturas-card .card-header {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.facturas-card .card-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Botones de navegación de facturas */
+.facturas-nav .btn {
+    margin-right: 0.5rem;
+    border-radius: 0.375rem;
+}
+
+.facturas-nav .btn:last-child {
+    margin-right: 0;
+}
+
+/* Modal de facturas */
+#facturaModal .modal-content {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+#facturaModal .modal-header {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+    border-bottom: none;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+#facturaModal .modal-title {
+    font-weight: 600;
+}
+
+#facturaModal .btn-close {
+    filter: invert(1);
+}
+
+/* Formulario de facturas */
+#facturaForm .form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+#facturaForm .form-control:focus,
+#facturaForm .form-select:focus {
+    border-color: #6c757d;
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+#facturaForm .text-danger {
+    color: #dc3545 !important;
+}
+
+/* Tabla de facturas */
+#facturas-table,
+#facturas-cliente-table,
+#facturas-proveedor-table {
+    font-size: 0.9rem;
+}
+
+#facturas-table th,
+#facturas-cliente-table th,
+#facturas-proveedor-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-align: center;
+    border-top: none;
+}
+
+#facturas-table td,
+#facturas-cliente-table td,
+#facturas-proveedor-table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+}
+
+/* Badges para estados de factura */
+.badge-estado {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.375rem;
+}
+
+.badge-estado.pendiente {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-estado.pagado {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-estado.vencido {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-estado.cancelado {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Badges para tipos de factura */
+.badge-tipo {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.375rem;
+}
+
+.badge-tipo.cliente {
+    background-color: #007bff;
+    color: white;
+}
+
+.badge-tipo.proveedor {
+    background-color: #28a745;
+    color: white;
+}
+
+/* Montos en facturas */
+.monto-factura {
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.monto-factura.positivo {
+    color: #28a745;
+}
+
+.monto-factura.negativo {
+    color: #dc3545;
+}
+
+/* Fechas importantes */
+.fecha-vencimiento {
+    font-weight: 500;
+}
+
+.fecha-vencimiento.proxima {
+    color: #ffc107;
+}
+
+.fecha-vencimiento.vencida {
+    color: #dc3545;
+}
+
+.fecha-vencimiento.normal {
+    color: #6c757d;
+}
+
+/* Botones de acción para facturas */
+.btn-factura {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+    margin: 0 1px;
+}
+
+.btn-factura i {
+    font-size: 0.8rem;
+}
+
+/* Modal de detalles */
+#facturaDetailsModal .modal-content {
+    border-radius: 0.5rem;
+}
+
+#facturaDetailsModal .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Resumen de factura */
+.factura-resumen {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.factura-resumen .row {
+    margin-bottom: 0.5rem;
+}
+
+.factura-resumen .row:last-child {
+    margin-bottom: 0;
+}
+
+.factura-resumen .label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.factura-resumen .value {
+    color: #6c757d;
+}
+
+/* Responsive para facturas */
+@media (max-width: 768px) {
+    .facturas-card .card-header .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .facturas-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+    }
+    
+    .facturas-nav .btn {
+        margin: 0.125rem;
+        font-size: 0.875rem;
+    }
+    
+    #facturas-table,
+    #facturas-cliente-table,
+    #facturas-proveedor-table {
+        font-size: 0.8rem;
+    }
+    
+    #facturas-table td,
+    #facturas-table th,
+    #facturas-cliente-table td,
+    #facturas-cliente-table th,
+    #facturas-proveedor-table td,
+    #facturas-proveedor-table th {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .monto-factura {
+        font-size: 0.9rem;
+    }
+}
+
+/* Filtros específicos para facturas */
+.filtros-facturas {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filtros-facturas .form-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* Indicadores de estado */
+.indicador-estado {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.indicador-estado.pendiente {
+    background-color: #ffc107;
+}
+
+.indicador-estado.pagado {
+    background-color: #28a745;
+}
+
+.indicador-estado.vencido {
+    background-color: #dc3545;
+}
+
+.indicador-estado.cancelado {
+    background-color: #6c757d;
+}

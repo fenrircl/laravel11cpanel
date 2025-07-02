@@ -1,0 +1,156 @@
+/* Estilos específicos para el módulo de clientes */
+
+/* Card de clientes */
+.clientes-card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.clientes-card .card-header {
+    background-color: #007bff;
+    color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.clientes-card .card-header h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Modal de clientes */
+#clienteModal .modal-content {
+    border-radius: 0.5rem;
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+#clienteModal .modal-header {
+    background-color: #007bff;
+    color: white;
+    border-bottom: none;
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+#clienteModal .modal-title {
+    font-weight: 600;
+}
+
+#clienteModal .btn-close {
+    filter: invert(1);
+}
+
+/* Formulario de clientes */
+#clienteForm .form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+#clienteForm .form-control:focus,
+#clienteForm .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+#clienteForm .text-danger {
+    color: #dc3545 !important;
+}
+
+/* Tabla de clientes */
+#clientes-table {
+    font-size: 0.9rem;
+}
+
+#clientes-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    text-align: center;
+    border-top: none;
+}
+
+#clientes-table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+}
+
+/* Botones de acción para clientes */
+.btn-cliente {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.25rem;
+    margin: 0 1px;
+}
+
+.btn-cliente i {
+    font-size: 0.8rem;
+}
+
+/* Estados específicos para clientes */
+.cliente-activo {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.cliente-inactivo {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Responsive para clientes */
+@media (max-width: 768px) {
+    .clientes-card .card-header .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .clientes-card .card-header .btn-group {
+        justify-content: center;
+    }
+    
+    #clientes-table {
+        font-size: 0.8rem;
+    }
+    
+    #clientes-table td,
+    #clientes-table th {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+/* Validación de formulario */
+.was-validated .form-control:invalid,
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.was-validated .form-control:valid,
+.form-control.is-valid {
+    border-color: #28a745;
+}
+
+/* Loading state para botones */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

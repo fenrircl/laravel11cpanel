@@ -19,9 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cargar configuración del menú
-        $this->mergeConfigFrom(
-            app_path('Config/menu.php'), 'menu'
-        );
+        // El archivo menu.php en config/ se carga automáticamente por Laravel
+        // No necesitamos mergeConfigFrom() para archivos en config/
     }
 }

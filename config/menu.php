@@ -15,23 +15,7 @@ return [
     ],
     [
         'section' => 'SISTEMA DE INVENTARIO',
-        'items' => [
-            [
-                'title' => 'Stock',
-                'icon' => 'fas fa-box',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Gestión de stock',
-                'auth_required' => true
-            ],
-            [
-                'title' => 'Suministros',
-                'icon' => 'fas fa-dolly',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Gestión de suministros',
-                'auth_required' => true
-            ],
+        'items' => [      
             [
                 'title' => 'Clientes',
                 'icon' => 'fas fa-users',
@@ -47,17 +31,23 @@ return [
                 'auth_required' => true
             ],
             [
-                'title' => 'Facturas Cliente',
+                'title' => 'Facturas',
                 'icon' => 'fas fa-file-invoice',
                 'route' => 'facturas.index',
+                'tooltip' => 'Todas las facturas',
+                'auth_required' => true
+            ],
+            [
+                'title' => 'Facturas Clientes',
+                'icon' => 'fas fa-file-invoice-dollar',
+                'route' => 'facturas.clientes.index',
                 'tooltip' => 'Facturas de clientes',
                 'auth_required' => true
             ],
             [
-                'title' => 'Facturas Proveedor',
-                'icon' => 'fas fa-file-invoice-dollar',
-                'route' => null,
-                'url' => '#',
+                'title' => 'Facturas Proveedores',
+                'icon' => 'fas fa-file-invoice',
+                'route' => 'facturas.proveedores.index',
                 'tooltip' => 'Facturas de proveedores',
                 'auth_required' => true
             ],

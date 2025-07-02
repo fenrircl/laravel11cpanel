@@ -7,33 +7,33 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Listado de Facturas</h4>
+                        <h4 class="mb-0">Facturas de Proveedores</h4>
                         <div class="btn-group" role="group">
+                            <a href="{{ route('facturas.index') }}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i> Todas las Facturas
+                            </a>
                             <a href="{{ route('facturas.clientes.index') }}" class="btn btn-info btn-sm">
                                 <i class="fas fa-users me-1"></i> Facturas Clientes
                             </a>
-                            <a href="{{ route('facturas.proveedores.index') }}" class="btn btn-success btn-sm">
-                                <i class="fas fa-truck me-1"></i> Facturas Proveedores
-                            </a>
-                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateModal()">
-                                <i class="fas fa-plus me-1"></i> Nueva Factura
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateModal('proveedor')">
+                                <i class="fas fa-plus me-1"></i> Nueva Factura Proveedor
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="facturas-table" class="table table-striped table-hover">
+                        <table id="facturas-proveedores-table" class="table table-striped table-hover">
                             <thead>
                                 <tr>
                                     <th>ID</th>
                                     <th>Número Factura</th>
-                                    <th>Tipo</th>
-                                    <th>Cliente/Proveedor</th>
+                                    <th>Proveedor</th>
                                     <th>Fecha</th>
                                     <th>Vencimiento</th>
                                     <th>Monto</th>
                                     <th>Estado</th>
+                                    <th>Método Pago</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -48,12 +48,12 @@
     </div>
 </div>
 
-<!-- Modal para CRUD de Facturas -->
+<!-- Modal para CRUD de Facturas de Proveedor -->
 <div class="modal fade" id="facturaModal" tabindex="-1" aria-labelledby="facturaModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="facturaModalLabel">Factura</h5>
+                <h5 class="modal-title" id="facturaModalLabel">Factura de Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -75,19 +75,10 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
-                                <label for="client_id" class="form-label">Cliente</label>
-                                <select class="form-select" id="client_id" name="client_id">
-                                    <option value="">Seleccionar cliente...</option>
-                                    <!-- Se llenarán dinámicamente -->
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="provider_id" class="form-label">Proveedor</label>
-                                <select class="form-select" id="provider_id" name="provider_id">
+                                <label for="provider_id" class="form-label">Proveedor <span class="text-danger">*</span></label>
+                                <select class="form-select" id="provider_id" name="provider_id" required>
                                     <option value="">Seleccionar proveedor...</option>
                                     <!-- Se llenarán dinámicamente -->
                                 </select>

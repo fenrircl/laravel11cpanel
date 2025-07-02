@@ -39,32 +39,24 @@ Route::middleware(['auth'])->group(function () {
 
     // Rutas para Facturas (ahora protegidas)
     Route::get('/facturas', [FacturasController::class, 'index'])->name('facturas.index');
+    Route::get('/facturas/clientes', [FacturasController::class, 'clienteIndex'])->name('facturas.clientes.index');
+    Route::get('/facturas/proveedores', [FacturasController::class, 'proveedorIndex'])->name('facturas.proveedores.index');
+    
+    // APIs para DataTables
+    Route::get('facturas/data', [FacturasController::class, 'getData'])->name('facturas.data');
+    Route::get('facturas/clientes/data', [FacturasController::class, 'getClienteData'])->name('facturas.clientes.data');
+    Route::get('facturas/proveedores/data', [FacturasController::class, 'getProveedorData'])->name('facturas.proveedores.data');
+    
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
     Route::get('/proveedores', [ProveedoresController::class, 'index'])->name('proveedores.index');
 
-    // Si usas Route::resource para facturas, también iría aquí:
-    // Route::resource('facturas', FacturasController::class);
-
-    // Puedes agregar más rutas protegidas aquí
-    // Ruta para DataTables de clientes
-Route::get('clientes/data', [ClientesController::class, 'getData'])->name('clientes.data');
-
-    // Rutas resource para clientes
-    Route::resource('clientes', ClientesController::class);
-    
-    // Rutas resource para proveedores
-    Route::resource('proveedores', ProveedoresController::class);
-    
-    // Ruta para DataTables de clientes (si se necesita)
+    // APIs para DataTables de clientes y proveedores
     Route::get('clientes/data', [ClientesController::class, 'getData'])->name('clientes.data');
+    Route::get('proveedores/data', [ProveedoresController::class, 'getData'])->name('proveedores.data');
+    
+    // Recursos completos para CRUD
+    Route::resource('facturas', FacturasController::class)->except(['index']);
+    Route::resource('clientes', ClientesController::class)->except(['index']);
+    Route::resource('proveedores', ProveedoresController::class)->except(['index']);
 });
-
-// Rutas para proveedores
-// Route::resource('proveedores', ProveedoresController::class);ex'])->name('proveedores.index');
-// Route::get('proveedores/create', [ProveedoresController::class, 'create'])->name('proveedores.create');
-// Route::post('proveedores', [ProveedoresController::class, 'store'])->name('proveedores.store');
-// Route::get('proveedores/{proveedor}', [ProveedoresController::class, 'show'])->name('proveedores.show');
-// Route::get('proveedores/{proveedor}/edit', [ProveedoresController::class, 'edit'])->name('proveedores.edit');
-// Route::put('proveedores/{proveedor}', [ProveedoresController::class, 'update'])->name('proveedores.update');
-// Route::delete('proveedores/{proveedor}', [ProveedoresController::class, 'destroy'])->name('proveedores.destroy');
 

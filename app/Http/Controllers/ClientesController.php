@@ -12,12 +12,24 @@ class ClientesController extends Controller
      */
     public function index()
     {
-        $clientes = Cliente::all();
-        $data["clientes"] = $clientes;
-        // Agregar CSS y JS específicos y generales
-        $data["asset_css"] = ['tablas'];
-        $data["asset_js"] = ['main', 'clientes'];
+        // Solo pasar datos estáticos, no los clientes para optimizar la carga inicial
+        $data["asset_css"] = ['comun/tablas', 'clientes/clientes'];
+        $data["asset_js"] = ['comun/main', 'clientes/clientes'];
         return view('clientes.index', $data);
+    }
+
+    /**
+     * Get data for DataTables via API
+     */
+    public function getData()
+    {
+        $clientes = Cliente::select(['id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
+                          ->orderBy('created_at', 'desc')
+                          ->get();
+        
+        return response()->json([
+            'data' => $clientes
+        ]);
     }
 
     /**
@@ -113,7 +125,11 @@ class ClientesController extends Controller
     public function destroy(Cliente $cliente)
     {
         $cliente->delete();
-        // Redirigir o retornar JSON según sea necesario
+        
+        if (request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Cliente eliminado exitosamente.']);
+        }
+        
         return redirect()->route('clientes.index')->with('success', 'Cliente eliminado exitosamente.');
     }
 }

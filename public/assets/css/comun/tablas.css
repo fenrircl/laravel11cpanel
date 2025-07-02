@@ -1,0 +1,341 @@
+/* Estilos corporativos para DataTables */
+
+/* Variables para DataTables */
+:root {
+    --dt-primary: #1e3a5f;
+    --dt-secondary: #2c5282;
+    --dt-accent: #3182ce;
+    --dt-light: #4299e1;
+    --dt-success: #38a169;
+    --dt-warning: #d69e2e;
+    --dt-danger: #e53e3e;
+    --dt-gray-100: #f7fafc;
+    --dt-gray-200: #edf2f7;
+    --dt-gray-300: #e2e8f0;
+    --dt-gray-600: #718096;
+    --dt-gray-700: #4a5568;
+}
+
+/* Tabla principal */
+.dataTables_wrapper {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 0;
+}
+
+.table {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: linear-gradient(180deg, var(--dt-primary) 0%, var(--dt-secondary) 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1rem 0.75rem;
+    position: relative;
+    border-top: none;
+    border-bottom: none;
+}
+
+.table thead th::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--dt-accent) 0%, var(--dt-light) 100%);
+}
+
+/* Flechas de ordenamiento */
+.table thead th.sorting,
+.table thead th.sorting_asc,
+.table thead th.sorting_desc {
+    cursor: pointer;
+    position: relative;
+}
+
+.table thead th.sorting::after,
+.table thead th.sorting_asc::after,
+.table thead th.sorting_desc::after {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.7;
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.table thead th.sorting::after {
+    content: '\f0dc';
+}
+
+.table thead th.sorting_asc::after {
+    content: '\f0de';
+    color: var(--dt-light);
+    opacity: 1;
+}
+
+.table thead th.sorting_desc::after {
+    content: '\f0dd';
+    color: var(--dt-light);
+    opacity: 1;
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: var(--dt-gray-100) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table tbody td {
+    padding: 0.875rem 0.75rem;
+    border-bottom: 1px solid var(--dt-gray-200);
+    vertical-align: middle;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(241, 245, 249, 0.5);
+}
+
+/* Controles superiores */
+.dataTables_length,
+.dataTables_filter {
+    margin-bottom: 1rem;
+}
+
+.dataTables_length label,
+.dataTables_filter label {
+    font-weight: 500;
+    color: var(--dt-gray-700);
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dataTables_length select,
+.dataTables_filter input {
+    border: 2px solid var(--dt-gray-300);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    margin-left: 0.5rem;
+}
+
+.dataTables_length select:focus,
+.dataTables_filter input:focus {
+    outline: none;
+    border-color: var(--dt-accent);
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+/* Información de la tabla */
+.dataTables_info {
+    color: var(--dt-gray-600);
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.75rem 0;
+}
+
+/* Paginación corporativa - Estilo minimalista */
+.dataTables_paginate {
+    padding-top: 1rem;
+    text-align: center;
+}
+
+.dataTables_paginate .paginate_button {
+    display: inline-block !important;
+    padding: 0.375rem 0.625rem !important;
+    margin: 0 0.125rem !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: var(--dt-gray-600) !important;
+    text-decoration: none !important;
+    border-radius: 0.375rem !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+    min-width: 32px !important;
+    text-align: center !important;
+}
+
+.dataTables_paginate .paginate_button:hover {
+    background: var(--dt-gray-100) !important;
+    color: var(--dt-primary) !important;
+    border-color: var(--dt-gray-300) !important;
+}
+
+.dataTables_paginate .paginate_button.current {
+    background: var(--dt-primary) !important;
+    color: white !important;
+    border-color: var(--dt-primary) !important;
+    box-shadow: 0 2px 4px rgba(30, 58, 95, 0.2) !important;
+}
+
+.dataTables_paginate .paginate_button.disabled {
+    background: transparent !important;
+    color: var(--dt-gray-300) !important;
+    cursor: not-allowed !important;
+    opacity: 0.5 !important;
+}
+
+.dataTables_paginate .paginate_button.disabled:hover {
+    background: transparent !important;
+    color: var(--dt-gray-300) !important;
+    border-color: transparent !important;
+}
+
+/* Botones de exportación - Más sutiles */
+.dt-buttons {
+    margin-bottom: 1rem;
+}
+
+.dt-button {
+    background: var(--dt-gray-100) !important;
+    border: 1px solid var(--dt-gray-300) !important;
+    color: var(--dt-gray-700) !important;
+    padding: 0.375rem 0.75rem !important;
+    border-radius: 0.375rem !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+    margin-right: 0.375rem !important;
+    text-decoration: none !important;
+}
+
+.dt-button:hover {
+    background: var(--dt-primary) !important;
+    border-color: var(--dt-primary) !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2) !important;
+}
+
+.dt-button:active {
+    transform: translateY(0) !important;
+}
+
+/* Estados de procesamiento */
+.dataTables_processing {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 2px solid var(--dt-accent) !important;
+    border-radius: 0.75rem !important;
+    color: var(--dt-primary) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 1000 !important;
+    padding: 1rem 1.5rem !important;
+}
+
+/* Botones de acción */
+.btn-group .btn {
+    margin-right: 3px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.btn-group .btn:last-child {
+    margin-right: 0;
+}
+
+/* Badges corporativos */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.375rem;
+}
+
+/* Responsive */
+.table-responsive {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+@media (max-width: 768px) {
+    .dataTables_length,
+    .dataTables_filter {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .dataTables_paginate {
+        text-align: center;
+    }
+    
+    .dataTables_paginate .paginate_button {
+        padding: 0.5rem 0.75rem !important;
+        margin: 0 0.0625rem !important;
+        font-size: 0.8125rem !important;
+    }
+    
+    .table thead th,
+    .table tbody td {
+        padding: 0.625rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+    
+    .dt-buttons {
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .dt-button {
+        margin: 0.125rem !important;
+        font-size: 0.875rem !important;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeInTable {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dataTables_wrapper {
+    animation: fadeInTable 0.3s ease;
+}
+
+/* Scrollbar para tablas responsivas */
+.dataTables_scrollBody::-webkit-scrollbar {
+    height: 8px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-track {
+    background: var(--dt-gray-200);
+    border-radius: 4px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-thumb {
+    background: var(--dt-accent);
+    border-radius: 4px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-thumb:hover {
+    background: var(--dt-light);
+}

@@ -2,22 +2,95 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Factura; 
+use App\Models\Factura;
+use App\Models\Cliente;
+use App\Models\Proveedor;
+use App\Models\MetodoPago;
 use Illuminate\Http\Request;
 
 class FacturasController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display a listing of all invoices (clients and providers)
      */
     public function index()
     {
-        $invoices = Factura::all();
-        // Aquí retornarías una vista con todas las facturas, por ejemplo:
-        // return view('invoices.index', compact('invoices'));
-        dd($invoices[2]);
-        return view('facturas.facturas', compact('invoices'));
-        return response()->json($invoices); // O devolver JSON si es una API
+        $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
+        $data["asset_js"] = ['comun/main', 'facturas/facturas'];
+        return view('facturas.index', $data);
+    }
+
+    /**
+     * Display client invoices only
+     */
+    public function clienteIndex()
+    {
+        $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
+        $data["asset_js"] = ['comun/main', 'facturas/facturas-cliente'];
+        return view('facturas.clientes.index', $data);
+    }
+
+    /**
+     * Display provider invoices only
+     */
+    public function proveedorIndex()
+    {
+        $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
+        $data["asset_js"] = ['comun/main', 'facturas/facturas-proveedor'];
+        return view('facturas.proveedores.index', $data);
+    }
+
+    /**
+     * Get all invoices data for DataTables via API
+     */
+    public function getData()
+    {
+        $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name'])
+                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->orderBy('created_at', 'desc')
+                          ->get()
+                          ->map(function ($factura) {
+                              // Agregar tipo de factura según si tiene cliente o proveedor
+                              $factura->tipo = $factura->client_id ? 'cliente' : 'proveedor';
+                              $factura->entidad_nombre = $factura->client_id ? $factura->cliente?->name : $factura->proveedor?->name;
+                              return $factura;
+                          });
+        
+        return response()->json([
+            'data' => $facturas
+        ]);
+    }
+
+    /**
+     * Get client invoices data for DataTables via API
+     */
+    public function getClienteData()
+    {
+        $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name'])
+                          ->whereNotNull('client_id')
+                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->orderBy('created_at', 'desc')
+                          ->get();
+        
+        return response()->json([
+            'data' => $facturas
+        ]);
+    }
+
+    /**
+     * Get provider invoices data for DataTables via API
+     */
+    public function getProveedorData()
+    {
+        $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name'])
+                          ->whereNotNull('provider_id')
+                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->orderBy('created_at', 'desc')
+                          ->get();
+        
+        return response()->json([
+            'data' => $facturas
+        ]);
     }
 
     /**
@@ -25,8 +98,10 @@ class FacturasController extends Controller
      */
     public function create()
     {
-        // Aquí retornarías una vista con el formulario para crear una nueva factura
-        // return view('invoices.create');
+        $clientes = Cliente::select('id', 'name')->orderBy('name')->get();
+        $proveedores = Proveedor::select('id', 'name')->orderBy('name')->get();
+        $metodosPago = MetodoPago::select('id', 'name')->orderBy('name')->get();
+        return view('facturas.create', compact('clientes', 'proveedores', 'metodosPago'));
     }
 
     /**
@@ -34,64 +109,117 @@ class FacturasController extends Controller
      */
     public function store(Request $request)
     {
-        // Validación de los datos del request
         $validatedData = $request->validate([
-            // Define tus reglas de validación aquí
-            // Ejemplo: 'numero_factura' => 'required|unique:invoices|max:255',
-            // 'cliente_id' => 'required|exists:clients,id',
-            // 'monto' => 'required|numeric',
+            'invoice' => 'required|string|max:50|unique:invoices,invoice',
+            'client_id' => 'nullable|exists:clients,id',
+            'provider_id' => 'nullable|exists:providers,id',
+            'date' => 'required|date',
+            'expiry' => 'nullable|date|after_or_equal:date',
+            'pay_date' => 'nullable|date',
+            'amount' => 'required|numeric|min:0',
+            'check' => 'nullable|string|max:100',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'detail' => 'nullable|string|max:1000',
+            'status' => 'required|in:0,1', // 0 = pendiente, 1 = pagado
         ]);
 
-        $invoice = Invoice::create($validatedData);
-        // Redirigir a alguna parte o devolver una respuesta
-        // return redirect()->route('invoices.show', $invoice)->with('success', 'Factura creada exitosamente.');
-        return response()->json($invoice, 201); // O devolver JSON si es una API
+        // Validar que solo tenga cliente O proveedor, no ambos
+        if (($validatedData['client_id'] && $validatedData['provider_id']) || 
+            (!$validatedData['client_id'] && !$validatedData['provider_id'])) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
+            ], 422);
+        }
+
+        $factura = Factura::create($validatedData);
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true, 
+                'factura' => $factura->load(['cliente', 'proveedor', 'metodoPago'])
+            ]);
+        }
+        
+        return redirect()->route('facturas.index')->with('success', 'Factura creada exitosamente.');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Invoice $invoice) // Inyección de modelo de ruta
+    public function show(Factura $factura)
     {
-        // Laravel automáticamente encontrará la factura por su ID
-        // Aquí retornarías una vista con los detalles de la factura
-        // return view('invoices.show', compact('invoice'));
-        return response()->json($invoice); // O devolver JSON si es una API
+        $factura->load(['cliente', 'proveedor', 'metodoPago']);
+        
+        if (request()->ajax()) {
+            return response()->json(['factura' => $factura]);
+        }
+        
+        return view('facturas.show', compact('factura'));
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Invoice $invoice) // Inyección de modelo de ruta
+    public function edit(Factura $factura)
     {
-        // Aquí retornarías una vista con el formulario para editar la factura
-        // return view('invoices.edit', compact('invoice'));
+        $clientes = Cliente::select('id', 'name')->orderBy('name')->get();
+        $proveedores = Proveedor::select('id', 'name')->orderBy('name')->get();
+        $metodosPago = MetodoPago::select('id', 'name')->orderBy('name')->get();
+        return view('facturas.edit', compact('factura', 'clientes', 'proveedores', 'metodosPago'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Invoice $invoice) // Inyección de modelo de ruta
+    public function update(Request $request, Factura $factura)
     {
-        // Validación de los datos del request
         $validatedData = $request->validate([
-            // Define tus reglas de validación aquí
+            'invoice' => 'required|string|max:50|unique:invoices,invoice,' . $factura->id,
+            'client_id' => 'nullable|exists:clients,id',
+            'provider_id' => 'nullable|exists:providers,id',
+            'date' => 'required|date',
+            'expiry' => 'nullable|date|after_or_equal:date',
+            'pay_date' => 'nullable|date',
+            'amount' => 'required|numeric|min:0',
+            'check' => 'nullable|string|max:100',
+            'payment_method_id' => 'required|exists:payment_methods,id',
+            'detail' => 'nullable|string|max:1000',
+            'status' => 'required|in:0,1',
         ]);
 
-        $invoice->update($validatedData);
-        // Redirigir a alguna parte o devolver una respuesta
-        // return redirect()->route('invoices.show', $invoice)->with('success', 'Factura actualizada exitosamente.');
-        return response()->json($invoice); // O devolver JSON si es una API
+        // Validar que solo tenga cliente O proveedor, no ambos
+        if (($validatedData['client_id'] && $validatedData['provider_id']) || 
+            (!$validatedData['client_id'] && !$validatedData['provider_id'])) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
+            ], 422);
+        }
+
+        $factura->update($validatedData);
+        
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true, 
+                'factura' => $factura->load(['cliente', 'proveedor', 'metodoPago'])
+            ]);
+        }
+        
+        return redirect()->route('facturas.index')->with('success', 'Factura actualizada exitosamente.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Invoice $invoice) // Inyección de modelo de ruta
+    public function destroy(Factura $factura)
     {
-        $invoice->delete();
-        // Redirigir a alguna parte o devolver una respuesta
-        // return redirect()->route('invoices.index')->with('success', 'Factura eliminada exitosamente.');
-        return response()->json(null, 204); // O devolver JSON si es una API
+        $factura->delete();
+        
+        if (request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Factura eliminada exitosamente.']);
+        }
+        
+        return redirect()->route('facturas.index')->with('success', 'Factura eliminada exitosamente.');
     }
 }

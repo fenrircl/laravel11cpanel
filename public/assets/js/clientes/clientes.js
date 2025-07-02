@@ -3,14 +3,13 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de clientes
     const columns = [
-        {data: 'id', name: 'id'},
+        {data: 'id', name: 'id', width: '80px'},
         {data: 'name', name: 'name'},
         {data: 'email', name: 'email'},
-        {data: 'phone', name: 'phone'},
-        {data: 'address', name: 'address'},
         {
             data: 'created_at', 
             name: 'created_at',
+            width: '150px',
             render: function(data, type, row) {
                 return formatTableDate(data, true);
             }
@@ -20,6 +19,7 @@ $(document).ready(function() {
             name: 'action', 
             orderable: false, 
             searchable: false,
+            width: '120px',
             render: function(data, type, row) {
                 return generateActionButtons(row.id, 'clientes');
             }

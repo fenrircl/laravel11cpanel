@@ -1,9 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-<script>
-var PROVEEDORES = {!! $proveedores !!};
-</script>
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -24,8 +21,6 @@ var PROVEEDORES = {!! $proveedores !!};
                                     <th>ID</th>
                                     <th>Nombre</th>
                                     <th>Email</th>
-                                    <th>Teléfono</th>
-                                    <th>Dirección</th>
                                     <th>Fecha de Registro</th>
                                     <th>Acciones</th>
                                 </tr>

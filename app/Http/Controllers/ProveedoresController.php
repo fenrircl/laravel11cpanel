@@ -12,12 +12,24 @@ class ProveedoresController extends Controller
      */
     public function index()
     {
-        $proveedores = Proveedor::all();
-        $data["proveedores"] = $proveedores;
-        // Agregar CSS y JS específicos y generales
-        $data["asset_css"] = ['tablas', 'proveedores'];
-        $data["asset_js"] = ['main', 'proveedores'];
+        // Solo pasar datos estáticos, no los proveedores para optimizar la carga inicial
+        $data["asset_css"] = ['comun/tablas', 'proveedores/proveedores'];
+        $data["asset_js"] = ['comun/main', 'proveedores/proveedores'];
         return view('proveedores.index', $data);
+    }
+
+    /**
+     * Get data for DataTables via API
+     */
+    public function getData()
+    {
+        $proveedores = Proveedor::select(['id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
+                               ->orderBy('created_at', 'desc')
+                               ->get();
+        
+        return response()->json([
+            'data' => $proveedores
+        ]);
     }
 
     /**
@@ -108,7 +120,11 @@ class ProveedoresController extends Controller
     public function destroy(Proveedor $proveedor)
     {
         $proveedor->delete();
-        // Redirigir o retornar JSON según sea necesario
+        
+        if (request()->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Proveedor eliminado exitosamente.']);
+        }
+        
         return redirect()->route('proveedores.index')->with('success', 'Proveedor eliminado exitosamente.');
     }
 }
