@@ -63,7 +63,18 @@ $(document).ready(function() {
             searchable: false,
             title: 'Acciones',
             render: function(data, type, row) {
-                return generateActionButtons(row.id, 'facturas');
+                // Usar configuración específica para facturas con botón de descarga
+                return generateActionButtons(row.id, 'facturas', {
+                    include: ['view', 'edit', 'download', 'delete'],
+                    custom: {
+                        duplicate: {
+                            class: 'btn btn-sm btn-action btn-duplicate',
+                            icon: 'fas fa-copy',
+                            title: 'Duplicar Factura',
+                            onclick: `duplicarFactura(${row.id})`
+                        }
+                    }
+                });
             }
         }
     ];
@@ -73,7 +84,11 @@ $(document).ready(function() {
         ajax: {
             url: buildApiUrl('facturas/data'),
             type: 'GET',
-            dataSrc: 'data',
+            dataSrc: function(json) {
+                // Almacenar los datos en el sistema global
+                EntityDataManager.setEntityData('facturas', json.data);
+                return json.data;
+            },
             error: function(xhr, error, code) {
                 console.error('Error loading facturas data:', error);
                 console.log('Response:', xhr.responseText);
@@ -90,12 +105,142 @@ $(document).ready(function() {
     // Inicializar DataTable usando la función reutilizable
     initDataTable('facturas-table', null, columns, tableOptions);
 
-    // Manejo de eliminación usando la función reutilizable
-    $(document).on('click', '.delete-factura', function() {
-        const id = $(this).data('id');
-        handleDelete('factura', id, buildApiUrl(`facturas/${id}`), function() {
-            // Recargar la tabla después de eliminar
-            $('#facturas-table').DataTable().ajax.reload();
-        });
-    });
+    // Los eventos de eliminación ahora se manejan automáticamente 
+    // a través de initActionButtonEvents() en main.js
+    
+    console.log('Facturas module loaded with new action buttons system');
+    
+    // Funciones específicas de facturas que usan el sistema de almacenamiento
+    
+    // Ver detalles de factura
+    window.verFactura = function(id) {
+        const factura = EntityHelpers.getFactura(id);
+        if (factura) {
+            // Crear modal con los datos almacenados
+            const modalContent = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID:</strong> ${factura.id}</p>
+                        <p><strong>Número:</strong> ${factura.numero_factura || 'No especificado'}</p>
+                        <p><strong>Cliente:</strong> ${factura.cliente_nombre || 'No especificado'}</p>
+                        <p><strong>Total:</strong> ${formatCurrency(factura.total)}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Fecha:</strong> ${formatTableDate(factura.fecha, false)}</p>
+                        <p><strong>Vencimiento:</strong> ${formatTableDate(factura.fecha_vencimiento, false)}</p>
+                        <p><strong>Estado:</strong> ${factura.estado || 'No especificado'}</p>
+                        <p><strong>Fecha de creación:</strong> ${formatTableDate(factura.created_at, true)}</p>
+                    </div>
+                </div>
+            `;
+            
+            Swal.fire({
+                title: 'Detalles de la Factura',
+                html: modalContent,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false
+            });
+        } else {
+            console.error('Factura no encontrada:', id);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se encontraron los datos de la factura.'
+            });
+        }
+    };
+    
+    // Editar factura
+    window.editarFactura = function(id) {
+        const factura = EntityHelpers.getFactura(id);
+        if (factura) {
+            // Aquí podrías usar los datos almacenados para pre-llenar un formulario
+            console.log('Editando factura:', factura);
+            Swal.fire({
+                icon: 'info',
+                title: 'Función en desarrollo',
+                text: `Editando factura: ${factura.numero_factura || 'ID #' + factura.id}`
+            });
+        }
+    };
+    
+    // Descargar PDF de factura
+    window.descargarPDF = function(id) {
+        const factura = EntityHelpers.getFactura(id);
+        if (factura) {
+            // Mostrar loading en el botón
+            const $btn = $(`.btn-download[onclick*="${id}"]`);
+            $btn.addClass('loading');
+            
+            const url = buildApiUrl(`facturas/${id}/pdf`);
+            
+            // Crear enlace temporal para descarga
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `factura_${factura.numero_factura || id}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Remover loading
+            setTimeout(() => {
+                $btn.removeClass('loading');
+            }, 1000);
+            
+            Swal.fire({
+                title: 'Descarga iniciada',
+                text: 'El PDF de la factura se está descargando.',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se encontraron los datos de la factura para descargar.'
+            });
+        }
+    };
 });
+
+/**
+ * Función específica para duplicar facturas
+ * @param {number} id - ID de la factura a duplicar
+ */
+function duplicarFactura(id) {
+    Swal.fire({
+        title: '¿Duplicar Factura?',
+        text: `¿Está seguro de que desea duplicar la factura #${id}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, duplicar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: buildApiUrl(`facturas/${id}/duplicate`),
+                type: 'POST',
+                data: {
+                    "_token": $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    Swal.fire({
+                        title: '¡Duplicada!',
+                        text: 'La factura ha sido duplicada correctamente.',
+                        icon: 'success'
+                    });
+                    $('#facturas-table').DataTable().ajax.reload();
+                },
+                error: function(xhr) {
+                    Swal.fire({
+                        title: 'Error',
+                        text: 'No se pudo duplicar la factura.',
+                        icon: 'error'
+                    });
+                }
+            });
+        }
+    });
+}

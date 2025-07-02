@@ -72,7 +72,11 @@ $(document).ready(function() {
         ajax: {
             url: buildApiUrl('facturas/clientes/data'),
             type: 'GET',
-            dataSrc: 'data',
+            dataSrc: function(json) {
+                // Almacenar los datos en el sistema global
+                EntityDataManager.setEntityData('facturas', json.data);
+                return json.data;
+            },
             error: function(xhr, error, code) {
                 console.error('Error loading facturas clientes data:', error);
                 console.log('Response:', xhr.responseText);

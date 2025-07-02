@@ -1,4 +1,202 @@
 /**
+ * ============================================
+ * SISTEMA GLOBAL DE ALMACENAMIENTO DE DATOS
+ * ============================================
+ * 
+ * Sistema centralizado para almacenar y acceder a datos de entidades
+ * cargados desde DataTables. Permite acceso rápido sin necesidad de
+ * hacer peticiones AJAX adicionales.
+ */
+
+/**
+ * Objeto global para almacenar datos de todas las entidades
+ */
+window.ENTITY_DATA = {
+    clientes: [],
+    proveedores: [],
+    facturas: [],
+    usuarios: [],
+    productos: []
+};
+
+/**
+ * Funciones de acceso rápido (aliases globales)
+ */
+window.CLIENTES = () => window.ENTITY_DATA.clientes;
+window.PROVEEDORES = () => window.ENTITY_DATA.proveedores;
+window.FACTURAS = () => window.ENTITY_DATA.facturas;
+window.USUARIOS = () => window.ENTITY_DATA.usuarios;
+window.PRODUCTOS = () => window.ENTITY_DATA.productos;
+
+/**
+ * Manager para el almacenamiento y gestión de datos de entidades
+ */
+class EntityDataManager {
+    /**
+     * Almacenar datos de una entidad
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {Array} data - Array de datos
+     */
+    static setEntityData(entity, data) {
+        if (window.ENTITY_DATA.hasOwnProperty(entity)) {
+            window.ENTITY_DATA[entity] = Array.isArray(data) ? data : [];
+            console.log(`✓ Datos cargados para ${entity}: ${window.ENTITY_DATA[entity].length} registros`);
+        } else {
+            console.warn(`⚠️ Entidad '${entity}' no está configurada en ENTITY_DATA`);
+        }
+    }
+
+    /**
+     * Obtener todos los datos de una entidad
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @returns {Array} Array de datos
+     */
+    static getEntityData(entity) {
+        return window.ENTITY_DATA[entity] || [];
+    }
+
+    /**
+     * Buscar un registro específico por ID
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {number|string} id - ID del registro
+     * @returns {Object|null} Registro encontrado o null
+     */
+    static findById(entity, id) {
+        const data = this.getEntityData(entity);
+        return data.find(item => item.id == id) || null;
+    }
+
+    /**
+     * Agregar un nuevo registro
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {Object} item - Registro a agregar
+     */
+    static addItem(entity, item) {
+        if (window.ENTITY_DATA.hasOwnProperty(entity)) {
+            window.ENTITY_DATA[entity].push(item);
+        }
+    }
+
+    /**
+     * Actualizar un registro existente
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {number|string} id - ID del registro
+     * @param {Object} updatedData - Datos actualizados
+     */
+    static updateItem(entity, id, updatedData) {
+        const data = this.getEntityData(entity);
+        const index = data.findIndex(item => item.id == id);
+        if (index !== -1) {
+            window.ENTITY_DATA[entity][index] = { ...data[index], ...updatedData };
+        }
+    }
+
+    /**
+     * Eliminar un registro
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {number|string} id - ID del registro
+     */
+    static removeItem(entity, id) {
+        const data = this.getEntityData(entity);
+        const index = data.findIndex(item => item.id == id);
+        if (index !== -1) {
+            window.ENTITY_DATA[entity].splice(index, 1);
+        }
+    }
+
+    /**
+     * Filtrar datos por criterios
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {Function} filterFn - Función de filtro
+     * @returns {Array} Array filtrado
+     */
+    static filter(entity, filterFn) {
+        return this.getEntityData(entity).filter(filterFn);
+    }
+
+    /**
+     * Buscar datos por texto (búsqueda simple en campos principales)
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @param {string} searchTerm - Término de búsqueda
+     * @returns {Array} Array de resultados
+     */
+    static search(entity, searchTerm) {
+        const data = this.getEntityData(entity);
+        const term = searchTerm.toLowerCase();
+        
+        return data.filter(item => {
+            // Buscar en campos principales comunes
+            const searchFields = ['name', 'email', 'phone', 'address', 'description'];
+            return searchFields.some(field => {
+                return item[field] && item[field].toString().toLowerCase().includes(term);
+            });
+        });
+    }
+
+    /**
+     * Obtener estadísticas básicas de una entidad
+     * @param {string} entity - Nombre de la entidad (plural)
+     * @returns {Object} Objeto con estadísticas
+     */
+    static getStats(entity) {
+        const data = this.getEntityData(entity);
+        return {
+            total: data.length,
+            active: data.filter(item => item.status === 1 || item.status === '1' || item.status === true).length,
+            inactive: data.filter(item => item.status === 0 || item.status === '0' || item.status === false).length
+        };
+    }
+
+    /**
+     * Limpiar datos de una entidad
+     * @param {string} entity - Nombre de la entidad (plural)
+     */
+    static clearEntityData(entity) {
+        if (window.ENTITY_DATA.hasOwnProperty(entity)) {
+            window.ENTITY_DATA[entity] = [];
+        }
+    }
+
+    /**
+     * Limpiar todos los datos
+     */
+    static clearAllData() {
+        Object.keys(window.ENTITY_DATA).forEach(entity => {
+            window.ENTITY_DATA[entity] = [];
+        });
+    }
+}
+
+/**
+ * Helpers para acceso rápido a funciones comunes
+ */
+window.EntityHelpers = {
+    // Buscar cliente por ID
+    getCliente: (id) => EntityDataManager.findById('clientes', id),
+    
+    // Buscar proveedor por ID
+    getProveedor: (id) => EntityDataManager.findById('proveedores', id),
+    
+    // Buscar factura por ID
+    getFactura: (id) => EntityDataManager.findById('facturas', id),
+    
+    // Buscar usuario por ID
+    getUsuario: (id) => EntityDataManager.findById('usuarios', id),
+    
+    // Obtener clientes activos
+    getClientesActivos: () => EntityDataManager.filter('clientes', c => c.status === 1 || c.status === '1'),
+    
+    // Obtener proveedores activos
+    getProveedoresActivos: () => EntityDataManager.filter('proveedores', p => p.status === 1 || p.status === '1'),
+    
+    // Buscar clientes por texto
+    buscarClientes: (term) => EntityDataManager.search('clientes', term),
+    
+    // Buscar proveedores por texto
+    buscarProveedores: (term) => EntityDataManager.search('proveedores', term)
+};
+
+/**
  * Obtener la URL base de la aplicación
  * @returns {string} Base URL
  */
@@ -106,60 +304,339 @@ function initDataTable(tableId, data, columns, options = {}) {
 }
 
 /**
- * Función para generar botones de acción estándar
- * @param {number} id - ID del registro
- * @param {string} entity - Nombre de la entidad (ej: 'clientes', 'proveedores')
- * @param {Object} customButtons - Botones personalizados adicionales
+ * Factory para crear configuraciones de botones de acción
+ * Siguiendo el principio de Responsabilidad Única (SOLID)
  */
-function generateActionButtons(id, entity, customButtons = {}) {
-    // Mapeo específico para entidades en español
-    const entityMapping = {
-        'proveedores': 'Proveedor',
-        'clientes': 'Cliente',
-        'usuarios': 'Usuario',
-        'productos': 'Producto',
-        'facturas': 'Factura'
-    };
-    
-    // Obtener el nombre singular capitalizado correctamente
-    const entityCapitalized = entityMapping[entity] || entity.charAt(0).toUpperCase() + entity.slice(1, -1);
-    const entitySingular = entity.slice(0, -1); // Para clases CSS
-    
-    const defaultButtons = {
-        view: {
-            class: 'btn btn-sm btn-info',
-            icon: 'fas fa-eye',
-            title: 'Ver detalles',
-            onclick: `view${entityCapitalized}(${id})`
+class ActionButtonFactory {
+    /**
+     * Mapeo de entidades a su configuración específica
+     */
+    static entityConfig = {
+        'proveedores': {
+            singular: 'proveedor',
+            display: 'Proveedor',
+            actions: ['view', 'edit', 'delete']
         },
-        edit: {
-            class: 'btn btn-sm btn-warning',
-            icon: 'fas fa-edit',
-            title: 'Editar',
-            onclick: `openEditModal(${id})`
+        'clientes': {
+            singular: 'cliente',
+            display: 'Cliente',
+            actions: ['view', 'edit', 'delete']
         },
-        delete: {
-            class: `btn btn-sm btn-danger delete-${entitySingular}`,
-            icon: 'fas fa-trash',
-            title: 'Eliminar',
-            'data-id': id
+        'facturas': {
+            singular: 'factura',
+            display: 'Factura',
+            actions: ['view', 'edit', 'delete', 'download']
+        },
+        'usuarios': {
+            singular: 'usuario',
+            display: 'Usuario',
+            actions: ['view', 'edit', 'delete']
+        },
+        'productos': {
+            singular: 'producto',
+            display: 'Producto',
+            actions: ['view', 'edit', 'delete']
         }
     };
 
-    const buttons = { ...defaultButtons, ...customButtons };
-    let buttonsHtml = '<div class="btn-group" role="group">';
-    
-    Object.values(buttons).forEach(button => {
-        buttonsHtml += `<button type="button" class="${button.class}" `;
-        if (button.onclick) buttonsHtml += `onclick="${button.onclick}" `;
-        if (button['data-id']) buttonsHtml += `data-id="${button['data-id']}" `;
-        if (button.title) buttonsHtml += `title="${button.title}" `;
-        buttonsHtml += `><i class="${button.icon}"></i></button>`;
-    });
-    
-    buttonsHtml += '</div>';
-    return buttonsHtml;
+    /**
+     * Templates de botones base
+     */
+    static buttonTemplates = {
+        view: {
+            class: 'btn btn-sm btn-action btn-view',
+            icon: 'fas fa-eye',
+            variant: 'info',
+            title: 'Ver detalles'
+        },
+        edit: {
+            class: 'btn btn-sm btn-action btn-edit',
+            icon: 'fas fa-edit',
+            variant: 'warning',
+            title: 'Editar'
+        },
+        delete: {
+            class: 'btn btn-sm btn-action btn-delete',
+            icon: 'fas fa-trash',
+            variant: 'danger',
+            title: 'Eliminar'
+        },
+        download: {
+            class: 'btn btn-sm btn-action btn-download',
+            icon: 'fas fa-download',
+            variant: 'success',
+            title: 'Descargar PDF'
+        },
+        duplicate: {
+            class: 'btn btn-sm btn-action btn-duplicate',
+            icon: 'fas fa-copy',
+            variant: 'secondary',
+            title: 'Duplicar'
+        },
+        activate: {
+            class: 'btn btn-sm btn-action btn-activate',
+            icon: 'fas fa-check',
+            variant: 'success',
+            title: 'Activar'
+        },
+        deactivate: {
+            class: 'btn btn-sm btn-action btn-deactivate',
+            icon: 'fas fa-times',
+            variant: 'warning',
+            title: 'Desactivar'
+        }
+    };
+
+    /**
+     * Crear configuración de botón según el tipo
+     * @param {string} type - Tipo de botón
+     * @param {number} id - ID del registro
+     * @param {string} entity - Entidad
+     * @param {Object} customConfig - Configuración personalizada
+     */
+    static createButton(type, id, entity, customConfig = {}) {
+        const template = this.buttonTemplates[type];
+        if (!template) {
+            console.warn(`Button type '${type}' not found in templates`);
+            return null;
+        }
+
+        const entityInfo = this.entityConfig[entity];
+        if (!entityInfo) {
+            console.warn(`Entity '${entity}' not found in configuration`);
+            return null;
+        }
+
+        const button = {
+            ...template,
+            ...customConfig
+        };
+
+        // Agregar clases específicas de la entidad
+        button.class += ` ${type}-${entityInfo.singular}`;
+        
+        // Configurar eventos según el tipo
+        switch (type) {
+            case 'view':
+                button.onclick = `ver${entityInfo.display}(${id})`;
+                break;
+            case 'edit':
+                button.onclick = `editar${entityInfo.display}(${id})`;
+                break;
+            case 'delete':
+                button['data-id'] = id;
+                button['data-entity'] = entityInfo.singular;
+                break;
+            case 'download':
+                button.onclick = `descargarPDF(${id})`;
+                break;
+            case 'duplicate':
+                button.onclick = `duplicar${entityInfo.display}(${id})`;
+                break;
+            default:
+                if (customConfig.onclick) {
+                    button.onclick = customConfig.onclick;
+                }
+        }
+
+        return button;
+    }
 }
+
+/**
+ * Builder para construir grupos de botones de acción
+ * Siguiendo el principio Abierto/Cerrado (SOLID)
+ */
+class ActionButtonBuilder {
+    constructor(id, entity) {
+        this.id = id;
+        this.entity = entity;
+        this.buttons = [];
+        this.customButtons = {};
+        this.excludedButtons = new Set();
+    }
+
+    /**
+     * Agregar botón estándar
+     */
+    addButton(type, customConfig = {}) {
+        if (!this.excludedButtons.has(type)) {
+            const button = ActionButtonFactory.createButton(type, this.id, this.entity, customConfig);
+            if (button) {
+                this.buttons.push(button);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Agregar botón personalizado
+     */
+    addCustomButton(key, config) {
+        this.customButtons[key] = config;
+        return this;
+    }
+
+    /**
+     * Excluir botones específicos
+     */
+    exclude(buttonTypes) {
+        if (Array.isArray(buttonTypes)) {
+            buttonTypes.forEach(type => this.excludedButtons.add(type));
+        } else {
+            this.excludedButtons.add(buttonTypes);
+        }
+        return this;
+    }
+
+    /**
+     * Construir los botones automáticamente según la entidad
+     */
+    buildDefault() {
+        const entityConfig = ActionButtonFactory.entityConfig[this.entity];
+        if (entityConfig && entityConfig.actions) {
+            entityConfig.actions.forEach(action => {
+                this.addButton(action);
+            });
+        }
+        return this;
+    }
+
+    /**
+     * Renderizar los botones como HTML
+     */
+    render() {
+        // Agregar botones personalizados
+        Object.values(this.customButtons).forEach(button => {
+            this.buttons.push(button);
+        });
+
+        if (this.buttons.length === 0) {
+            return '<span class="text-muted">Sin acciones</span>';
+        }
+
+        let html = '<div class="btn-group btn-group-action" role="group" aria-label="Acciones">';
+        
+        this.buttons.forEach(button => {
+            html += this.renderButton(button);
+        });
+        
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * Renderizar un botón individual
+     */
+    renderButton(button) {
+        let html = `<button type="button" class="${button.class}"`;
+        
+        if (button.title) {
+            html += ` title="${button.title}" data-bs-toggle="tooltip"`;
+        }
+        
+        if (button.onclick) {
+            html += ` onclick="${button.onclick}"`;
+        }
+        
+        if (button['data-id']) {
+            html += ` data-id="${button['data-id']}"`;
+        }
+        
+        if (button['data-entity']) {
+            html += ` data-entity="${button['data-entity']}"`;
+        }
+        
+        // Agregar otros atributos data-*
+        Object.keys(button).forEach(key => {
+            if (key.startsWith('data-') && !['data-id', 'data-entity'].includes(key)) {
+                html += ` ${key}="${button[key]}"`;
+            }
+        });
+        
+        html += `><i class="${button.icon}"></i></button>`;
+        return html;
+    }
+}
+
+/**
+ * Función principal para generar botones de acción (API pública)
+ * @param {number} id - ID del registro
+ * @param {string} entity - Nombre de la entidad
+ * @param {Object} options - Opciones de configuración
+ * @param {Array} options.include - Botones a incluir específicamente
+ * @param {Array} options.exclude - Botones a excluir
+ * @param {Object} options.custom - Botones personalizados
+ * @param {Object} options.config - Configuración personalizada para botones existentes
+ */
+function generateActionButtons(id, entity, options = {}) {
+    const builder = new ActionButtonBuilder(id, entity);
+    
+    // Si se especifican botones específicos a incluir
+    if (options.include && Array.isArray(options.include)) {
+        options.include.forEach(buttonType => {
+            const customConfig = options.config && options.config[buttonType] ? options.config[buttonType] : {};
+            builder.addButton(buttonType, customConfig);
+        });
+    } else {
+        // Usar configuración por defecto de la entidad
+        builder.buildDefault();
+    }
+    
+    // Excluir botones si se especifica
+    if (options.exclude) {
+        builder.exclude(options.exclude);
+    }
+    
+    // Agregar botones personalizados
+    if (options.custom) {
+        Object.entries(options.custom).forEach(([key, config]) => {
+            builder.addCustomButton(key, config);
+        });
+    }
+    
+    return builder.render();
+}
+
+/**
+ * Función auxiliar para configuraciones rápidas comunes
+ */
+const ActionButtonPresets = {
+    /**
+     * Solo ver y editar (sin eliminar)
+     */
+    readOnly: (id, entity) => generateActionButtons(id, entity, {
+        exclude: ['delete']
+    }),
+    
+    /**
+     * Solo ver
+     */
+    viewOnly: (id, entity) => generateActionButtons(id, entity, {
+        include: ['view']
+    }),
+    
+    /**
+     * Para facturas con descarga
+     */
+    invoice: (id, entity) => generateActionButtons(id, entity, {
+        include: ['view', 'edit', 'download', 'delete']
+    }),
+    
+    /**
+     * Para usuarios con activar/desactivar
+     */
+    user: (id, entity) => generateActionButtons(id, entity, {
+        custom: {
+            toggle: {
+                class: 'btn btn-sm btn-action btn-toggle',
+                icon: 'fas fa-toggle-on',
+                title: 'Activar/Desactivar',
+                onclick: `toggleUser(${id})`
+            }
+        }
+    })
+};
 
 /**
  * Función para redimensionar todas las DataTables
@@ -426,3 +903,180 @@ function toggleElement(elementId, show) {
         }
     }
 }
+
+/**
+ * ============================================
+ * FUNCIONES DE MANEJO DE EVENTOS GENÉRICAS
+ * ============================================
+ */
+
+/**
+ * Inicializar eventos para botones de acción
+ * Debe llamarse después de inicializar DataTables
+ */
+function initActionButtonEvents() {
+    // Inicializar tooltips de Bootstrap si está disponible
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    // Event delegation para botones de eliminar
+    $(document).off('click', '.btn-delete').on('click', '.btn-delete', function(e) {
+        e.preventDefault();
+        const id = $(this).data('id');
+        const entity = $(this).data('entity');
+        
+        if (id && entity) {
+            const entityDisplay = ActionButtonFactory.entityConfig[entity + 's']?.display || entity;
+            handleDelete(entityDisplay.toLowerCase(), id, buildApiUrl(`${entity}s/${id}`), function() {
+                // Recargar la tabla específica
+                const tableId = `${entity}s-table`;
+                if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+                    $(`#${tableId}`).DataTable().ajax.reload();
+                } else {
+                    location.reload();
+                }
+            });
+        }
+    });
+
+    // Event delegation para botones con loading state
+    $(document).off('click', '.btn-action').on('click', '.btn-action', function() {
+        const $btn = $(this);
+        if (!$btn.hasClass('btn-delete')) { // No aplicar loading a botones de eliminar
+            $btn.addClass('loading').prop('disabled', true);
+            
+            // Remover loading después de 2 segundos (timeout de seguridad)
+            setTimeout(() => {
+                $btn.removeClass('loading').prop('disabled', false);
+            }, 2000);
+        }
+    });
+}
+
+/**
+ * Función genérica para abrir modales de vista
+ * @param {string} entityName - Nombre de la entidad
+ * @param {number} id - ID del registro
+ * @param {string} url - URL para obtener los datos
+ */
+function openViewModal(entityName, id, url) {
+    Swal.fire({
+        title: `Ver ${entityName}`,
+        text: 'Cargando datos...',
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        onBeforeOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function(response) {
+            const data = response.data || response;
+            
+            let htmlContent = '<div class="entity-details">';
+            Object.entries(data).forEach(([key, value]) => {
+                if (key !== 'id' && value !== null && value !== undefined) {
+                    const label = formatLabel(key);
+                    const formattedValue = formatValue(key, value);
+                    htmlContent += `
+                        <div class="detail-row">
+                            <strong>${label}:</strong> 
+                            <span>${formattedValue}</span>
+                        </div>
+                    `;
+                }
+            });
+            htmlContent += '</div>';
+
+            Swal.fire({
+                title: `${entityName} #${id}`,
+                html: htmlContent,
+                icon: 'info',
+                confirmButtonText: 'Cerrar',
+                width: '600px',
+                customClass: {
+                    container: 'entity-view-modal'
+                }
+            });
+        },
+        error: function(xhr) {
+            Swal.fire({
+                title: 'Error',
+                text: `No se pudo cargar la información del ${entityName.toLowerCase()}`,
+                icon: 'error'
+            });
+        }
+    });
+}
+
+/**
+ * Funciones auxiliares para formatear datos en vistas
+ */
+function formatLabel(key) {
+    const labelMap = {
+        'name': 'Nombre',
+        'email': 'Email',
+        'phone': 'Teléfono',
+        'address': 'Dirección',
+        'created_at': 'Fecha de Creación',
+        'updated_at': 'Última Actualización',
+        'status': 'Estado',
+        'amount': 'Monto',
+        'date': 'Fecha',
+        'expiry': 'Vencimiento',
+        'invoice': 'Número de Factura',
+        'tipo': 'Tipo'
+    };
+    
+    return labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function formatValue(key, value) {
+    if (value === null || value === undefined) return 'N/A';
+    
+    if (key.includes('date') || key.includes('_at')) {
+        return formatTableDate(value, true);
+    }
+    
+    if (key === 'amount') {
+        return formatCurrency(value);
+    }
+    
+    if (key === 'status') {
+        return value === 1 || value === '1' || value === true ? 'Activo' : 'Inactivo';
+    }
+    
+    return value;
+}
+
+/**
+ * Función para formatear moneda
+ * @param {number} amount - Cantidad a formatear
+ */
+function formatCurrency(amount) {
+    if (!amount) return '$0.00';
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+    }).format(amount);
+}
+
+/**
+ * Inicializar eventos cuando el documento esté listo
+ */
+$(document).ready(function() {
+    // Llamar a la inicialización de eventos después de un pequeño delay
+    // para asegurar que las DataTables estén inicializadas
+    setTimeout(() => {
+        initActionButtonEvents();
+    }, 100);
+});

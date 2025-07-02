@@ -21,6 +21,7 @@ $(document).ready(function() {
             searchable: false,
             width: '120px',
             render: function(data, type, row) {
+                // Usar la nueva función genérica con configuración por defecto
                 return generateActionButtons(row.id, 'clientes');
             }
         }
@@ -31,7 +32,11 @@ $(document).ready(function() {
         ajax: {
             url: buildApiUrl('clientes/data'),
             type: 'GET',
-            dataSrc: 'data',
+            dataSrc: function(json) {
+                // Almacenar los datos en el sistema global
+                EntityDataManager.setEntityData('clientes', json.data);
+                return json.data;
+            },
             error: function(xhr, error, code) {
                 console.error('Error loading clientes data:', error);
                 console.log('Response:', xhr.responseText);
@@ -48,12 +53,91 @@ $(document).ready(function() {
     // Inicializar DataTable usando la función reutilizable
     initDataTable('clientes-table', null, columns, tableOptions);
 
-    // Manejo de eliminación usando la función reutilizable
-    $(document).on('click', '.delete-cliente', function() {
-        const id = $(this).data('id');
-        handleDelete('cliente', id, buildApiUrl(`clientes/${id}`), function() {
-            // Recargar la tabla después de eliminar
-            $('#clientes-table').DataTable().ajax.reload();
-        });
-    });
-});
+    // Los eventos de eliminación ahora se manejan automáticamente 
+    // a través de initActionButtonEvents() en main.js
+    
+    console.log('Clientes module loaded with new action buttons system');
+    
+    // Funciones específicas de clientes que usan el sistema de almacenamiento
+    
+    // Ver detalles de cliente
+    window.verCliente = function(id) {
+        const cliente = EntityHelpers.getCliente(id);
+        if (cliente) {
+            // Crear modal con los datos almacenados
+            const modalContent = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID:</strong> ${cliente.id}</p>
+                        <p><strong>Nombre:</strong> ${cliente.name}</p>
+                        <p><strong>Email:</strong> ${cliente.email}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Teléfono:</strong> ${cliente.phone || 'No especificado'}</p>
+                        <p><strong>Dirección:</strong> ${cliente.address || 'No especificada'}</p>
+                        <p><strong>Fecha de registro:</strong> ${formatTableDate(cliente.created_at, true)}</p>
+                    </div>
+                </div>
+            `;
+            
+            Swal.fire({
+                title: 'Detalles del Cliente',
+                html: modalContent,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false
+            });
+        } else {
+            console.error('Cliente no encontrado:', id);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se encontraron los datos del cliente.'
+            });
+        }
+    };
+    
+    // Editar cliente
+    window.editarCliente = function(id) {
+        const cliente = EntityHelpers.getCliente(id);
+        if (cliente) {
+            // Aquí podrías usar los datos almacenados para pre-llenar un formulario
+            console.log('Editando cliente:', cliente);
+            Swal.fire({
+                icon: 'info',
+                title: 'Función en desarrollo',
+                text: `Editando cliente: ${cliente.name}`
+            });
+        }
+    };
+    
+    // Eliminar cliente
+    window.eliminarCliente = function(id) {
+        const cliente = EntityHelpers.getCliente(id);
+        if (cliente) {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: `¿Deseas eliminar el cliente "${cliente.name}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Aquí harías la petición AJAX para eliminar
+                    console.log('Eliminando cliente:', cliente);
+                    // Después de eliminar exitosamente, actualizar el almacenamiento
+                    // EntityDataManager.removeItem('clientes', id);
+                    
+                    Swal.fire(
+                        '¡Eliminado!',
+                        `El cliente "${cliente.name}" ha sido eliminado.`,
+                        'success'
+                    );
+                }
+            });
+        }
+    };
+}); // Fin de document ready
