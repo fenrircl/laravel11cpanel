@@ -1,18 +1,51 @@
 /**
+ * Obtener la URL base de la aplicación
+ * @returns {string} Base URL
+ */
+function getBaseUrl() {
+    // Obtener la base URL desde una meta tag o construirla
+    const baseUrl = document.querySelector('meta[name="base-url"]')?.getAttribute('content');
+    if (baseUrl) {
+        return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    }
+    
+    // Fallback: construir desde la URL actual
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    const pathname = window.location.pathname;
+    
+    // Si estamos en una subcarpeta como /test/public/, detectarla
+    if (pathname.includes('/test/public/')) {
+        return `${protocol}//${host}/test/public`;
+    }
+    
+    return `${protocol}//${host}`;
+}
+
+/**
+ * Construir URL completa para las APIs
+ * @param {string} endpoint - El endpoint relativo (ej: 'clientes/data')
+ * @returns {string} URL completa
+ */
+function buildApiUrl(endpoint) {
+    const baseUrl = getBaseUrl();
+    return `${baseUrl}/${endpoint}`;
+}
+
+/**
  * Función reutilizable para inicializar DataTables
  * @param {string} tableId - ID de la tabla
- * @param {Array} data - Datos para la tabla
+ * @param {Array} data - Datos para la tabla (null si usa AJAX)
  * @param {Array} columns - Configuración de columnas
  * @param {Object} options - Opciones adicionales
  */
 function initDataTable(tableId, data, columns, options = {}) {
     const defaultOptions = {
-        data: data,
         processing: true,
         serverSide: false,
         columns: columns,
         language: {
-            url: 'assets/js/plugins/datatable/es-ES.json'
+            url: buildApiUrl('assets/js/comun/plugins/datatable/es-ES.json')
         },
         responsive: true,
         pageLength: 25,
@@ -49,6 +82,11 @@ function initDataTable(tableId, data, columns, options = {}) {
             }
         ]
     };
+
+    // Si se proporcionan datos, los usamos en lugar de AJAX
+    if (data !== null) {
+        defaultOptions.data = data;
+    }
 
     // Combinar opciones por defecto con opciones personalizadas
     const finalOptions = { ...defaultOptions, ...options };
@@ -292,4 +330,99 @@ function populateForm(data, prefix = '') {
             element.value = data[key] || '';
         }
     });
+}
+
+/**
+ * Función para formatear valores como moneda
+ * @param {number} amount - Cantidad a formatear
+ * @param {string} currency - Código de moneda (por defecto COP)
+ */
+function formatCurrency(amount, currency = 'COP') {
+    if (!amount || amount === 0) return '$0';
+    
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: currency,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+/**
+ * Función para formatear números con separadores de miles
+ * @param {number} number - Número a formatear
+ */
+function formatNumber(number) {
+    if (!number || number === 0) return '0';
+    
+    return new Intl.NumberFormat('es-CO').format(number);
+}
+
+/**
+ * Función para obtener datos de un registro específico
+ * @param {string} url - URL para obtener los datos
+ * @param {Function} successCallback - Callback de éxito
+ * @param {Function} errorCallback - Callback de error
+ */
+function fetchRecord(url, successCallback, errorCallback = null) {
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function(response) {
+            if (successCallback) {
+                successCallback(response);
+            }
+        },
+        error: function(xhr) {
+            if (errorCallback) {
+                errorCallback(xhr);
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se pudo obtener la información del registro',
+                    icon: 'error'
+                });
+            }
+        }
+    });
+}
+
+/**
+ * Función para validar campos requeridos de un formulario
+ * @param {string} formId - ID del formulario
+ * @returns {boolean} - True si todos los campos requeridos están llenos
+ */
+function validateRequiredFields(formId) {
+    const form = document.getElementById(formId);
+    const requiredFields = form.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    return isValid;
+}
+
+/**
+ * Función para mostrar/ocultar elementos con animación
+ * @param {string} elementId - ID del elemento
+ * @param {boolean} show - True para mostrar, false para ocultar
+ */
+function toggleElement(elementId, show) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        if (show) {
+            element.style.display = 'block';
+            setTimeout(() => element.classList.add('show'), 10);
+        } else {
+            element.classList.remove('show');
+            setTimeout(() => element.style.display = 'none', 150);
+        }
+    }
 }

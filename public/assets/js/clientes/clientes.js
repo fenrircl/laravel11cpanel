@@ -26,12 +26,34 @@ $(document).ready(function() {
         }
     ];
     
+    // Configuración específica para obtener datos de la API
+    const tableOptions = {
+        ajax: {
+            url: buildApiUrl('clientes/data'),
+            type: 'GET',
+            dataSrc: 'data',
+            error: function(xhr, error, code) {
+                console.error('Error loading clientes data:', error);
+                console.log('Response:', xhr.responseText);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudieron cargar los datos de clientes. Verifique la conexión.'
+                });
+            }
+        },
+        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+    };
+    
     // Inicializar DataTable usando la función reutilizable
-    initDataTable('clientes-table', CLIENTES, columns);
+    initDataTable('clientes-table', null, columns, tableOptions);
 
     // Manejo de eliminación usando la función reutilizable
     $(document).on('click', '.delete-cliente', function() {
         const id = $(this).data('id');
-        handleDelete('cliente', id, `/clientes/${id}`);
+        handleDelete('cliente', id, buildApiUrl(`clientes/${id}`), function() {
+            // Recargar la tabla después de eliminar
+            $('#clientes-table').DataTable().ajax.reload();
+        });
     });
 });

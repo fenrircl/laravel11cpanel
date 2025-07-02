@@ -26,12 +26,34 @@ $(document).ready(function() {
         }
     ];
     
+    // Configuración específica para obtener datos de la API
+    const tableOptions = {
+        ajax: {
+            url: buildApiUrl('proveedores/data'),
+            type: 'GET',
+            dataSrc: 'data',
+            error: function(xhr, error, code) {
+                console.error('Error loading proveedores data:', error);
+                console.log('Response:', xhr.responseText);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudieron cargar los datos de proveedores. Verifique la conexión.'
+                });
+            }
+        },
+        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+    };
+    
     // Inicializar DataTable usando la función reutilizable
-    initDataTable('proveedores-table', PROVEEDORES, columns);
+    initDataTable('proveedores-table', null, columns, tableOptions);
 
     // Manejo de eliminación usando la función reutilizable
     $(document).on('click', '.delete-proveedor', function() {
         const id = $(this).data('id');
-        handleDelete('proveedor', id, `/proveedores/${id}`);
+        handleDelete('proveedor', id, buildApiUrl(`proveedores/${id}`), function() {
+            // Recargar la tabla después de eliminar
+            $('#proveedores-table').DataTable().ajax.reload();
+        });
     });
 });
