@@ -1,13 +1,29 @@
 <div class="d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center">
-        {{-- <button id="sidebarToggle" class="btn btn-link text-white me-3">
-            <i class="fas fa-bars"></i>
-        </button> --}}
-        {{-- <h1 class="h4 mb-0">{{ config('app.name', 'Mi Aplicación') }}</h1> --}}
+    </div>
+
+    <div class="header-search-container flex-grow-1 mx-4">
+        <div class="input-group">
+            <select id="search-entity" class="form-select search-select" style="max-width: 140px;">
+                <option value="all">Todo</option>
+                <option value="clientes">Clientes</option>
+                <option value="proveedores">Proveedores</option>
+                <option value="facturas">Facturas</option>
+            </select>
+            <input type="text" 
+                   id="search-input" 
+                   class="form-control search-input" 
+                   placeholder="Buscar en el sistema..." 
+                   maxlength="100">
+            <button class="btn btn-search" type="button" id="search-button">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+        
+        <div id="search-results" class="search-results-dropdown"></div>
     </div>
     
     <nav>
-        {{-- Ejemplo de enlaces de navegación en el header --}}
         @auth
             <span class="text-white">Bienvenido, {{ Auth::user()->name }}</span>
             <a href="{{ route('logout') }}"
@@ -20,7 +36,6 @@
             </form>
         @else
             <a href="{{ route('login') }}" class="text-white ms-3 text-decoration-none">Iniciar Sesión</a>
-            {{-- <a href="{{ route('register') }}" class="text-white ms-3 text-decoration-none">Registrarse</a> --}}
         @endauth
     </nav>
 </div>

@@ -14,7 +14,7 @@ class ClientesController extends Controller
     {
         // Solo pasar datos estáticos, no los clientes para optimizar la carga inicial
         $data["asset_css"] = ['comun/tablas', 'clientes/clientes'];
-        $data["asset_js"] = ['comun/main', 'clientes/clientes'];
+        $data["asset_js"] = ['clientes/clientes'];
         return view('clientes.index', $data);
     }
 

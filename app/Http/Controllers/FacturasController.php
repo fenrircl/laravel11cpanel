@@ -16,7 +16,7 @@ class FacturasController extends Controller
     public function index()
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
-        $data["asset_js"] = ['comun/main', 'facturas/facturas'];
+        $data["asset_js"] = ['facturas/facturas'];
         return view('facturas.index', $data);
     }
 
@@ -26,7 +26,7 @@ class FacturasController extends Controller
     public function clienteIndex()
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
-        $data["asset_js"] = ['comun/main', 'facturas/facturas-cliente'];
+        $data["asset_js"] = ['facturas/facturas-cliente'];
         return view('facturas.clientes.index', $data);
     }
 
@@ -36,7 +36,7 @@ class FacturasController extends Controller
     public function proveedorIndex()
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas'];
-        $data["asset_js"] = ['comun/main', 'facturas/facturas-proveedor'];
+        $data["asset_js"] = ['facturas/facturas-proveedor'];
         return view('facturas.proveedores.index', $data);
     }
 

@@ -8,6 +8,9 @@
  * hacer peticiones AJAX adicionales.
  */
 
+// Verificar si ya está inicializado para evitar redeclaraciones
+if (typeof window.ENTITY_DATA === 'undefined') {
+
 /**
  * Objeto global para almacenar datos de todas las entidades
  */
@@ -28,9 +31,14 @@ window.FACTURAS = () => window.ENTITY_DATA.facturas;
 window.USUARIOS = () => window.ENTITY_DATA.usuarios;
 window.PRODUCTOS = () => window.ENTITY_DATA.productos;
 
+} // Fin de la verificación de inicialización para ENTITY_DATA
+
 /**
  * Manager para el almacenamiento y gestión de datos de entidades
+ * (Se define fuera del bloque condicional para estar siempre disponible)
  */
+if (typeof window.EntityDataManager === 'undefined') {
+
 class EntityDataManager {
     /**
      * Almacenar datos de una entidad
@@ -167,6 +175,9 @@ class EntityDataManager {
     }
 }
 
+// Exponer EntityDataManager globalmente
+window.EntityDataManager = EntityDataManager;
+
 /**
  * Helpers para acceso rápido a funciones comunes
  */
@@ -195,6 +206,8 @@ window.EntityHelpers = {
     // Buscar proveedores por texto
     buscarProveedores: (term) => EntityDataManager.search('proveedores', term)
 };
+
+} // Fin de la verificación de inicialización
 
 /**
  * Obtener la URL base de la aplicación

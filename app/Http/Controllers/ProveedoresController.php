@@ -14,7 +14,7 @@ class ProveedoresController extends Controller
     {
         // Solo pasar datos estáticos, no los proveedores para optimizar la carga inicial
         $data["asset_css"] = ['comun/tablas', 'proveedores/proveedores'];
-        $data["asset_js"] = ['comun/main', 'proveedores/proveedores'];
+        $data["asset_js"] = ['proveedores/proveedores'];
         return view('proveedores.index', $data);
     }
 

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\FacturasController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ProveedoresController;
+use App\Http\Controllers\BusquedaController;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -53,6 +54,12 @@ Route::middleware(['auth'])->group(function () {
     // APIs para DataTables de clientes y proveedores
     Route::get('clientes/data', [ClientesController::class, 'getData'])->name('clientes.data');
     Route::get('proveedores/data', [ProveedoresController::class, 'getData'])->name('proveedores.data');
+    
+    // Rutas del buscador global
+    Route::get('buscar', [BusquedaController::class, 'buscar'])->name('buscar');
+    Route::get('{entidad}/search-data', [BusquedaController::class, 'datosParaCache'])->name('search.data');
+    Route::post('search/clear-cache', [BusquedaController::class, 'limpiarCache'])->name('search.clear-cache');
+    Route::get('search/stats', [BusquedaController::class, 'estadisticas'])->name('search.stats');
     
     // Recursos completos para CRUD
     Route::resource('facturas', FacturasController::class)->except(['index']);
