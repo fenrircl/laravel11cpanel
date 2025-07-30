@@ -36,6 +36,7 @@
 </head>
 
 <body>
+    @if (auth()->check() && !request()->is('login'))
     <div id="wrapper">
         <div id="sidebar">
             <div class="sidebar-header d-flex justify-content-between align-items-center">
@@ -57,6 +58,11 @@
             </div>
         </div>
     </div>
+    @else
+        <div class="container-fluid py-3 flex-1">
+            @yield('content')
+        </div>
+    @endif
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
