@@ -34,7 +34,7 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@/usr/local/bin/php artisan package:discover --ansi"
+            "php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
             "@/usr/local/bin/php artisan vendor:publish --tag=laravel-assets --ansi --force"
@@ -44,8 +44,8 @@
         ],
         "post-create-project-cmd": [
             "@/usr/local/bin/php artisan key:generate --ansi",
-            "@/usr/local/bin/php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
-            "@/usr/local/bin/php artisan migrate --graceful --ansi"
+            "@/usr/local/bin/php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\""
+ 
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
