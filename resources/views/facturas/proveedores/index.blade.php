@@ -69,7 +69,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="date" class="form-label">Fecha <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="date" name="date" required>
+                                <input type="date" class="form-control" id="date" name="date" required data-format="date-cl">
                             </div>
                         </div>
                     </div>
@@ -90,13 +90,13 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="expiry" class="form-label">Fecha de Vencimiento</label>
-                                <input type="date" class="form-control" id="expiry" name="expiry">
+                                <input type="date" class="form-control" id="expiry" name="expiry" data-format="date-cl">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Monto <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0" required>
+                                <input type="number" class="form-control" id="amount" name="amount" step="1" min="0" required data-format="clp">
                             </div>
                         </div>
                     </div>

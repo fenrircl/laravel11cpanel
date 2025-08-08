@@ -21,8 +21,12 @@ $(document).ready(function() {
             searchable: false,
             width: '120px',
             render: function(data, type, row) {
-                // Usar la nueva función genérica con configuración por defecto
-                return generateActionButtons(row.id, 'proveedores');
+                // Botones personalizados para editar factura
+                return `
+                    <button class="btn btn-sm btn-action btn-view" title="Ver" onclick="verProveedor(${row.id})"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-sm btn-action btn-edit" title="Editar" onclick="openEditFacturaModal('proveedor', ${row.id})"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-action btn-delete" title="Eliminar" data-id="${row.id}" data-entity="proveedor"><i class="fas fa-trash"></i></button>
+                `;
             }
         }
     ];

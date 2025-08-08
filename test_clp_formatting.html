@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CLP Formatting</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Test CLP Formatting</h1>
+    
+    <div style="margin: 20px;">
+        <label>Monto CLP (inline formatting):</label><br>
+        <input type="text" data-format="clp-inline" placeholder="Ingresa un monto" style="width: 200px; padding: 8px;">
+        <p>Prueba escribiendo: 1000000 (debería mostrarse como 1.000.000)</p>
+    </div>
+    
+    <div style="margin: 20px;">
+        <label>Monto CLP (focus formatting):</label><br>
+        <input type="text" data-format="clp" placeholder="Ingresa un monto" style="width: 200px; padding: 8px;">
+        <p>Prueba escribiendo: 1500000 (debería mostrarse como 1.500.000)</p>
+    </div>
+
+    <script src="/assets/js/comun/main.js"></script>
+    <script>
+        $(document).ready(function() {
+            console.log('Testing CLP formatting...');
+            
+            // Test directo de la función formatCLPInput
+            console.log('1000000 formatted:', window.CLFormat.formatCLPInput(1000000));
+            console.log('1500000 formatted:', window.CLFormat.formatCLPInput(1500000));
+            console.log('75000 formatted:', window.CLFormat.formatCLPInput(75000));
+            console.log('5000000 formatted:', window.CLFormat.formatCLPInput(5000000));
+        });
+    </script>
+</body>
+</html>

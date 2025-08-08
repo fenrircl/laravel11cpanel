@@ -434,7 +434,15 @@ class ActionButtonFactory {
                 button.onclick = `ver${entityInfo.display}(${id})`;
                 break;
             case 'edit':
-                button.onclick = `editar${entityInfo.display}(${id})`;
+                if (entity === 'facturas') {
+                    // Detectar si la tabla es de cliente o proveedor por el contexto del botón
+                    button.onclick = `
+                        var tipo = (document.getElementById('facturas-clientes-table')) ? 'cliente' : 'proveedor';
+                        openEditFacturaModal(tipo, ${id});
+                    `;
+                } else {
+                    button.onclick = `editar${entityInfo.display}(${id})`;
+                }
                 break;
             case 'delete':
                 button['data-id'] = id;
@@ -912,176 +920,322 @@ function toggleElement(elementId, show) {
             setTimeout(() => element.classList.add('show'), 10);
         } else {
             element.classList.remove('show');
-            setTimeout(() => element.style.display = 'none', 150);
+            setTimeout(() => element.style.display = 'none', 300);
         }
     }
 }
 
 /**
  * ============================================
- * FUNCIONES DE MANEJO DE EVENTOS GENÉRICAS
+ * HELPER DE FORMATO/VALIDACIÓN CHILENO (CLP/FECHA)
  * ============================================
+ *\
+ * Uso rápido en inputs:
+ *  - data-format="clp"       => Mantiene valor numérico en el input y muestra pista formateada ($ 1.234.567)
+ *  - data-format="date-cl"   => Acepta y valida DD-MM-AAAA en inputs de texto; muestra pista desde type=date
+ *
+ * Opcional: data-formatted-target="#selector" para indicar dónde pintar la pista.
  */
+(function(){
+    if (window.CLFormat) return; // evitar doble definición
 
-/**
- * Inicializar eventos para botones de acción
- * Debe llamarse después de inicializar DataTables
- */
-function initActionButtonEvents() {
-    // Inicializar tooltips de Bootstrap si está disponible
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    }
+    const CLFormat = {
+        // Números/moneda
+        formatNumberCL(n) {
+            const num = Number(n || 0);
+            return new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+        },
+        formatCurrencyCL(n, withSymbol = true) {
+            const num = Number(n || 0);
+            return withSymbol
+                ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+                : CLFormat.formatNumberCL(num);
+        },
+        // Formatear solo con separadores de miles (sin símbolo $)
+        formatCLPInput(n) {
+            const num = Number(n || 0);
+            return new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+        },
+        parseCLP(str) {
+            if (str === null || str === undefined) return 0;
+            if (typeof str === 'number') return Math.floor(str);
+            
+            // Convertir a string y manejar decimales correctamente
+            const strValue = String(str);
+            
+            // Si contiene punto decimal, tomar solo la parte entera
+            if (strValue.includes('.')) {
+                const beforeDecimal = strValue.split('.')[0];
+                const digits = beforeDecimal.replace(/[^0-9]/g, '');
+                return digits ? parseInt(digits, 10) : 0;
+            }
+            
+            // Si no tiene decimales, remover todo excepto dígitos
+            const digits = strValue.replace(/[^0-9]/g, '');
+            return digits ? parseInt(digits, 10) : 0;
+        },
+        // Fechas
+        formatDateCL(value) {
+            if (!value) return '';
+            // Acepta Date o string ISO/aaaa-mm-dd
+            let d;
+            if (value instanceof Date) {
+                d = value;
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+                const [y,m,day] = String(value).split('-').map(Number);
+                d = new Date(y, m - 1, day);
+            } else {
+                const iso = CLFormat.parseDateCLToISO(String(value));
+                if (!iso) return '';
+                const [y,m,day] = iso.split('-').map(Number);
+                d = new Date(y, m - 1, day);
+            }
+            const dd = String(d.getDate()).padStart(2,'0');
+            const mm = String(d.getMonth()+1).padStart(2,'0');
+            const yyyy = d.getFullYear();
+            return `${dd}-${mm}-${yyyy}`;
+        },
+        parseDateCLToISO(str) {
+            if (!str) return '';
+            const s = String(str).trim();
+            const m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+            if (!m) return '';
+            const dd = parseInt(m[1],10), mm = parseInt(m[2],10), yyyy = parseInt(m[3],10);
+            if (!CLFormat.isValidDateParts(dd, mm, yyyy)) return '';
+            return `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+        },
+        isValidDateCL(str) {
+            const iso = CLFormat.parseDateCLToISO(str);
+            return !!iso;
+        },
+        isValidDateParts(dd, mm, yyyy) {
+            if (yyyy < 1900 || yyyy > 2999) return false;
+            if (mm < 1 || mm > 12) return false;
+            const daysInMonth = new Date(yyyy, mm, 0).getDate();
+            if (dd < 1 || dd > daysInMonth) return false;
+            return true;
+        }
+    };
 
-    // Event delegation para botones de eliminar
-    $(document).off('click', '.btn-delete').on('click', '.btn-delete', function(e) {
-        e.preventDefault();
-        const id = $(this).data('id');
-        const entity = $(this).data('entity');
-        
-        if (id && entity) {
-            const entityDisplay = ActionButtonFactory.entityConfig[entity + 's']?.display || entity;
-            handleDelete(entityDisplay.toLowerCase(), id, buildApiUrl(`${entity}s/${id}`), function() {
-                // Recargar la tabla específica
-                const tableId = `${entity}s-table`;
-                if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
-                    $(`#${tableId}`).DataTable().ajax.reload();
-                } else {
-                    location.reload();
+    const CLInputFormatter = {
+        init() {
+            // Vincular inputs existentes
+            document.querySelectorAll('input[data-format], textarea[data-format]').forEach(el => this.bind(el));
+            // Delegación para elementos que aparezcan dinámicamente (modales)
+            document.addEventListener('focusin', (e) => {
+                const el = e.target;
+                if (el && el.matches && el.matches('input[data-format], textarea[data-format]')) {
+                    this.bind(el);
                 }
             });
-        }
-    });
-
-    // Event delegation para botones con loading state
-    $(document).off('click', '.btn-action').on('click', '.btn-action', function() {
-        const $btn = $(this);
-        if (!$btn.hasClass('btn-delete')) { // No aplicar loading a botones de eliminar
-            $btn.addClass('loading').prop('disabled', true);
-            
-            // Remover loading después de 2 segundos (timeout de seguridad)
-            setTimeout(() => {
-                $btn.removeClass('loading').prop('disabled', false);
-            }, 2000);
-        }
-    });
-}
-
-/**
- * Función genérica para abrir modales de vista
- * @param {string} entityName - Nombre de la entidad
- * @param {number} id - ID del registro
- * @param {string} url - URL para obtener los datos
- */
-function openViewModal(entityName, id, url) {
-    Swal.fire({
-        title: `Ver ${entityName}`,
-        text: 'Cargando datos...',
-        icon: 'info',
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        onBeforeOpen: () => {
-            Swal.showLoading();
-        }
-    });
-
-    $.ajax({
-        url: url,
-        type: 'GET',
-        success: function(response) {
-            const data = response.data || response;
-            
-            let htmlContent = '<div class="entity-details">';
-            Object.entries(data).forEach(([key, value]) => {
-                if (key !== 'id' && value !== null && value !== undefined) {
-                    const label = formatLabel(key);
-                    const formattedValue = formatValue(key, value);
-                    htmlContent += `
-                        <div class="detail-row">
-                            <strong>${label}:</strong> 
-                            <span>${formattedValue}</span>
-                        </div>
-                    `;
-                }
+            // Normalizar antes de enviar formularios marcados
+            document.querySelectorAll('form').forEach(f => {
+                if (f.__clNormalizeHooked) return;
+                f.addEventListener('submit', (e) => this.normalizeOnSubmit(e));
+                f.__clNormalizeHooked = true;
             });
-            htmlContent += '</div>';
-
-            Swal.fire({
-                title: `${entityName} #${id}`,
-                html: htmlContent,
-                icon: 'info',
-                confirmButtonText: 'Cerrar',
-                width: '600px',
-                customClass: {
-                    container: 'entity-view-modal'
+        },
+        bind(el) {
+            if (el.__clBound) return;
+            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+            if (fmt === 'clp-inline') {
+                // Formato CLP inline: valor visible con separadores/$ en blur, dígitos al editar
+                el.addEventListener('focus', () => this.onCLPFocus(el));
+                el.addEventListener('input', () => this.onCLPInput(el));
+                el.addEventListener('blur', () => this.onCLPInlineBlur(el));
+                // Solo formatear al cargar si el valor no está ya formateado
+                if (el.value && !el.value.includes('$') && !el.value.includes('.')) {
+                    this.onCLPInlineBlur(el);
+                }
+            } else if (fmt === 'clp') {
+                // Formato CLP directo en el input (sin símbolo $)
+                el.addEventListener('focus', () => this.onCLPFocus(el));
+                el.addEventListener('input', () => this.onCLPInput(el));
+                el.addEventListener('blur', () => this.onCLPInlineBlur(el));
+                // Formatear al cargar si hay valor numérico
+                if (el.value && !isNaN(el.value.replace(/[^\d.]/g, ''))) {
+                    this.onCLPInlineBlur(el);
+                }
+            } else if (fmt === 'date-cl') {
+                if (el.type === 'text') {
+                    el.addEventListener('input', () => this.onDateInput(el));
+                    el.addEventListener('blur', () => this.onDateBlur(el));
+                }
+                this.updateHint(el);
+            }
+            el.__clBound = true;
+        },
+        normalizeOnSubmit(e) {
+            const form = e.target;
+            // Antes de serializar por jQuery, normalizamos valores visibles
+            form.querySelectorAll('input[data-format], textarea[data-format], select[data-format]').forEach(el => {
+                const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+                if (fmt === 'clp' || fmt === 'clp-inline') {
+                    // Forzar valor numérico entero sin separadores
+                    const val = CLFormat.parseCLP(el.value);
+                    el.value = String(val);
+                } else if (fmt === 'date-cl') {
+                    if (el.type === 'text') {
+                        const iso = CLFormat.parseDateCLToISO(el.value);
+                        if (iso) el.value = iso; // enviar en formato ISO que espera el backend
+                    }
                 }
             });
         },
-        error: function(xhr) {
-            Swal.fire({
-                title: 'Error',
-                text: `No se pudo cargar la información del ${entityName.toLowerCase()}`,
-                icon: 'error'
-            });
+        // CLP handlers
+        onCLPInput(el) {
+            // Formatear en tiempo real mientras se escribe
+            const cursorPos = el.selectionStart;
+            const value = el.value;
+            
+            // Limpiar el valor: solo dígitos (los puntos son separadores de miles, no decimales)
+            const cleanValue = value.replace(/[^\d]/g, '');
+            
+            // Si no hay dígitos, limpiar el campo
+            if (!cleanValue) {
+                if (value !== '') {
+                    el.value = '';
+                }
+                return;
+            }
+            
+            // Formatear con separadores de miles
+            const formattedValue = CLFormat.formatCLPInput(parseInt(cleanValue));
+            
+            // Calcular nueva posición del cursor
+            // Contar cuántos separadores hay antes de la posición actual
+            const valueBeforeCursor = value.substring(0, cursorPos);
+            const digitsBeforeCursor = valueBeforeCursor.replace(/[^\d]/g, '').length;
+            
+            // Encontrar la nueva posición basada en los dígitos
+            let newPos = 0;
+            let digitCount = 0;
+            for (let i = 0; i < formattedValue.length && digitCount < digitsBeforeCursor; i++) {
+                if (/\d/.test(formattedValue[i])) {
+                    digitCount++;
+                }
+                newPos = i + 1;
+            }
+            
+            // Actualizar valor solo si cambió
+            if (formattedValue !== value) {
+                el.value = formattedValue;
+                // Restaurar posición del cursor
+                setTimeout(() => {
+                    el.setSelectionRange(newPos, newPos);
+                }, 0);
+            }
+        },
+        onCLPFocus(el) {
+            // Al enfocar, mantener el formato actual
+            // Solo seleccionar todo el texto para fácil reemplazo
+            setTimeout(() => el.select(), 10);
+        },
+        onCLPInlineBlur(el) {
+            // En blur, asegurarse de que esté bien formateado
+            const cleanValue = el.value.replace(/[^\d]/g, '');
+            if (cleanValue) {
+                el.value = CLFormat.formatCLPInput(parseInt(cleanValue));
+            } else {
+                el.value = '';
+            }
+            
+            // Crear o actualizar símbolo $ si no existe
+            // this.updateCLPSymbol(el); // Comentado: no mostrar CLP a la derecha
+        },
+        onCLPBlur(el) {
+            // Formatear en el mismo input (como onCLPInlineBlur)
+            const val = CLFormat.parseCLP(el.value);
+            if (el.type !== 'number') {
+                el.value = val ? CLFormat.formatCurrencyCL(val, true) : '';
+            } else {
+                // Para type=number no es posible mostrar separadores, mantener dígitos
+                el.value = String(val);
+            }
+        },
+        // Función para agregar símbolo $ a la derecha del input
+        updateCLPSymbol(el) {
+            // Solo agregar símbolo si el formato es 'clp' (no clp-inline)
+            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+            if (fmt !== 'clp') return;
+            
+            // Buscar si ya existe el símbolo
+            let symbolSpan = el.nextElementSibling;
+            if (symbolSpan && symbolSpan.classList && symbolSpan.classList.contains('clp-symbol')) {
+                // Ya existe, no hacer nada
+                return;
+            }
+            
+            // Crear el símbolo $ a la derecha
+            symbolSpan = document.createElement('span');
+            symbolSpan.className = 'clp-symbol';
+            symbolSpan.textContent = ' CLP';
+            symbolSpan.style.cssText = 'color: #6c757d; font-size: 0.875rem; margin-left: 0.25rem; user-select: none;';
+            
+            // Insertar después del input
+            el.parentNode.insertBefore(symbolSpan, el.nextSibling);
+        },
+        // Date handlers (DD-MM-AAAA en inputs de texto)
+        onDateInput(el) {
+            // Permitir solo dígitos y separadores, auto-insertar '-'
+            let s = el.value.replace(/[^0-9-/.]/g, '').replace(/[/.]/g, '-');
+            // Autoformato básico dd-mm-aaaa
+            s = s.replace(/(\d{2})(\d)/, '$1-$2').replace(/(\d{2}-\d{2})(\d)/, '$1-$2');
+            el.value = s.substring(0, 10);
+        },
+        onDateBlur(el) {
+            const iso = CLFormat.parseDateCLToISO(el.value);
+            if (iso) {
+                // Mostrar como dd-mm-aaaa pero enviar ISO en submit (normalizeOnSubmit)
+                el.value = CLFormat.formatDateCL(iso);
+                el.classList.remove('is-invalid');
+            } else if (el.value.trim() !== '') {
+                el.classList.add('is-invalid');
+            } else {
+                el.classList.remove('is-invalid');
+            }
+            this.updateHint(el);
+        },
+        // Hints
+        ensureHint(el) {
+            const targetSel = el.getAttribute('data-formatted-target');
+            if (targetSel) {
+                const node = document.querySelector(targetSel);
+                if (node) return node;
+            }
+            // Buscar siguiente elemento con clase .formatted-hint
+            let next = el.nextElementSibling;
+            if (next && next.classList && next.classList.contains('formatted-hint')) return next;
+            // Buscar span específico conocido
+            if (el.id && el.id.toLowerCase() === 'amount') {
+                const fixed = document.getElementById('amountFormatted');
+                if (fixed) return fixed;
+            }
+            // No crear hint automáticamente para CLP
+            return null;
+        },
+        updateHint(el) {
+            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+            if (fmt === 'clp-inline' || fmt === 'clp') {
+                // En modo inline o CLP normal no usamos hint
+                return;
+            }
+            if (fmt === 'date-cl') {
+                const hint = this.ensureHint(el);
+                const value = el.type === 'date' ? el.value : CLFormat.parseDateCLToISO(el.value);
+                const show = value ? CLFormat.formatDateCL(value) : '';
+                if (hint) hint.textContent = show;
+            }
+        },
+        refreshAllHints() {
+            document.querySelectorAll('input[data-format], textarea[data-format]').forEach(el => this.updateHint(el));
         }
-    });
-}
-
-/**
- * Funciones auxiliares para formatear datos en vistas
- */
-function formatLabel(key) {
-    const labelMap = {
-        'name': 'Nombre',
-        'email': 'Email',
-        'phone': 'Teléfono',
-        'address': 'Dirección',
-        'created_at': 'Fecha de Creación',
-        'updated_at': 'Última Actualización',
-        'status': 'Estado',
-        'amount': 'Monto',
-        'date': 'Fecha',
-        'expiry': 'Vencimiento',
-        'invoice': 'Número de Factura',
-        'tipo': 'Tipo'
     };
-    
-    return labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1);
-}
 
-function formatValue(key, value) {
-    if (value === null || value === undefined) return 'N/A';
-    
-    if (key.includes('date') || key.includes('_at')) {
-        return formatTableDate(value, true);
-    }
-    
-    if (key === 'amount') {
-        return formatCurrency(value);
-    }
-    
-    if (key === 'status') {
-        return value === 1 || value === '1' || value === true ? 'Activo' : 'Inactivo';
-    }
-    
-    return value;
-}
-
-/**
- * Función para formatear moneda
- * @param {number} amount - Cantidad a formatear
- */
-function formatCurrency(amount) {
-    if (!amount) return '$0.00';
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0
-    }).format(amount);
-}
+    // Exponer globalmente
+    window.CLFormat = CLFormat;
+    window.CLInputFormatter = CLInputFormatter;
+})();
 
 /**
  * Inicializar eventos cuando el documento esté listo
@@ -1092,4 +1246,352 @@ $(document).ready(function() {
     setTimeout(() => {
         initActionButtonEvents();
     }, 100);
+    // Inicializar formateadores chilenos para inputs marcados con data-format
+    if (window.CLInputFormatter) {
+        window.CLInputFormatter.init();
+    }
+    // Refrescar pistas formateadas cuando se abren modales (por si el DOM se crea dinámicamente)
+    $(document).on('shown.bs.modal', function(){
+        if (window.CLInputFormatter) window.CLInputFormatter.refreshAllHints();
+    });
 });
+
+/**
+ * Abrir modal de edición de factura y cargar datos
+ * @param {string} entity - 'cliente' o 'proveedor'
+ * @param {number} id - ID de la factura
+ */
+function openEditFacturaModal(entity, id) {
+    let factura = null;
+    if (entity === 'cliente') {
+        factura = EntityDataManager.findById('facturas', id);
+    } else if (entity === 'proveedor') {
+        factura = EntityDataManager.findById('facturas', id);
+    }
+    if (!factura) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se encontró la factura.'
+        });
+        return;
+    }
+    console.log(factura)
+    // Poblar el formulario del modal con los datos
+    populateForm(factura, '');
+    // Formatear el campo monto
+    const amountEl = document.getElementById('amount');
+    if (amountEl) {
+        const fmt = (amountEl.getAttribute('data-format') || '').toLowerCase();
+        if (factura.amount !== undefined && factura.amount !== null) {
+            // Usar CLFormat.parseCLP para procesar correctamente el valor
+            let valorNumerico = 0;
+            if (window.CLFormat) {
+                valorNumerico = window.CLFormat.parseCLP(factura.amount);
+            } else {
+                valorNumerico = parseInt(String(factura.amount).replace(/[^\d]/g, '')) || 0;
+            }
+            
+            if ((fmt === 'clp-inline' || fmt === 'clp') && window.CLFormat) {
+                // Para ambos modos CLP, mostrar solo el valor formateado sin símbolo $
+                amountEl.value = valorNumerico > 0 ? window.CLFormat.formatCLPInput(valorNumerico) : '';
+                // Agregar símbolo CLP a la derecha si es formato 'clp'
+                // if (fmt === 'clp' && window.CLInputFormatter) {
+                //     setTimeout(() => window.CLInputFormatter.updateCLPSymbol(amountEl), 100);
+                // }
+            } else {
+                amountEl.value = valorNumerico > 0 ? String(valorNumerico) : '';
+                if (window.CLInputFormatter) {
+                    window.CLInputFormatter.updateHint(amountEl);
+                } else if (document.getElementById('amountFormatted')) {
+                    document.getElementById('amountFormatted').textContent = valorNumerico > 0 ? valorNumerico.toLocaleString('es-CL') : '';
+                }
+            }
+        } else {
+            amountEl.value = '';
+            if (fmt !== 'clp-inline' && fmt !== 'clp') {
+                if (window.CLInputFormatter) {
+                    window.CLInputFormatter.updateHint(amountEl);
+                } else if (document.getElementById('amountFormatted')) {
+                    document.getElementById('amountFormatted').textContent = '';
+                }
+            }
+        }
+    }
+    // Abrir el modal
+    $('#facturaModal').modal('show');
+}
+
+/**
+ * Guardar cambios de edición de factura (cliente/proveedor)
+ * @param {string} entity - 'cliente' o 'proveedor'
+ */
+function saveFacturaEdit(entity) {
+    const form = $('#facturaForm');
+    if (!validateRequiredFields('facturaForm')) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos requeridos',
+            text: 'Por favor completa todos los campos obligatorios.'
+        });
+        return;
+    }
+    const formData = form.serialize();
+    let url = '';
+    if (entity === 'cliente') {
+        url = buildApiUrl('facturas/clientes/update');
+    } else if (entity === 'proveedor') {
+        url = buildApiUrl('facturas/proveedores/update');
+    }
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            showSuccessMessage('Factura actualizada correctamente', function() {
+                $('#facturaModal').modal('hide');
+                // Recargar la tabla de facturas
+                if (entity === 'cliente') {
+                    $('#facturas-clientes-table').DataTable().ajax.reload();
+                } else {
+                    $('#facturas-proveedores-table').DataTable().ajax.reload();
+                }
+            });
+        },
+        error: function(xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo actualizar la factura.'
+            });
+        }
+    });
+}
+
+/**
+ * ============================================
+ * HELPER DE FORMATO/VALIDACIÓN CHILENO (CLP/FECHA)
+ * ============================================
+ *\
+ * Uso rápido en inputs:
+ *  - data-format="clp"       => Mantiene valor numérico en el input y muestra pista formateada ($ 1.234.567)
+ *  - data-format="date-cl"   => Acepta y valida DD-MM-AAAA en inputs de texto; muestra pista desde type=date
+ *
+ * Opcional: data-formatted-target="#selector" para indicar dónde pintar la pista.
+ */
+(function(){
+    // Evitar redefinir si ya existe
+    if (!window.CLFormat || !window.CLInputFormatter) return;
+
+    // =====================
+    // Extensiones a CLFormat
+    // =====================
+    const CLFormat = window.CLFormat;
+    Object.assign(CLFormat, {
+        // Email
+        stripDiacritics(str) {
+            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        },
+        normalizeEmail(str) {
+            const s = CLFormat.stripDiacritics(String(str || '').trim().toLowerCase());
+            return s.replace(/\s+/g, '');
+        },
+        isValidEmail(str) {
+            const s = CLFormat.normalizeEmail(str);
+            // Regex simple, suficiente para UI
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+        },
+        isValidEmailTLD(str, tld = 'cl') {
+            const s = CLFormat.normalizeEmail(str);
+            return CLFormat.isValidEmail(s) && s.endsWith(`.${tld.toLowerCase()}`);
+        },
+        // RUT
+        cleanRut(str) {
+            const s = String(str || '').replace(/[^0-9kK]/g, '').toUpperCase();
+            return s;
+        },
+        calcRutDV(numStr) {
+            let suma = 0, mul = 2;
+            for (let i = numStr.length - 1; i >= 0; i--) {
+                suma += parseInt(numStr.charAt(i), 10) * mul;
+                mul = (mul === 7) ? 2 : mul + 1;
+            }
+            const res = 11 - (suma % 11);
+            if (res === 11) return '0';
+            if (res === 10) return 'K';
+            return String(res);
+        },
+        formatRut(str) {
+            const clean = CLFormat.cleanRut(str);
+            if (clean.length < 2) return clean;
+            const body = clean.slice(0, -1);
+            const dv = clean.slice(-1);
+            let rev = body.split('').reverse().join('');
+            let chunks = rev.match(/.{1,3}/g) || [];
+            let withDots = chunks.map(c => c.split('').reverse().join('')).reverse().join('.');
+            return `${withDots}-${dv}`;
+        },
+        isValidRut(str) {
+            const clean = CLFormat.cleanRut(str);
+            if (clean.length < 2) return false;
+            const body = clean.slice(0, -1);
+            const dv = clean.slice(-1).toUpperCase();
+            return CLFormat.calcRutDV(body) === dv;
+        },
+        // Teléfono Chile (9 dígitos móviles). Acepta 8-9 dígitos para hint.
+        cleanPhoneCL(str) {
+            return String(str || '').replace(/[^0-9]/g, '');
+        },
+        isValidPhoneCL(str) {
+            const d = CLFormat.cleanPhoneCL(str);
+            return d.length === 9; // validación simple
+        },
+        formatPhoneCL(str) {
+            const d = CLFormat.cleanPhoneCL(str);
+            if (d.length < 4) return `+56 ${d}`;
+            if (d.length <= 5) return `+56 ${d[0]} ${d.slice(1)}`;
+            if (d.length <= 9) return `+56 ${d[0]} ${d.slice(1,5)} ${d.slice(5)}`;
+            return `+56 ${d}`;
+        }
+    });
+
+    // =====================
+    // Extensiones a CLInputFormatter
+    // =====================
+    const F = window.CLInputFormatter;
+    const _bindOrig = F.bind.bind(F);
+    F.bind = function(el){
+        if (el.__clBound) return;
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        if (fmt === 'email' || fmt === 'email-cl') {
+            el.addEventListener('input', () => F.onEmailInput(el));
+            el.addEventListener('blur', () => F.onEmailBlur(el));
+            F.updateHint(el);
+        } else if (fmt === 'rut') {
+            el.addEventListener('input', () => F.onRutInput(el));
+            el.addEventListener('blur', () => F.onRutBlur(el));
+            F.updateHint(el);
+        } else if (fmt === 'phone-cl') {
+            el.addEventListener('input', () => F.onPhoneInput(el));
+            el.addEventListener('blur', () => F.onPhoneBlur(el));
+            F.updateHint(el);
+        } else {
+            _bindOrig(el);
+            return; // el.__clBound lo setea _bindOrig
+        }
+        el.__clBound = true;
+    };
+
+    const _normalizeOrig = F.normalizeOnSubmit.bind(F);
+    F.normalizeOnSubmit = function(e){
+        const form = e.target;
+        let blocked = false;
+        form.querySelectorAll('input[data-format], textarea[data-format], select[data-format]').forEach(el => {
+            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+            if (fmt === 'email' || fmt === 'email-cl') {
+                el.value = CLFormat.normalizeEmail(el.value);
+                const tld = el.getAttribute('data-email-tld') || 'cl';
+                const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+                if (!valid && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            } else if (fmt === 'rut') {
+                // enviar limpio (sin puntos, con dv)
+                const clean = CLFormat.cleanRut(el.value);
+                el.value = clean;
+                if (!CLFormat.isValidRut(clean) && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            } else if (fmt === 'phone-cl') {
+                el.value = CLFormat.cleanPhoneCL(el.value);
+                if (!CLFormat.isValidPhoneCL(el.value) && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            }
+        });
+        if (blocked) {
+            e.preventDefault();
+        }
+        // Delegar normalizaciones existentes (clp, date-cl)
+        _normalizeOrig(e);
+    };
+
+    // Handlers Email
+    F.onEmailInput = function(el){
+        el.value = CLFormat.normalizeEmail(el.value);
+        F.updateHint(el);
+    };
+    F.onEmailBlur = function(el){
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        const tld = el.getAttribute('data-email-tld') || 'cl';
+        const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Handlers RUT
+    F.onRutInput = function(el){
+        const clean = CLFormat.cleanRut(el.value);
+        el.value = clean;
+        F.updateHint(el);
+    };
+    F.onRutBlur = function(el){
+        const clean = CLFormat.cleanRut(el.value);
+        const valid = CLFormat.isValidRut(clean);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Handlers Teléfono
+    F.onPhoneInput = function(el){
+        const clean = CLFormat.cleanPhoneCL(el.value);
+        el.value = clean;
+        F.updateHint(el);
+    };
+    F.onPhoneBlur = function(el){
+        const clean = CLFormat.cleanPhoneCL(el.value);
+        const valid = CLFormat.isValidPhoneCL(clean);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Extender updateHint para nuevos formatos
+    const _updateHintOrig = F.updateHint.bind(F);
+    F.updateHint = function(el){
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        if (fmt === 'email' || fmt === 'email-cl') {
+            const hint = F.ensureHint(el);
+            const tld = el.getAttribute('data-email-tld') || 'cl';
+            const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+            hint && (hint.textContent = (!valid && el.value) ? (fmt === 'email' ? 'Email no válido' : `Email debe terminar en .${tld}`) : '');
+            return;
+        }
+        if (fmt === 'rut') {
+            const hint = F.ensureHint(el);
+            hint && (hint.textContent = el.value ? CLFormat.formatRut(el.value) : '');
+            return;
+        }
+        if (fmt === 'phone-cl') {
+            const hint = F.ensureHint(el);
+            hint && (hint.textContent = el.value ? CLFormat.formatPhoneCL(el.value) : '');
+            return;
+        }
+        _updateHintOrig(el);
+    };
+})();
+
+/**
+ * Inicializar eventos cuando el documento esté listo
+ */
+$(document).ready(function() {
+    // Llamar a la inicialización de eventos después de un pequeño delay
+    // para asegurar que las DataTables estén inicializadas
+    setTimeout(() => {
+        initActionButtonEvents();
+    }, 100);
+    // Inicializar formateadores chilenos para inputs marcados con data-format
+    if (window.CLInputFormatter) {
+        window.CLInputFormatter.init();
+    }
+    // Refrescar pistas formateadas cuando se abren modales (por si el DOM se crea dinámicamente)
+    $(document).on('shown.bs.modal', function(){
+        if (window.CLInputFormatter) window.CLInputFormatter.refreshAllHints();
+    });
+});
+
+
+
