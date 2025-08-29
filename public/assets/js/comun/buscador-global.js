@@ -487,6 +487,7 @@ class GlobalSearchManager {
         }
     }
 
+    
     /**
      * Editar entidad
      */
