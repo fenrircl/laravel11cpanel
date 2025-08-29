@@ -14,7 +14,7 @@ define('LARAVEL_START', microtime(true));
 */
 
 // MODIFICACIÓN IMPORTANTE: Ruta absoluta a la carpeta storage de tu app principal
-if (file_exists($maintenance = '/home/estudiop/laravel_app/storage/framework/maintenance.php')) {
+if (file_exists($maintenance = '/home/aceroser/intranet/storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
@@ -30,7 +30,7 @@ if (file_exists($maintenance = '/home/estudiop/laravel_app/storage/framework/mai
 */
 
 // MODIFICACIÓN IMPORTANTE: Ruta absoluta a vendor/autoload.php
-require_once '/home/estudiop/laravel_app/vendor/autoload.php';
+require_once '/home/aceroser/intranet/vendor/autoload.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -44,7 +44,7 @@ require_once '/home/estudiop/laravel_app/vendor/autoload.php';
 */
 
 // MODIFICACIÓN IMPORTANTE: Ruta absoluta a bootstrap/app.php
-$app = require_once '/home/estudiop/laravel_app/bootstrap/app.php';
+$app = require_once '/home/aceroser/intranet/bootstrap/app.php';
 
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 

@@ -6,7 +6,7 @@
     RewriteEngine On
 
     # IMPORTANTE: Ajustar RewriteBase al subdirectorio
-    RewriteBase /laravel/
+    RewriteBase /intranet/
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
