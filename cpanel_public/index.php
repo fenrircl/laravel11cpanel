@@ -2,49 +2,13 @@
 
 define('LARAVEL_START', microtime(true));
 
-/*
-|--------------------------------------------------------------------------
-| Check If Application Is Under Maintenance
-|--------------------------------------------------------------------------
-|
-| If the application is in maintenance / demo mode via the "down" command
-| we will require this file so that any prerendered template can be
-| displayed applicable to the response.
-|
-*/
-
-// MODIFICACIÓN IMPORTANTE: Ruta absoluta a la carpeta storage de tu app principal
-if (file_exists($maintenance = '/home/aceroser/intranet/storage/framework/maintenance.php')) {
-    require $maintenance;
+if (file_exists(__DIR__.'/storage/framework/maintenance.php')) {
+    require __DIR__.'/storage/framework/maintenance.php';
 }
 
-/*
-|--------------------------------------------------------------------------
-| Register The Auto Loader
-|--------------------------------------------------------------------------
-|
-| Composer provides a convenient, automatically generated class loader for
-| this application. We just need to utilize it! We'll simply require it
-| into the script here so we don't need to manually load our classes.
-|
-*/
+require __DIR__.'/vendor/autoload.php';
 
-// MODIFICACIÓN IMPORTANTE: Ruta absoluta a vendor/autoload.php
-require_once '/home/aceroser/intranet/vendor/autoload.php';
-
-/*
-|--------------------------------------------------------------------------
-| Run The Application
-|--------------------------------------------------------------------------
-|
-| Once we have the application, we can handle the incoming request using
-| the application's HTTP kernel. Then, we will send the response back
-| to this client's browser, allowing them to enjoy our application.
-|
-*/
-
-// MODIFICACIÓN IMPORTANTE: Ruta absoluta a bootstrap/app.php
-$app = require_once '/home/aceroser/intranet/bootstrap/app.php';
+$app = require_once __DIR__.'/bootstrap/app.php';
 
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
@@ -53,5 +17,3 @@ $response = $kernel->handle(
 )->send();
 
 $kernel->terminate($request, $response);
-
-?>

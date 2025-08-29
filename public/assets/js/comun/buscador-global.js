@@ -474,9 +474,9 @@ class GlobalSearchManager {
         } else {
             // Fallback: redirigir a la página de la entidad
             const urls = {
-                clientes: `/clientes`,
-                proveedores: `/proveedores`,
-                facturas: `/facturas`
+                clientes: `clientes`,
+                proveedores: `proveedores`,
+                facturas: `facturas`
             };
             
             if (urls[entity]) {
