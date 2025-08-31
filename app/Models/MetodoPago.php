@@ -11,6 +11,9 @@ class MetodoPago extends Model
     
     protected $table = 'payment_methods';
     
+    // Deshabilitar timestamps ya que la tabla no los tiene
+    public $timestamps = false;
+    
     protected $fillable = [
         'name',
         'description',

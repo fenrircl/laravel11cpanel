@@ -60,6 +60,13 @@ return [
                 'auth_required' => true
             ],
             [
+                'title' => 'Métodos de Pago',
+                'icon' => 'fas fa-credit-card',
+                'route' => 'metodos-pago.index',
+                'tooltip' => 'Gestión de métodos de pago',
+                'auth_required' => true
+            ],
+            [
                 'title' => 'Archivos',
                 'icon' => 'fas fa-folder',
                 'route' => null,

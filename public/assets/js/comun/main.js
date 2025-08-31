@@ -191,6 +191,9 @@ window.EntityHelpers = {
     // Buscar factura por ID
     getFactura: (id) => EntityDataManager.findById('facturas', id),
     
+    // Buscar método de pago por ID
+    getMetodoPago: (id) => EntityDataManager.findById('metodos-pago', id),
+    
     // Buscar usuario por ID
     getUsuario: (id) => EntityDataManager.findById('usuarios', id),
     
@@ -200,11 +203,17 @@ window.EntityHelpers = {
     // Obtener proveedores activos
     getProveedoresActivos: () => EntityDataManager.filter('proveedores', p => p.status === 1 || p.status === '1'),
     
+    // Obtener métodos de pago activos
+    getMetodosPagoActivos: () => EntityDataManager.filter('metodos-pago', m => m.is_active === 1 || m.is_active === true),
+    
     // Buscar clientes por texto
     buscarClientes: (term) => EntityDataManager.search('clientes', term),
     
     // Buscar proveedores por texto
-    buscarProveedores: (term) => EntityDataManager.search('proveedores', term)
+    buscarProveedores: (term) => EntityDataManager.search('proveedores', term),
+    
+    // Buscar métodos de pago por texto
+    buscarMetodosPago: (term) => EntityDataManager.search('metodos-pago', term)
 };
 
 } // Fin de la verificación de inicialización
@@ -861,7 +870,57 @@ function populateForm(data, prefix = '') {
     Object.keys(data).forEach(key => {
         const element = document.getElementById(prefix + key);
         if (element) {
-            element.value = data[key] || '';
+            let value = data[key];
+            
+            // Manejar valores null/undefined
+            if (value === null || value === undefined) {
+                value = '';
+            }
+            
+            // Manejar fechas en formato ISO (2025-06-08T00:00:00.000000Z)
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                if (element.type === 'date') {
+                    // Para inputs tipo date, extraer solo la fecha (YYYY-MM-DD)
+                    value = value.split('T')[0];
+                } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
+                    // Para inputs de texto con formato chileno, convertir a DD-MM-YYYY
+                    const dateOnly = value.split('T')[0];
+                    if (window.CLFormat) {
+                        value = window.CLFormat.formatDateCL(dateOnly);
+                    } else {
+                        // Fallback manual
+                        const [year, month, day] = dateOnly.split('-');
+                        value = `${day}-${month}-${year}`;
+                    }
+                } else {
+                    // Para otros casos, mantener solo la fecha
+                    value = value.split('T')[0];
+                }
+            }
+            
+            // Manejar campos select
+            if (element.tagName === 'SELECT') {
+                // Buscar la opción correspondiente
+                const option = element.querySelector(`option[value="${value}"]`);
+                if (option) {
+                    element.value = value;
+                } else {
+                    element.value = '';
+                }
+            } else {
+                element.value = value;
+            }
+            
+            // Manejar formateo especial para campos con data-format
+            const format = element.getAttribute('data-format');
+            if (format) {
+                setTimeout(() => {
+                    if (window.CLInputFormatter) {
+                        window.CLInputFormatter.bind(element);
+                        window.CLInputFormatter.updateHint(element);
+                    }
+                }, 50);
+            }
         }
     });
 }
@@ -1313,8 +1372,22 @@ function openEditFacturaModal(entity, id) {
         return;
     }
     console.log(factura)
-    // Poblar el formulario del modal con los datos
-    populateForm(factura, '');
+    
+    // Cargar datos de los selectores primero
+    loadSelectData();
+    
+    // Poblar el formulario del modal con los datos después de un pequeño delay
+    // para asegurar que los selectores estén cargados
+    setTimeout(() => {
+        populateForm(factura, '');
+    }, 500);
+    
+    // Establecer el ID de la factura en el campo oculto
+    const facturaIdField = document.getElementById('factura_id');
+    if (facturaIdField) {
+        facturaIdField.value = factura.id;
+    }
+    
     // Formatear el campo monto
     const amountEl = document.getElementById('amount');
     if (amountEl) {
@@ -1354,6 +1427,16 @@ function openEditFacturaModal(entity, id) {
             }
         }
     }
+    
+    // Configurar título del modal para edición
+    if (entity === 'cliente') {
+        $('#facturaModalLabel').text('Editar Factura de Cliente');
+    } else if (entity === 'proveedor') {
+        $('#facturaModalLabel').text('Editar Factura de Proveedor');
+    } else {
+        $('#facturaModalLabel').text('Editar Factura');
+    }
+    
     // Abrir el modal
     $('#facturaModal').modal('show');
 }
@@ -1402,6 +1485,211 @@ function saveFacturaEdit(entity) {
             });
         }
     });
+}
+
+/**
+ * Guardar factura (crear o editar)
+ * Función llamada desde los modales de facturas
+ */
+function saveFactura() {
+    const form = $('#facturaForm');
+    const facturaId = $('#factura_id').val();
+    const isEdit = facturaId && facturaId !== '';
+    
+    // Validar campos requeridos
+    if (!validateRequiredFields('facturaForm')) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos requeridos',
+            text: 'Por favor completa todos los campos obligatorios.'
+        });
+        return;
+    }
+    
+    // Preparar datos del formulario
+    const formData = new FormData(form[0]);
+    
+    // Determinar URL y método según si es edición o creación
+    let url = '';
+    let method = 'POST';
+    
+    if (isEdit) {
+        url = buildApiUrl(`facturas/${facturaId}`);
+        formData.append('_method', 'PUT');
+    } else {
+        url = buildApiUrl('facturas');
+    }
+    
+    // Enviar datos
+    $.ajax({
+        url: url,
+        type: method,
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Éxito',
+                    text: isEdit ? 'Factura actualizada correctamente' : 'Factura creada correctamente'
+                }).then(() => {
+                    $('#facturaModal').modal('hide');
+                    
+                    // Recargar la tabla correspondiente
+                    if ($('#facturas-table').length) {
+                        $('#facturas-table').DataTable().ajax.reload();
+                    }
+                    if ($('#facturas-clientes-table').length) {
+                        $('#facturas-clientes-table').DataTable().ajax.reload();
+                    }
+                    if ($('#facturas-proveedores-table').length) {
+                        $('#facturas-proveedores-table').DataTable().ajax.reload();
+                    }
+                    
+                    // Limpiar formulario
+                    form[0].reset();
+                    $('#factura_id').val('');
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: response.message || 'Error al procesar la solicitud'
+                });
+            }
+        },
+        error: function(xhr) {
+            let errorMessage = 'Error al procesar la solicitud';
+            
+            if (xhr.responseJSON) {
+                if (xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.responseJSON.errors) {
+                    const errors = Object.values(xhr.responseJSON.errors).flat();
+                    errorMessage = errors.join('\n');
+                }
+            }
+            
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMessage
+            });
+        }
+    });
+}
+
+/**
+ * Cargar datos de clientes, proveedores y métodos de pago para los selectores
+ */
+function loadSelectData() {
+    // Cargar clientes
+    $.get(buildApiUrl('clientes/data'))
+        .done(function(response) {
+            const clientSelect = $('#client_id');
+            if (clientSelect.length) {
+                clientSelect.empty().append('<option value="">Seleccionar cliente...</option>');
+                response.data.forEach(cliente => {
+                    clientSelect.append(`<option value="${cliente.id}">${cliente.name}</option>`);
+                });
+            }
+        })
+        .fail(function() {
+            console.error('Error al cargar clientes');
+        });
+    
+    // Cargar proveedores
+    $.get(buildApiUrl('proveedores/data'))
+        .done(function(response) {
+            const providerSelect = $('#provider_id');
+            if (providerSelect.length) {
+                providerSelect.empty().append('<option value="">Seleccionar proveedor...</option>');
+                response.data.forEach(proveedor => {
+                    providerSelect.append(`<option value="${proveedor.id}">${proveedor.name}</option>`);
+                });
+            }
+        })
+        .fail(function() {
+            console.error('Error al cargar proveedores');
+        });
+    
+    // Cargar métodos de pago
+    $.get(buildApiUrl('metodos-pago/data'))
+        .done(function(response) {
+            const paymentMethodSelect = $('#payment_method_id');
+            if (paymentMethodSelect.length) {
+                paymentMethodSelect.empty().append('<option value="">Seleccionar método...</option>');
+                if (response.data) {
+                    response.data.forEach(metodo => {
+                        paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
+                    });
+                }
+            }
+        })
+        .fail(function() {
+            console.error('Error al cargar métodos de pago');
+            // Fallback con métodos básicos si no hay endpoint
+            const paymentMethodSelect = $('#payment_method_id');
+            if (paymentMethodSelect.length) {
+                paymentMethodSelect.empty().append('<option value="">Seleccionar método...</option>');
+                // Agregar métodos básicos por defecto
+                const metodosBasicos = [
+                    {id: 1, name: 'Efectivo'},
+                    {id: 2, name: 'Transferencia'},
+                    {id: 3, name: 'Cheque'},
+                    {id: 4, name: 'Tarjeta de Crédito'},
+                    {id: 5, name: 'Tarjeta de Débito'}
+                ];
+                metodosBasicos.forEach(metodo => {
+                    paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
+                });
+            }
+        });
+}
+
+// Función para abrir modal de creación
+function openCreateFacturaModal(entity) {
+    // Limpiar formulario
+    $('#facturaForm')[0].reset();
+    $('#factura_id').val('');
+    
+    // Cargar datos de los selectores
+    loadSelectData();
+    
+    // Configurar modal según entidad
+    if (entity === 'cliente') {
+        $('#facturaModalLabel').text('Nueva Factura de Cliente');
+        // Ocultar campo proveedor si existe
+        const providerField = $('#provider_id');
+        if (providerField.length) {
+            providerField.closest('.row, .col-md-6, .col-md-12, .mb-3').hide();
+        }
+        // Mostrar campo cliente
+        const clientField = $('#client_id');
+        if (clientField.length) {
+            clientField.closest('.row, .col-md-6, .col-md-12, .mb-3').show();
+        }
+    } else if (entity === 'proveedor') {
+        $('#facturaModalLabel').text('Nueva Factura de Proveedor');
+        // Ocultar campo cliente si existe
+        const clientField = $('#client_id');
+        if (clientField.length) {
+            clientField.closest('.row, .col-md-6, .col-md-12, .mb-3').hide();
+        }
+        // Mostrar campo proveedor
+        const providerField = $('#provider_id');
+        if (providerField.length) {
+            providerField.closest('.row, .col-md-6, .col-md-12, .mb-3').show();
+        }
+    } else {
+        $('#facturaModalLabel').text('Nueva Factura');
+        // En vista general, mostrar ambos campos
+        $('#client_id, #provider_id').closest('.row, .col-md-6, .col-md-12, .mb-3').show();
+    }
+    
+    // Abrir modal
+    $('#facturaModal').modal('show');
 }
 
 /**

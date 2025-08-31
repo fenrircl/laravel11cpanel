@@ -15,7 +15,7 @@
                             <a href="{{ route('facturas.proveedores.index') }}" class="btn btn-success btn-sm">
                                 <i class="fas fa-truck me-1"></i> Facturas Proveedores
                             </a>
-                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateModal('cliente')">
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateFacturaModal('cliente')">
                                 <i class="fas fa-plus me-1"></i> Nueva Factura Cliente
                             </button>
                         </div>
@@ -59,6 +59,7 @@
             <div class="modal-body">
                 <form id="facturaForm">
                     @csrf
+                    <input type="hidden" id="factura_id" name="id" value="">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">

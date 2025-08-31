@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\FacturasController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ProveedoresController;
+use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\R2Controller;
 
@@ -48,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('facturas/data', [FacturasController::class, 'getData'])->name('facturas.data');
     Route::get('facturas/clientes/data', [FacturasController::class, 'getClienteData'])->name('facturas.clientes.data');
     Route::get('facturas/proveedores/data', [FacturasController::class, 'getProveedorData'])->name('facturas.proveedores.data');
+    Route::get('metodos-pago/data', [MetodoPagoController::class, 'getData'])->name('metodos-pago.data');
     
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
     Route::get('/proveedores', [ProveedoresController::class, 'index'])->name('proveedores.index');
@@ -66,6 +68,10 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('facturas', FacturasController::class)->except(['index']);
     Route::resource('clientes', ClientesController::class)->except(['index']);
     Route::resource('proveedores', ProveedoresController::class)->except(['index']);
+    Route::resource('metodos-pago', MetodoPagoController::class);
+    
+    // Rutas adicionales para métodos de pago
+    Route::post('metodos-pago/{metodoPago}/toggle-status', [MetodoPagoController::class, 'toggleStatus'])->name('metodos-pago.toggle-status');
 
     Route::get('/r2/upload', [R2Controller::class, 'upload']);
     Route::get('/r2/list', [R2Controller::class, 'list']);
