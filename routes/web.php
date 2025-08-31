@@ -6,6 +6,7 @@ use App\Http\Controllers\FacturasController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\ProveedoresController;
 use App\Http\Controllers\BusquedaController;
+use App\Http\Controllers\R2Controller;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -65,5 +66,9 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('facturas', FacturasController::class)->except(['index']);
     Route::resource('clientes', ClientesController::class)->except(['index']);
     Route::resource('proveedores', ProveedoresController::class)->except(['index']);
+
+
+    Route::get('/r2/upload', [R2Controller::class, 'upload']);
+    Route::get('/r2/list', [R2Controller::class, 'list']);
 });
 
