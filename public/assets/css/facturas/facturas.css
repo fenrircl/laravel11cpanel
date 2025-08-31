@@ -186,6 +186,32 @@
     border-bottom: 1px solid #dee2e6;
 }
 
+/* Sección de archivo asociado en modal de detalles */
+.archivo-asociado {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+
+.archivo-asociado p {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.archivo-asociado .btn {
+    transition: all 0.2s ease;
+}
+
+.archivo-asociado .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.archivo-asociado .text-muted {
+    font-size: 0.85rem;
+}
+
 /* Resumen de factura */
 .factura-resumen {
     background-color: #f8f9fa;
@@ -286,4 +312,66 @@
 
 .indicador-estado.cancelado {
     background-color: #6c757d;
+}
+
+/* Sección de gestión de archivos */
+#file-management-section {
+    border-top: 2px solid #e9ecef;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+}
+
+#file-management-section h6 {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+#files-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.file-item:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.file-item .fw-bold {
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.file-item .text-muted {
+    font-size: 0.8rem;
+}
+
+.file-item .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
+
+#no-files-message {
+    color: #6c757d;
+    background-color: #f8f9fa;
+}
+
+#no-files-message i {
+    opacity: 0.5;
+}
+
+/* Input de subida de archivos */
+#file-upload {
+    border: 2px dashed #ced4da;
+    background-color: #f8f9fa;
+}
+
+#file-upload:focus {
+    border-color: #6c757d;
+    background-color: #fff;
 }

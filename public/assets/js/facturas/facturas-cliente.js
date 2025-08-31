@@ -111,6 +111,20 @@ $(document).ready(function() {
     window.verFactura = function(id) {
         const factura = EntityHelpers.getFactura(id);
         if (factura) {
+            // Generar enlace de archivo si existe
+            const archivoSection = factura.has_file && factura.file_path ? `
+                <hr>
+                <div class="archivo-asociado mt-3">
+                    <p><strong><i class="fas fa-file-download me-2"></i>Archivo Asociado:</strong></p>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="descargarPDF(${factura.id})">
+                            <i class="fas fa-download me-1"></i> Descargar Archivo
+                        </button>
+                        <small class="text-muted">Archivo disponible para descarga</small>
+                    </div>
+                </div>
+            ` : '';
+
             const detailsHtml = `
                 <p><strong>ID:</strong> ${factura.id}</p>
                 <p><strong>Número de Factura:</strong> ${factura.invoice}</p>
@@ -122,6 +136,7 @@ $(document).ready(function() {
                 <p><strong>Método de Pago:</strong> ${factura.metodo_pago.name}</p>
                 <p><strong>Estado:</strong> <span class="badge ${factura.status === 1 ? 'bg-success' : 'bg-warning'}">${factura.status === 1 ? 'Pagado' : 'Pendiente'}</span></p>
                 <p><strong>Detalle:</strong> ${factura.detail || 'Sin detalles'}</p>
+                ${archivoSection}
             `;
             $('#facturaDetailsContent').html(detailsHtml);
             new bootstrap.Modal(document.getElementById('facturaDetailsModal')).show();

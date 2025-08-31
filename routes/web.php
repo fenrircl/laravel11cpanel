@@ -76,5 +76,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/r2/upload', [R2Controller::class, 'upload']);
     Route::get('/r2/list', [R2Controller::class, 'list']);
     Route::get('/r2/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('r2.download');
+    
+    // Rutas para gestión de archivos
+    Route::post('/files/upload', [R2Controller::class, 'uploadFile'])->name('files.upload');
+    Route::get('/files/list', [R2Controller::class, 'getFiles'])->name('files.list');
+    Route::delete('/files/{id}', [R2Controller::class, 'deleteFile'])->name('files.delete');
+    Route::get('/files/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('files.download');
 });
 
