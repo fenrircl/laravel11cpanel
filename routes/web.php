@@ -67,8 +67,8 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('clientes', ClientesController::class)->except(['index']);
     Route::resource('proveedores', ProveedoresController::class)->except(['index']);
 
-
     Route::get('/r2/upload', [R2Controller::class, 'upload']);
     Route::get('/r2/list', [R2Controller::class, 'list']);
+    Route::get('/r2/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('r2.download');
 });
 

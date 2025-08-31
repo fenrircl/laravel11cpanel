@@ -34,4 +34,25 @@ class R2Controller extends Controller
 
         return $output;
     }
+
+    /**
+     * Stream a file from R2 storage.
+     *
+     * @param string $path
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\Response
+     */
+    public function downloadFile($path)
+    {
+        // Basic security check to prevent directory traversal
+        if (str_contains($path, '..')) {
+            abort(400, 'Ruta inválida.');
+        }
+
+        if (!Storage::disk('r2')->exists($path)) {
+            abort(404, 'Archivo no encontrado.');
+        }
+
+        // Usar response() para que el navegador maneje el archivo (lo muestra en línea o lo descarga)
+        return Storage::disk('r2')->response($path);
+    }
 }

@@ -63,18 +63,12 @@ $(document).ready(function() {
             searchable: false,
             title: 'Acciones',
             render: function(data, type, row) {
-                // Usar configuración específica para facturas con botón de descarga
-                return generateActionButtons(row.id, 'facturas', {
-                    include: ['view', 'edit', 'download', 'delete'],
-                    custom: {
-                        duplicate: {
-                            class: 'btn btn-sm btn-action btn-duplicate',
-                            icon: 'fas fa-copy',
-                            title: 'Duplicar Factura',
-                            onclick: `duplicarFactura(${row.id})`
-                        }
-                    }
-                });
+                const options = {};
+                // Excluir el botón de descarga si no hay archivo
+                if (!row.has_file || !row.file_path) {
+                    options.exclude = ['download'];
+                }
+                return generateActionButtons(row.id, 'facturas', options);
             }
         }
     ];
@@ -116,38 +110,26 @@ $(document).ready(function() {
     window.verFactura = function(id) {
         const factura = EntityHelpers.getFactura(id);
         if (factura) {
-            // Crear modal con los datos almacenados
-            const modalContent = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>ID:</strong> ${factura.id}</p>
-                        <p><strong>Número:</strong> ${factura.numero_factura || 'No especificado'}</p>
-                        <p><strong>Cliente:</strong> ${factura.cliente_nombre || 'No especificado'}</p>
-                        <p><strong>Total:</strong> ${formatCurrency(factura.total)}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Fecha:</strong> ${formatTableDate(factura.fecha, false)}</p>
-                        <p><strong>Vencimiento:</strong> ${formatTableDate(factura.fecha_vencimiento, false)}</p>
-                        <p><strong>Estado:</strong> ${factura.estado || 'No especificado'}</p>
-                        <p><strong>Fecha de creación:</strong> ${formatTableDate(factura.created_at, true)}</p>
-                    </div>
-                </div>
+            const isCliente = !!factura.client_id;
+            const entidadNombre = isCliente ? factura.cliente.name : factura.proveedor.name;
+            const entidadLabel = isCliente ? 'Cliente' : 'Proveedor';
+
+            const detailsHtml = `
+                <p><strong>ID:</strong> ${factura.id}</p>
+                <p><strong>Número de Factura:</strong> ${factura.invoice}</p>
+                <p><strong>${entidadLabel}:</strong> ${entidadNombre}</p>
+                <p><strong>Fecha:</strong> ${formatTableDate(factura.date, false)}</p>
+                <p><strong>Vencimiento:</strong> ${factura.expiry ? formatTableDate(factura.expiry, false) : 'N/A'}</p>
+                <p><strong>Fecha de Pago:</strong> ${factura.pay_date ? formatTableDate(factura.pay_date, false) : 'N/A'}</p>
+                <p><strong>Monto:</strong> ${formatCurrency(factura.amount)}</p>
+                <p><strong>Método de Pago:</strong> ${factura.metodoPago.name}</p>
+                <p><strong>Estado:</strong> <span class="badge ${factura.status === 1 ? 'bg-success' : 'bg-warning'}">${factura.status === 1 ? 'Pagado' : 'Pendiente'}</span></p>
+                <p><strong>Detalle:</strong> ${factura.detail || 'Sin detalles'}</p>
             `;
-            
-            Swal.fire({
-                title: 'Detalles de la Factura',
-                html: modalContent,
-                width: '600px',
-                showCloseButton: true,
-                showConfirmButton: false
-            });
+            $('#facturaDetailsContent').html(detailsHtml);
+            new bootstrap.Modal(document.getElementById('facturaDetailsModal')).show();
         } else {
-            console.error('Factura no encontrada:', id);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se encontraron los datos de la factura.'
-            });
+            Swal.fire('Error', 'No se pudieron encontrar los detalles de la factura.', 'error');
         }
     };
     
@@ -165,44 +147,7 @@ $(document).ready(function() {
         }
     };
     
-    // Descargar PDF de factura
-    window.descargarPDF = function(id) {
-        const factura = EntityHelpers.getFactura(id);
-        if (factura) {
-            // Mostrar loading en el botón
-            const $btn = $(`.btn-download[onclick*="${id}"]`);
-            $btn.addClass('loading');
-            
-            const url = buildApiUrl(`facturas/${id}/pdf`);
-            
-            // Crear enlace temporal para descarga
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `factura_${factura.numero_factura || id}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Remover loading
-            setTimeout(() => {
-                $btn.removeClass('loading');
-            }, 1000);
-            
-            Swal.fire({
-                title: 'Descarga iniciada',
-                text: 'El PDF de la factura se está descargando.',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se encontraron los datos de la factura para descargar.'
-            });
-        }
-    };
+
 });
 
 /**

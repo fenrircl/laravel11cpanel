@@ -48,6 +48,15 @@ class Factura extends Model
     {
         return $this->belongsTo(MetodoPago::class, 'payment_method_id');
     }
+
+    /**
+     * Get the file record associated with the invoice.
+     */
+    public function archivo()
+    {
+        return $this->hasOne(FilesRegistry::class, 'real_id', 'invoice')
+                    ->where('model_type', 'App\\Invoice');
+    }
     
     // Scopes
     public function scopeByClient($query, $clientId)

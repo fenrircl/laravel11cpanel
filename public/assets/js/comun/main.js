@@ -464,6 +464,41 @@ class ActionButtonFactory {
     }
 }
 
+    // Descargar PDF de factura
+    window.descargarPDF = function(id) {
+        const factura = EntityHelpers.getFactura(id);
+        
+        if (!factura) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se encontraron los datos de la factura para descargar.'
+            });
+            return;
+        }
+
+        // Priorizar archivo desde R2 si existe
+        if (factura.has_file && factura.file_path) {
+            const downloadUrl = buildApiUrl(`r2/download/${factura.file_path}`);
+            window.open(downloadUrl, '_blank');
+            
+            Swal.fire({
+                title: 'Abriendo archivo',
+                text: 'El archivo de la factura se está abriendo en una nueva pestaña.',
+                icon: 'success',
+                timer: 2500,
+                showConfirmButton: false
+            });
+        } else {
+            // Fallback si no hay archivo en R2
+            Swal.fire({
+                icon: 'info',
+                title: 'Archivo no encontrado',
+                text: 'Esta factura no tiene un archivo asociado en el registro.'
+            });
+        }
+    };
+    
 /**
  * Builder para construir grupos de botones de acción
  * Siguiendo el principio Abierto/Cerrado (SOLID)
@@ -517,6 +552,7 @@ class ActionButtonBuilder {
         const entityConfig = ActionButtonFactory.entityConfig[this.entity];
         if (entityConfig && entityConfig.actions) {
             entityConfig.actions.forEach(action => {
+                // Llamar a addButton que ya respeta la lista de exclusión
                 this.addButton(action);
             });
         }
@@ -592,6 +628,11 @@ class ActionButtonBuilder {
  */
 function generateActionButtons(id, entity, options = {}) {
     const builder = new ActionButtonBuilder(id, entity);
+
+    // Primero, procesar las exclusiones para que se apliquen antes de construir
+    if (options.exclude) {
+        builder.exclude(options.exclude);
+    }
     
     // Si se especifican botones específicos a incluir
     if (options.include && Array.isArray(options.include)) {
@@ -600,13 +641,8 @@ function generateActionButtons(id, entity, options = {}) {
             builder.addButton(buttonType, customConfig);
         });
     } else {
-        // Usar configuración por defecto de la entidad
+        // Usar configuración por defecto de la entidad (que ahora respetará las exclusiones)
         builder.buildDefault();
-    }
-    
-    // Excluir botones si se especifica
-    if (options.exclude) {
-        builder.exclude(options.exclude);
     }
     
     // Agregar botones personalizados
@@ -1243,9 +1279,9 @@ function toggleElement(elementId, show) {
 $(document).ready(function() {
     // Llamar a la inicialización de eventos después de un pequeño delay
     // para asegurar que las DataTables estén inicializadas
-    setTimeout(() => {
-        initActionButtonEvents();
-    }, 100);
+    // setTimeout(() => {
+    //     //initActionButtonEvents();
+    // }, 100);
     // Inicializar formateadores chilenos para inputs marcados con data-format
     if (window.CLInputFormatter) {
         window.CLInputFormatter.init();
@@ -1573,25 +1609,4 @@ function saveFacturaEdit(entity) {
         _updateHintOrig(el);
     };
 })();
-
-/**
- * Inicializar eventos cuando el documento esté listo
- */
-$(document).ready(function() {
-    // Llamar a la inicialización de eventos después de un pequeño delay
-    // para asegurar que las DataTables estén inicializadas
-    setTimeout(() => {
-        initActionButtonEvents();
-    }, 100);
-    // Inicializar formateadores chilenos para inputs marcados con data-format
-    if (window.CLInputFormatter) {
-        window.CLInputFormatter.init();
-    }
-    // Refrescar pistas formateadas cuando se abren modales (por si el DOM se crea dinámicamente)
-    $(document).on('shown.bs.modal', function(){
-        if (window.CLInputFormatter) window.CLInputFormatter.refreshAllHints();
-    });
-});
-
-
 

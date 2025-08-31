@@ -45,7 +45,7 @@ class FacturasController extends Controller
      */
     public function getData()
     {
-        $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name'])
+        $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo'])
                           ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
                           ->orderBy('created_at', 'desc')
                           ->get()
@@ -53,6 +53,9 @@ class FacturasController extends Controller
                               // Agregar tipo de factura según si tiene cliente o proveedor
                               $factura->tipo = $factura->client_id ? 'cliente' : 'proveedor';
                               $factura->entidad_nombre = $factura->client_id ? $factura->cliente?->name : $factura->proveedor?->name;
+                              // Agregar información del archivo
+                              $factura->has_file = $factura->archivo ? true : false;
+                              $factura->file_path = $factura->archivo->path ?? null;
                               return $factura;
                           });
         
@@ -66,11 +69,16 @@ class FacturasController extends Controller
      */
     public function getClienteData()
     {
-        $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name'])
+        $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('client_id')
                           ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
                           ->orderBy('created_at', 'desc')
-                          ->get();
+                          ->get()
+                          ->map(function ($factura) {
+                              $factura->has_file = $factura->archivo ? true : false;
+                              $factura->file_path = $factura->archivo->path ?? null;
+                              return $factura;
+                          });
         
         return response()->json([
             'data' => $facturas
@@ -82,11 +90,16 @@ class FacturasController extends Controller
      */
     public function getProveedorData()
     {
-        $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name'])
+        $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('provider_id')
                           ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
                           ->orderBy('created_at', 'desc')
-                          ->get();
+                          ->get()
+                          ->map(function ($factura) {
+                              $factura->has_file = $factura->archivo ? true : false;
+                              $factura->file_path = $factura->archivo->path ?? null;
+                              return $factura;
+                          });
         
         return response()->json([
             'data' => $facturas
