@@ -205,4 +205,47 @@ class R2Controller extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Delete a file from storage and database by path
+     *
+     * @param string $path
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function deleteFileByPath($path)
+    {
+        try {
+            // Decode the path in case it was URL encoded
+            $decodedPath = urldecode($path);
+            
+            // Find the file registry entry by path
+            $fileRegistry = FilesRegistry::where('path', $decodedPath)->first();
+            
+            if (!$fileRegistry) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Archivo no encontrado en el registro'
+                ], 404);
+            }
+            
+            // Delete from R2 storage
+            if (Storage::disk('r2')->exists($fileRegistry->path)) {
+                Storage::disk('r2')->delete($fileRegistry->path);
+            }
+            
+            // Delete from database
+            $fileRegistry->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Archivo eliminado exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar archivo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

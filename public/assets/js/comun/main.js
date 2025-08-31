@@ -507,7 +507,92 @@ class ActionButtonFactory {
             });
         }
     };
-    
+
+    // Eliminar archivo de factura
+    window.eliminarArchivoFactura = function(id) {
+        const factura = EntityHelpers.getFactura(id);
+        
+        if (!factura) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se encontraron los datos de la factura.'
+            });
+            return;
+        }
+
+        if (!factura.has_file || !factura.file_path) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Sin archivo',
+                text: 'Esta factura no tiene un archivo asociado.'
+            });
+            return;
+        }
+
+        // Confirmación de eliminación
+        Swal.fire({
+            title: '¿Eliminar archivo?',
+            text: `¿Está seguro de que desea eliminar el archivo asociado a la factura #${factura.invoice}? Esta acción no se puede deshacer.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar archivo',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Realizar la eliminación
+                $.ajax({
+                    url: buildApiUrl(`r2/delete/${factura.file_path}`),
+                    type: 'DELETE',
+                    data: {
+                        "_token": $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                title: '¡Eliminado!',
+                                text: 'El archivo ha sido eliminado correctamente.',
+                                icon: 'success',
+                                timer: 2500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                // Recargar las tablas de facturas para actualizar el estado has_file
+                                if ($('#facturas-table').length) {
+                                    $('#facturas-table').DataTable().ajax.reload();
+                                }
+                                if ($('#facturas-clientes-table').length) {
+                                    $('#facturas-clientes-table').DataTable().ajax.reload();
+                                }
+                                if ($('#facturas-proveedores-table').length) {
+                                    $('#facturas-proveedores-table').DataTable().ajax.reload();
+                                }
+                                
+                                // Cerrar modal de detalles para que se actualice la información
+                                $('#facturaDetailsModal').modal('hide');
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: response.message || 'No se pudo eliminar el archivo.'
+                            });
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error('Error eliminando archivo:', xhr);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Ocurrió un error al eliminar el archivo. Por favor, inténtelo de nuevo.'
+                        });
+                    }
+                });
+            }
+        });
+    };
+
 /**
  * Builder para construir grupos de botones de acción
  * Siguiendo el principio Abierto/Cerrado (SOLID)

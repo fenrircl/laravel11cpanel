@@ -119,11 +119,14 @@ $(document).ready(function() {
                 <hr>
                 <div class="archivo-asociado mt-3">
                     <p><strong><i class="fas fa-file-download me-2"></i>Archivo Asociado:</strong></p>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="descargarPDF(${factura.id})">
                             <i class="fas fa-download me-1"></i> Descargar Archivo
                         </button>
-                        <small class="text-muted">Archivo disponible para descarga</small>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarArchivoFactura(${factura.id})">
+                            <i class="fas fa-trash me-1"></i> Eliminar Archivo
+                        </button>
+                        <small class="text-muted">Archivo disponible para descarga y eliminación</small>
                     </div>
                 </div>
             ` : '';

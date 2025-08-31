@@ -81,6 +81,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/files/upload', [R2Controller::class, 'uploadFile'])->name('files.upload');
     Route::get('/files/list', [R2Controller::class, 'getFiles'])->name('files.list');
     Route::delete('/files/{id}', [R2Controller::class, 'deleteFile'])->name('files.delete');
+    Route::delete('/r2/delete/{path}', [R2Controller::class, 'deleteFileByPath'])->where('path', '.*')->name('r2.delete');
     Route::get('/files/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('files.download');
 });
 
