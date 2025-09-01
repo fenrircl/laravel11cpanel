@@ -265,7 +265,7 @@ function initDataTable(tableId, data, columns, options = {}) {
         serverSide: false,
         columns: columns,
         language: {
-            url: buildApiUrl('assets/js/comun/plugins/datatable/es-ES.json')
+            url: '//cdn.datatables.net/plug-ins/2.3.3/i18n/es-ES.json',
         },
         responsive: true,
         pageLength: 25,
