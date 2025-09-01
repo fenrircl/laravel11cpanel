@@ -18,9 +18,10 @@ Route::controller(LoginRegisterController::class)->group(function() {
     Route::post('/logout', 'logout')->name('logout');
 });
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Route::get('/', function () {
+//     return view('welcome');
+// });
+Route::get('/', [LoginRegisterController::class, 'home'])->name('home');
 
 Route::get('/clear-laravel-11-caches', function () {
     Artisan::call('config:clear');
