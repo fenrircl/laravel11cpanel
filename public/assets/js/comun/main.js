@@ -260,12 +260,16 @@ function buildApiUrl(endpoint) {
  * @param {Object} options - Opciones adicionales
  */
 function initDataTable(tableId, data, columns, options = {}) {
+    // Detectar si estamos en local (localhost o 127.0.0.1)
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const defaultOptions = {
         processing: true,
         serverSide: false,
         columns: columns,
         language: {
-            url: '//cdn.datatables.net/plug-ins/2.3.3/i18n/es-ES.json',
+            url: isLocal
+                ? buildApiUrl('assets/js/comun/plugins/datatable/es-ES.json')
+                : '//cdn.datatables.net/plug-ins/2.3.3/i18n/es-ES.json'
         },
         responsive: true,
         pageLength: 25,
