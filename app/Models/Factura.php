@@ -54,8 +54,8 @@ class Factura extends Model
      */
     public function archivo()
     {
-        return $this->hasOne(FilesRegistry::class, 'real_id', 'invoice')
-                    ->where('model_type', 'App\\Invoice');
+        return $this->hasOne(FilesRegistry::class, 'model_id', 'id')
+                    ->where('model_type', 'factura');
     }
     
     // Scopes

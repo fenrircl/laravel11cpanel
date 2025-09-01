@@ -569,6 +569,26 @@ class ActionButtonFactory {
                                     $('#facturas-proveedores-table').DataTable().ajax.reload();
                                 }
                                 
+                                // Actualizar modal de edición si está abierto
+                                if ($('#facturaModal').hasClass('show')) {
+                                    // Actualizar la sección de archivo asociado
+                                    const archivoAsociadoDiv = document.getElementById('archivo-asociado');
+                                    if (archivoAsociadoDiv) {
+                                        archivoAsociadoDiv.innerHTML = `
+                                            <div class="archivo-asociado">
+                                                <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
+                                                <p class="text-muted">No hay archivo asociado a esta factura</p>
+                                            </div>
+                                        `;
+                                    }
+                                    
+                                    // Actualizar contenedor files-list
+                                    const filesListContainer = document.getElementById('files-list');
+                                    if (filesListContainer) {
+                                        filesListContainer.innerHTML = '<p class="text-muted">No hay archivos asociados</p>';
+                                    }
+                                }
+                                
                                 // Cerrar modal de detalles para que se actualice la información
                                 $('#facturaDetailsModal').modal('hide');
                             });
@@ -1458,6 +1478,9 @@ function openEditFacturaModal(entity, id) {
     }
     console.log(factura)
     
+    if(factura.detail)
+        document.getElementById('detail').value = factura.detail;
+    
     // Cargar datos de los selectores primero
     loadSelectData();
     
@@ -1520,6 +1543,83 @@ function openEditFacturaModal(entity, id) {
         $('#facturaModalLabel').text('Editar Factura de Proveedor');
     } else {
         $('#facturaModalLabel').text('Editar Factura');
+    }
+    
+    // Mostrar sección de gestión de archivos en modo edición
+    const fileManagementSection = document.getElementById('file-management-section');
+    if (fileManagementSection) {
+        fileManagementSection.style.display = 'block';
+        
+        // Mostrar archivos existentes basándose en los datos de la factura (como verFactura)
+        const archivoAsociadoDiv = document.getElementById('archivo-asociado');
+        if (archivoAsociadoDiv) {
+            if (factura.has_file && factura.file_path) {
+                // Extraer nombre del archivo del path
+                const fileName = factura.file_path.split('/').pop() || 'archivo';
+                
+                archivoAsociadoDiv.innerHTML = `
+                    <div class="archivo-asociado">
+                        <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
+                        <div class="archivo-info">
+                            <span class="archivo-nombre">${fileName}</span>
+                            <div class="archivo-acciones">
+                                <a href="javascript:void(0)" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   onclick="descargarPDF(${factura.id})"
+                                   title="Descargar archivo">
+                                    <i class="fas fa-download"></i> Descargar
+                                </a>                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger" 
+                                                onclick="eliminarArchivoFacturaModal()" 
+                                                title="Eliminar archivo">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                archivoAsociadoDiv.innerHTML = `
+                    <div class="archivo-asociado">
+                        <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
+                        <p class="text-muted">No hay archivo asociado a esta factura</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Simplemente mostrar la lista de archivos vacía para el contenedor files-list
+        const filesListContainer = document.getElementById('files-list');
+        if (filesListContainer) {
+            if (factura.has_file && factura.file_path) {
+                const fileName = factura.file_path.split('/').pop() || 'archivo';
+                filesListContainer.innerHTML = `
+                    <div class="files-container">
+                        <div class="file-item mb-2 p-2 border rounded">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="file-name">${fileName}</span>
+                                <div class="file-actions">
+                                    <a href="javascript:void(0)" 
+                                       class="btn btn-sm btn-outline-primary" 
+                                       onclick="descargarPDF(${factura.id})"
+                                       title="Descargar">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-outline-danger" 
+                                            onclick="eliminarArchivoFacturaModal()" 
+                                            title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                filesListContainer.innerHTML = '<p class="text-muted">No hay archivos asociados</p>';
+            }
+        }
     }
     
     // Abrir el modal
@@ -1599,6 +1699,7 @@ function saveFactura() {
     let method = 'POST';
     
     if (isEdit) {
+        // Usar ruta normal de facturas
         url = buildApiUrl(`facturas/${facturaId}`);
         formData.append('_method', 'PUT');
     } else {
@@ -1771,6 +1872,12 @@ function openCreateFacturaModal(entity) {
         $('#facturaModalLabel').text('Nueva Factura');
         // En vista general, mostrar ambos campos
         $('#client_id, #provider_id').closest('.row, .col-md-6, .col-md-12, .mb-3').show();
+    }
+    
+    // Ocultar sección de gestión de archivos en modo creación
+    const fileManagementSection = document.getElementById('file-management-section');
+    if (fileManagementSection) {
+        fileManagementSection.style.display = 'none';
     }
     
     // Abrir modal
@@ -1982,3 +2089,189 @@ function openCreateFacturaModal(entity) {
         _updateHintOrig(el);
     };
 })();
+
+// ===== FUNCIONES DE GESTIÓN DE ARCHIVOS PARA FACTURAS =====
+
+/**
+ * Subir archivo para una factura
+ */
+function uploadFile(formData, onSuccess = null) {
+    fetch(buildApiUrl('files/upload'), {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (response.status === 401) {
+            // Usuario no autenticado
+            window.location.href = '/login';
+            return;
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.status === 'success') {
+            Swal.fire({
+                title: '¡Éxito!',
+                text: 'Archivo subido correctamente',
+                icon: 'success',
+                confirmButtonText: 'OK'
+            });
+            
+            if (onSuccess) {
+                onSuccess(data);
+            }
+            
+            // Actualizar modal de edición si está abierto
+            if ($('#facturaModal').hasClass('show')) {
+                const invoice = document.querySelector('[name="invoice"]')?.value;
+                const facturaId = document.getElementById('factura_id')?.value;
+                if (invoice && data.file && facturaId) {
+                    // Actualizar la sección de archivo asociado
+                    const archivoAsociadoDiv = document.getElementById('archivo-asociado');
+                    if (archivoAsociadoDiv) {
+                        archivoAsociadoDiv.innerHTML = `
+                            <div class="archivo-asociado">
+                                <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
+                                <div class="archivo-info">
+                                    <span class="archivo-nombre">${data.file.name}</span>
+                                    <div class="archivo-acciones">
+                                        <a href="javascript:void(0)" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           onclick="descargarPDF(${facturaId})"
+                                           title="Descargar archivo">
+                                            <i class="fas fa-download"></i> Descargar
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger" 
+                                                onclick="eliminarArchivoFacturaModal()" 
+                                                title="Eliminar archivo">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Actualizar contenedor files-list
+                    const filesListContainer = document.getElementById('files-list');
+                    if (filesListContainer) {
+                        filesListContainer.innerHTML = `
+                            <div class="files-container">
+                                <div class="file-item mb-2 p-2 border rounded">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="file-name">${data.file.name}</span>
+                                        <div class="file-actions">
+                                            <a href="javascript:void(0)" 
+                                               class="btn btn-sm btn-outline-primary" 
+                                               onclick="descargarPDF(${facturaId})"
+                                               title="Descargar">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger" 
+                                                    onclick="eliminarArchivoFacturaModal()" 
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+            
+            // Recargar tablas
+            if ($('#facturas-table').length) {
+                $('#facturas-table').DataTable().ajax.reload();
+            }
+            if ($('#facturas-clientes-table').length) {
+                $('#facturas-clientes-table').DataTable().ajax.reload();
+            }
+            if ($('#facturas-proveedores-table').length) {
+                $('#facturas-proveedores-table').DataTable().ajax.reload();
+            }
+        } else {
+            Swal.fire({
+                title: 'Error',
+                text: data?.message || 'Error al subir archivo',
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            title: 'Error',
+            text: 'Error al subir archivo: ' + error.message,
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+    });
+}
+
+/**
+ * Eliminar archivo desde el modal de edición de factura
+ */
+function eliminarArchivoFacturaModal() {
+    // Obtener el ID de la factura desde el modal de edición
+    const facturaId = document.getElementById('factura_id')?.value;
+    
+    if (!facturaId) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'No se pudo identificar la factura.'
+        });
+        return;
+    }
+    
+    // Usar la función existente eliminarArchivoFactura
+    eliminarArchivoFactura(facturaId);
+}
+
+// ===== EVENT LISTENERS PARA GESTIÓN DE ARCHIVOS =====
+
+// Event listener para upload de archivos
+document.addEventListener('DOMContentLoaded', function() {
+    // Manejar cambio en input de archivo
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'file-upload') {
+            const fileInput = e.target;
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const invoice = document.querySelector('[name="invoice"]')?.value;
+            if (!invoice) {
+                Swal.fire({
+                    title: 'Error',
+                    text: 'No se puede subir archivo sin número de factura',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('invoice', invoice);
+            
+            uploadFile(formData, () => {
+                // Limpiar input después de subir
+                fileInput.value = '';
+            });
+        }
+    });
+});

@@ -67,7 +67,80 @@ class R2Controller extends Controller
     public function uploadFile(Request $request)
     {
         try {
-            // Validate request
+            // Soporte para facturas por invoice number
+            if ($request->has('invoice')) {
+                // Validación para facturas por invoice
+                $request->validate([
+                    'file' => 'required|file|max:10240', // Max 10MB
+                    'invoice' => 'required|string'
+                ]);
+
+                $file = $request->file('file');
+                $invoice = $request->input('invoice');
+
+                // Buscar la factura por número de invoice
+                $factura = DB::table('invoices')->where('invoice', $invoice)->first();
+                
+                if (!$factura) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Factura no encontrada'
+                    ], 404);
+                }
+
+                // Determinar el tipo de factura (cliente o proveedor) y crear el path apropiado
+                $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
+                $numeroFactura = $factura->invoice; // Usar número de factura en lugar del ID
+                
+                // Generate a unique filename
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension();
+                $fileName = pathinfo($originalName, PATHINFO_FILENAME);
+                $uniqueFileName = $fileName . '_' . time() . '.' . $extension;
+                
+                // Create the storage path: facturas/clientes/{numero_factura} o facturas/proveedores/{numero_factura}
+                $storagePath = "facturas/{$tipoFactura}/{$numeroFactura}/{$uniqueFileName}";
+
+                // Upload to R2
+                $uploaded = Storage::disk('r2')->putFileAs(
+                    "facturas/{$tipoFactura}/{$numeroFactura}",
+                    $file,
+                    $uniqueFileName
+                );
+
+                if (!$uploaded) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Error al subir el archivo'
+                    ], 500);
+                }
+
+                // Register in database
+                $fileRegistry = FilesRegistry::create([
+                    'model_type' => 'factura',
+                    'model_id' => $factura->id,
+                    'real_id' => $factura->id,
+                    'path' => $storagePath,
+                    'file_name' => $originalName,
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'migrated' => 0,
+                    'created_at' => now()
+                ]);
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Archivo subido exitosamente',
+                    'file' => [
+                        'id' => $fileRegistry->id,
+                        'name' => $originalName,
+                        'size' => $file->getSize(),
+                        'path' => $storagePath
+                    ]
+                ]);
+            }
+
+            // Método original por model_type y model_id
             $request->validate([
                 'file' => 'required|file|max:10240', // Max 10MB
                 'model_type' => 'required|string',
@@ -80,6 +153,26 @@ class R2Controller extends Controller
             $modelId = $request->input('model_id');
             $realId = $request->input('real_id');
 
+            // Si es una factura, necesitamos determinar si es de cliente o proveedor
+            if ($modelType === 'factura') {
+                $factura = DB::table('invoices')->where('id', $modelId)->first();
+                
+                if (!$factura) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Factura no encontrada'
+                    ], 404);
+                }
+
+                // Determinar el tipo de factura y usar número de factura en lugar del ID
+                $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
+                $numeroFactura = $factura->invoice; // Usar número de factura
+                $facturaPath = "facturas/{$tipoFactura}/{$numeroFactura}";
+            } else {
+                // Para otros tipos de modelos, usar estructura original
+                $facturaPath = "facturas/{$modelId}";
+            }
+
             // Generate a unique filename
             $originalName = $file->getClientOriginalName();
             $extension = $file->getClientOriginalExtension();
@@ -87,11 +180,11 @@ class R2Controller extends Controller
             $uniqueFileName = $fileName . '_' . time() . '.' . $extension;
             
             // Create the storage path
-            $storagePath = "facturas/{$modelId}/{$uniqueFileName}";
+            $storagePath = "{$facturaPath}/{$uniqueFileName}";
 
             // Upload to R2
             $uploaded = Storage::disk('r2')->putFileAs(
-                "facturas/{$modelId}",
+                $facturaPath,
                 $file,
                 $uniqueFileName
             );
@@ -112,7 +205,8 @@ class R2Controller extends Controller
                 'file_name' => $originalName,
                 'mime_type' => $file->getMimeType(),
                 'size' => $file->getSize(),
-                'migrated' => 0
+                'migrated' => 0,
+                'created_at' => now()
             ]);
 
             return response()->json([
@@ -143,8 +237,51 @@ class R2Controller extends Controller
     public function getFiles(Request $request)
     {
         try {
+            // Soporte para búsqueda por invoice number (facturas)
+            if ($request->has('invoice')) {
+                $invoice = $request->input('invoice');
+                
+                // Buscar la factura por número de invoice
+                $factura = DB::table('invoices')->where('invoice', $invoice)->first();
+                
+                if (!$factura) {
+                    return response()->json([
+                        'status' => 'success',
+                        'files' => []
+                    ]);
+                }
+                
+                $files = FilesRegistry::where('model_type', 'factura')
+                    ->where('model_id', $factura->id)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(function ($file) {
+                        return [
+                            'id' => $file->id,
+                            'name' => $file->file_name,
+                            'size' => $file->size,
+                            'mime_type' => $file->mime_type,
+                            'created_at' => $file->created_at->format('d/m/Y H:i'),
+                            'download_url' => route('files.download', ['path' => $file->path])
+                        ];
+                    });
+
+                return response()->json([
+                    'status' => 'success',
+                    'files' => $files
+                ]);
+            }
+
+            // Método original por model_type y model_id
             $modelType = $request->input('model_type');
             $modelId = $request->input('model_id');
+
+            if (!$modelType || !$modelId) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Parámetros requeridos: model_type y model_id o invoice'
+                ], 400);
+            }
 
             $files = FilesRegistry::where('model_type', $modelType)
                 ->where('model_id', $modelId)
@@ -162,13 +299,13 @@ class R2Controller extends Controller
                 });
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'files' => $files
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Error al obtener archivos: ' . $e->getMessage()
             ], 500);
         }
@@ -194,13 +331,13 @@ class R2Controller extends Controller
             $fileRegistry->delete();
 
             return response()->json([
-                'success' => true,
+                'status' => 'success',
                 'message' => 'Archivo eliminado exitosamente'
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
-                'success' => false,
+                'status' => 'error',
                 'message' => 'Error al eliminar archivo: ' . $e->getMessage()
             ], 500);
         }

@@ -21,7 +21,7 @@ class FilesRegistry extends Model
      *
      * @var bool
      */
-    public $timestamps = true; // Asumiendo que tienes created_at y updated_at
+    public $timestamps = false; // La tabla solo tiene created_at, no updated_at
 
     /**
      * The attributes that are mass assignable.
@@ -37,5 +37,6 @@ class FilesRegistry extends Model
         'mime_type',
         'size',
         'migrated',
+        'created_at',
     ];
 }

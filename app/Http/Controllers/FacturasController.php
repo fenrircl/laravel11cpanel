@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Proveedor;
 use App\Models\MetodoPago;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class FacturasController extends Controller
 {
@@ -46,7 +47,7 @@ class FacturasController extends Controller
     public function getData()
     {
         $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo'])
-                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at', 'detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -71,7 +72,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('client_id')
-                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -92,7 +93,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('provider_id')
-                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at'])
+                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -122,8 +123,28 @@ class FacturasController extends Controller
      */
     public function store(Request $request)
     {
+        // Validar que solo tenga cliente O proveedor, no ambos
+        if (($request->input('client_id') && $request->input('provider_id')) || 
+            (!$request->input('client_id') && !$request->input('provider_id'))) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
+            ], 422);
+        }
+
+        // Crear regla de validación unique condicional basada en si es cliente o proveedor
+        $invoiceUniqueRule = Rule::unique('invoices', 'invoice');
+        
+        if ($request->input('client_id')) {
+            // Para facturas de cliente: debe ser único entre facturas de cliente
+            $invoiceUniqueRule->whereNotNull('client_id');
+        } else {
+            // Para facturas de proveedor: debe ser único entre facturas de proveedor
+            $invoiceUniqueRule->whereNotNull('provider_id');
+        }
+
         $validatedData = $request->validate([
-            'invoice' => 'required|string|max:50|unique:invoices,invoice',
+            'invoice' => ['required', 'string', 'max:50', $invoiceUniqueRule],
             'client_id' => 'nullable|exists:clients,id',
             'provider_id' => 'nullable|exists:providers,id',
             'date' => 'required|date',
@@ -135,15 +156,6 @@ class FacturasController extends Controller
             'detail' => 'nullable|string|max:1000',
             'status' => 'required|in:0,1', // 0 = pendiente, 1 = pagado
         ]);
-
-        // Validar que solo tenga cliente O proveedor, no ambos
-        if (($validatedData['client_id'] && $validatedData['provider_id']) || 
-            (!$validatedData['client_id'] && !$validatedData['provider_id'])) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
-            ], 422);
-        }
 
         $factura = Factura::create($validatedData);
         
@@ -187,8 +199,35 @@ class FacturasController extends Controller
      */
     public function update(Request $request, Factura $factura)
     {
+        // Debug: Verificar que el modelo se esté resolviendo correctamente
+        \Log::info('Updating factura', [
+            'factura_id' => $factura->id,
+            'current_invoice' => $factura->invoice,
+            'new_invoice' => $request->input('invoice')
+        ]);
+        
+        // Validar que solo tenga cliente O proveedor, no ambos
+        if (($request->input('client_id') && $request->input('provider_id')) || 
+            (!$request->input('client_id') && !$request->input('provider_id'))) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
+            ], 422);
+        }
+
+        // Crear regla de validación unique condicional basada en si es cliente o proveedor
+        $invoiceUniqueRule = Rule::unique('invoices', 'invoice')->ignore($factura->id);
+        
+        if ($request->input('client_id')) {
+            // Para facturas de cliente: debe ser único entre facturas de cliente
+            $invoiceUniqueRule->whereNotNull('client_id');
+        } else {
+            // Para facturas de proveedor: debe ser único entre facturas de proveedor
+            $invoiceUniqueRule->whereNotNull('provider_id');
+        }
+        
         $validatedData = $request->validate([
-            'invoice' => 'required|string|max:50|unique:invoices,invoice,' . $factura->id,
+            'invoice' => ['required', 'string', 'max:50', $invoiceUniqueRule],
             'client_id' => 'nullable|exists:clients,id',
             'provider_id' => 'nullable|exists:providers,id',
             'date' => 'required|date',
@@ -200,15 +239,6 @@ class FacturasController extends Controller
             'detail' => 'nullable|string|max:1000',
             'status' => 'required|in:0,1',
         ]);
-
-        // Validar que solo tenga cliente O proveedor, no ambos
-        if (($validatedData['client_id'] && $validatedData['provider_id']) || 
-            (!$validatedData['client_id'] && !$validatedData['provider_id'])) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Debe seleccionar un cliente O un proveedor, no ambos.'
-            ], 422);
-        }
 
         $factura->update($validatedData);
         
