@@ -20,6 +20,9 @@
     <!-- Font Awesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+    <!-- Select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    
     <!-- Estilos principales y comunes -->
     <link href="{{ asset('assets/css/principal/layout.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/tablas.css') }}" rel="stylesheet">
@@ -76,6 +79,9 @@
 
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Select2 -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <!-- JavaScript principal y común -->
     <script src="{{ asset('assets/js/principal/layout.js') }}"></script>

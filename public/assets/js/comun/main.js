@@ -1483,10 +1483,19 @@ function openEditFacturaModal(entity, id) {
     
     // Cargar datos de los selectores primero
     loadSelectData();
-    
-    // Poblar el formulario del modal con los datos después de un pequeño delay
-    // para asegurar que los selectores estén cargados
+
+    // Seleccionar valores en los selects después de cargar datos
     setTimeout(() => {
+        if (factura.client_id !== undefined) {
+            $('#client_id').val(factura.client_id).trigger('change');
+        }
+        if (factura.provider_id !== undefined) {
+            $('#provider_id').val(factura.provider_id).trigger('change');
+        }
+        if (factura.payment_method_id !== undefined) {
+            $('#payment_method_id').val(factura.payment_method_id).trigger('change');
+        }
+        // Poblar el formulario del modal con los datos después de un pequeño delay
         populateForm(factura, '');
     }, 500);
     
@@ -1770,6 +1779,10 @@ function saveFactura() {
  * Cargar datos de clientes, proveedores y métodos de pago para los selectores
  */
 function loadSelectData() {
+    // Detectar el modal abierto
+    const $modal = $('#facturaModal');
+    const select2Options = $modal.length ? { width: '100%', dropdownParent: $modal } : { width: '100%' };
+
     // Cargar clientes
     $.get(buildApiUrl('clientes/data'))
         .done(function(response) {
@@ -1779,6 +1792,7 @@ function loadSelectData() {
                 response.data.forEach(cliente => {
                     clientSelect.append(`<option value="${cliente.id}">${cliente.name}</option>`);
                 });
+                clientSelect.select2(select2Options);
             }
         })
         .fail(function() {
@@ -1794,6 +1808,7 @@ function loadSelectData() {
                 response.data.forEach(proveedor => {
                     providerSelect.append(`<option value="${proveedor.id}">${proveedor.name}</option>`);
                 });
+                providerSelect.select2(select2Options);
             }
         })
         .fail(function() {
@@ -1811,6 +1826,7 @@ function loadSelectData() {
                         paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
                     });
                 }
+                paymentMethodSelect.select2(select2Options);
             }
         })
         .fail(function() {
@@ -1821,15 +1837,16 @@ function loadSelectData() {
                 paymentMethodSelect.empty().append('<option value="">Seleccionar método...</option>');
                 // Agregar métodos básicos por defecto
                 const metodosBasicos = [
-                    {id: 1, name: 'Efectivo'},
-                    {id: 2, name: 'Transferencia'},
-                    {id: 3, name: 'Cheque'},
-                    {id: 4, name: 'Tarjeta de Crédito'},
-                    {id: 5, name: 'Tarjeta de Débito'}
+                    {id: 0, name: ''},
+                    {id: 1, name: 'Transferencia bancaria'},
+                    {id: 2, name: 'Efectivo'},
+                    {id: 3, name: 'Red Compra'},
+                    {id: 4, name: 'Cheque'},
                 ];
                 metodosBasicos.forEach(metodo => {
                     paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
                 });
+                paymentMethodSelect.select2(select2Options);
             }
         });
 }
