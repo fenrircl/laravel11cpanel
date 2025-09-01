@@ -117,9 +117,9 @@ class R2Controller extends Controller
 
                 // Register in database
                 $fileRegistry = FilesRegistry::create([
-                    'model_type' => 'factura',
+                    'model_type' => 'App\\Invoice',
                     'model_id' => $factura->id,
-                    'real_id' => $factura->id,
+                    'real_id' => $factura->invoice,
                     'path' => $storagePath,
                     'file_name' => $originalName,
                     'mime_type' => $file->getMimeType(),
@@ -154,7 +154,7 @@ class R2Controller extends Controller
             $realId = $request->input('real_id');
 
             // Si es una factura, necesitamos determinar si es de cliente o proveedor
-            if ($modelType === 'factura') {
+            if ($modelType === 'App\\Invoice') {
                 $factura = DB::table('invoices')->where('id', $modelId)->first();
                 
                 if (!$factura) {
@@ -251,7 +251,7 @@ class R2Controller extends Controller
                     ]);
                 }
                 
-                $files = FilesRegistry::where('model_type', 'factura')
+                $files = FilesRegistry::where('model_type', 'App\\Invoice')
                     ->where('model_id', $factura->id)
                     ->orderBy('created_at', 'desc')
                     ->get()
