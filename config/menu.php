@@ -30,13 +30,13 @@ return [
                 'tooltip' => 'Gestión de proveedores',
                 'auth_required' => true
             ],
-            [
-                'title' => 'Facturas',
-                'icon' => 'fas fa-file-invoice',
-                'route' => 'facturas.index',
-                'tooltip' => 'Todas las facturas',
-                'auth_required' => true
-            ],
+            // [
+            //     'title' => 'Facturas',
+            //     'icon' => 'fas fa-file-invoice',
+            //     'route' => 'facturas.index',
+            //     'tooltip' => 'Todas las facturas',
+            //     'auth_required' => true
+            // ],
             [
                 'title' => 'Facturas Clientes',
                 'icon' => 'fas fa-file-invoice-dollar',
@@ -58,38 +58,38 @@ return [
                 'url' => '#',
                 'tooltip' => 'Gestión de cotizaciones',
                 'auth_required' => true
-            ],
-            [
-                'title' => 'Métodos de Pago',
-                'icon' => 'fas fa-credit-card',
-                'route' => 'metodos-pago.index',
-                'tooltip' => 'Gestión de métodos de pago',
-                'auth_required' => true
-            ],
-            [
-                'title' => 'Archivos',
-                'icon' => 'fas fa-folder',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Gestión de archivos',
-                'auth_required' => true
-            ],
-            [
-                'title' => 'Pagos',
-                'icon' => 'fas fa-money-bill-wave',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Gestión de pagos',
-                'auth_required' => true
-            ],
-            [
-                'title' => 'Reportes',
-                'icon' => 'fas fa-chart-pie',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Reportes del sistema',
-                'auth_required' => true
             ]
+            // [
+            //     'title' => 'Métodos de Pago',
+            //     'icon' => 'fas fa-credit-card',
+            //     'route' => 'metodos-pago.index',
+            //     'tooltip' => 'Gestión de métodos de pago',
+            //     'auth_required' => true
+            // ],
+            // [
+            //     'title' => 'Archivos',
+            //     'icon' => 'fas fa-folder',
+            //     'route' => null,
+            //     'url' => '#',
+            //     'tooltip' => 'Gestión de archivos',
+            //     'auth_required' => true
+            // ],
+            // [
+            //     'title' => 'Pagos',
+            //     'icon' => 'fas fa-money-bill-wave',
+            //     'route' => null,
+            //     'url' => '#',
+            //     'tooltip' => 'Gestión de pagos',
+            //     'auth_required' => true
+            // ],
+            // [
+            //     'title' => 'Reportes',
+            //     'icon' => 'fas fa-chart-pie',
+            //     'route' => null,
+            //     'url' => '#',
+            //     'tooltip' => 'Reportes del sistema',
+            //     'auth_required' => true
+            // ]
         ]
     ]
 ];

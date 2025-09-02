@@ -11,7 +11,7 @@
                     @if ($message = Session::get('success'))
                         {{ $message }}
                     @else
-                        You are logged in!
+                        Bienvenido {{ Auth::user()->name }}
                     @endif
                 </div>              
             </div>
