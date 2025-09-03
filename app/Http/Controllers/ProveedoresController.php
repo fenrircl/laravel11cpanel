@@ -77,9 +77,9 @@ class ProveedoresController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Proveedor $proveedor)
+    public function show(Request $request, Proveedor $proveedor)
     {
-        if (request()->ajax()) {
+        if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['proveedor' => $proveedor]);
         }
         return view('proveedores.show', compact('proveedor'));

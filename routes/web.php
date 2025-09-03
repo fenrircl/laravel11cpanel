@@ -69,7 +69,9 @@ Route::middleware(['auth'])->group(function () {
     // Recursos completos para CRUD
     Route::resource('facturas', FacturasController::class)->except(['index']);
     Route::resource('clientes', ClientesController::class)->except(['index']);
-    Route::resource('proveedores', ProveedoresController::class)->except(['index']);
+    Route::resource('proveedores', ProveedoresController::class)
+        ->parameters(['proveedores' => 'proveedor'])
+        ->except(['index']);
     Route::resource('metodos-pago', MetodoPagoController::class);
     
     // Rutas adicionales para métodos de pago

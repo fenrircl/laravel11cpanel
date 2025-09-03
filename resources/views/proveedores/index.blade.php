@@ -125,7 +125,11 @@ function openCreateModalProveedor() {
 function openEditModalProveedor(id) {
     isEditProveedor = true;
     document.getElementById('proveedorModalLabel').textContent = 'Editar Proveedor';
-    $.get(buildApiUrl('proveedores/' + id))
+    $.ajax({
+        url: buildApiUrl('proveedores/' + id),
+        type: 'GET',
+        dataType: 'json'
+    })
         .done(function(res){
             var p = res && res.proveedor ? res.proveedor : res;
             currentProveedor = p;
@@ -137,8 +141,10 @@ function openEditModalProveedor(id) {
             $('#address_prov').val(p.address || '');
             var m = new bootstrap.Modal(document.getElementById('proveedorModal'));
             m.show();
+            if (window.CLInputFormatter) { window.CLInputFormatter.refreshAllHints(); }
         })
-        .fail(function(){
+        .fail(function(xhr){
+            console.error('Error cargando proveedor', xhr);
             Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el proveedor.' });
         });
 }
