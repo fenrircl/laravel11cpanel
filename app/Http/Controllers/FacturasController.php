@@ -220,6 +220,17 @@ class FacturasController extends Controller
             ], 422);
         }
 
+        // Normalizar amount si viene en formato CLP ("1.000", "$ 1.000.000", etc.) antes de validar
+        if ($request->has('amount')) {
+            $amt = $request->input('amount');
+            if (is_string($amt)) {
+                $normalized = preg_replace('/[^0-9]/', '', $amt);
+                $request->merge(['amount' => $normalized !== '' ? (int) $normalized : null]);
+            } elseif (is_numeric($amt)) {
+                $request->merge(['amount' => (int) $amt]);
+            }
+        }
+
         // Crear regla de validación unique condicional basada en si es cliente o proveedor
         $invoiceUniqueRule = Rule::unique('invoices', 'invoice')->ignore($factura->id);
         

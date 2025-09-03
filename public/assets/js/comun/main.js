@@ -981,7 +981,7 @@ function populateForm(data, prefix = '') {
         if (element) {
             let value = data[key];
             console.log(key)
-            if(key === "invoice" ) $("#"+prefix + key).attr("readonly", true).attr("disabled", true);
+            if(key === "invoice" ) $("#"+prefix + key).attr("readonly", true)
             // Manejar valores null/undefined
             if (value === null || value === undefined) {
                 value = '';
@@ -1717,7 +1717,6 @@ function saveFactura() {
     
     // Preparar datos del formulario
     const formData = new FormData(form[0]);
-    
     // Determinar URL y método según si es edición o creación
     let url = '';
     let method = 'POST';
@@ -1729,7 +1728,8 @@ function saveFactura() {
     } else {
         url = buildApiUrl('facturas');
     }
-    
+        console.log(formData)
+
     // Enviar datos
     $.ajax({
         url: url,
