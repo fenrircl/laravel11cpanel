@@ -45,29 +45,32 @@ class ClientesController extends Controller
      */
     public function store(Request $request)
     {
-        // Validar los datos del request
-        $validatedData = $request->validate([
-            'nombre' => 'required|string|max:255',
+        // Aceptar nombres del modal y alias legacy
+        $validated = $request->validate([
+            'rut' => 'required|string|max:20|unique:clients,rut',
+            'name' => 'required_without:nombre|string|max:255',
+            'nombre' => 'required_without:name|string|max:255',
             'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
             'telefono' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:500',
             'direccion' => 'nullable|string|max:500',
         ]);
 
-        // Mapear los datos al formato de la BD
-        $mappedData = [
-            'name' => $validatedData['nombre'],
-            'email' => $validatedData['email'],
-            'phone' => $validatedData['telefono'],
-            'address' => $validatedData['direccion'],
+        $mapped = [
+            'rut' => $validated['rut'],
+            'name' => $validated['name'] ?? $validated['nombre'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? ($validated['telefono'] ?? null),
+            'address' => $validated['address'] ?? ($validated['direccion'] ?? null),
         ];
 
-        $cliente = Cliente::create($mappedData);
+        $cliente = Cliente::create($mapped);
         
         if ($request->ajax()) {
             return response()->json(['success' => true, 'cliente' => $cliente]);
         }
         
-        // Redirigir o retornar JSON según sea necesario
         return redirect()->route('clientes.index')->with('success', 'Cliente creado exitosamente.');
     }
 
@@ -76,6 +79,9 @@ class ClientesController extends Controller
      */
     public function show(Cliente $cliente)
     {
+        if (request()->ajax()) {
+            return response()->json(['cliente' => $cliente]);
+        }
         return view('clientes.show', compact('cliente'));
     }
 
@@ -93,29 +99,32 @@ class ClientesController extends Controller
      */
     public function update(Request $request, Cliente $cliente)
     {
-        // Validar los datos del request
-        $validatedData = $request->validate([
-            'nombre' => 'required|string|max:255',
+        // Aceptar ambos nombres de campos
+        $validated = $request->validate([
+            'rut' => 'required|string|max:20|unique:clients,rut,' . $cliente->id,
+            'name' => 'required_without:nombre|string|max:255',
+            'nombre' => 'required_without:name|string|max:255',
             'email' => 'nullable|email|max:255',
+            'phone' => 'nullable|string|max:50',
             'telefono' => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:500',
             'direccion' => 'nullable|string|max:500',
         ]);
 
-        // Mapear los datos al formato de la BD
-        $mappedData = [
-            'name' => $validatedData['nombre'],
-            'email' => $validatedData['email'],
-            'phone' => $validatedData['telefono'],
-            'address' => $validatedData['direccion'],
+        $mapped = [
+            'rut' => $validated['rut'],
+            'name' => $validated['name'] ?? $validated['nombre'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? ($validated['telefono'] ?? null),
+            'address' => $validated['address'] ?? ($validated['direccion'] ?? null),
         ];
 
-        $cliente->update($mappedData);
+        $cliente->update($mapped);
         
         if ($request->ajax()) {
             return response()->json(['success' => true, 'cliente' => $cliente]);
         }
         
-        // Redirigir o retornar JSON según sea necesario
         return redirect()->route('clientes.index')->with('success', 'Cliente actualizado exitosamente.');
     }
 

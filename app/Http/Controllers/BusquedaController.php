@@ -97,7 +97,7 @@ class BusquedaController extends Controller
      */
     private function buscarClientes($query, $limit)
     {
-        return Cliente::select(['id', 'name', 'email', 'phone', 'created_at'])
+        return Cliente::select(['id', 'name', 'email', 'phone', 'rut', 'created_at'])
             ->where(function($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
                   ->orWhere('email', 'LIKE', "%{$query}%")
@@ -115,7 +115,7 @@ class BusquedaController extends Controller
             ->get()
             ->map(function($cliente) use ($query) {
                 return array_merge($cliente->toArray(), [
-                    'relevance' => $this->calculateRelevance($cliente, $query, ['name', 'email', 'phone'])
+                    'relevance' => $this->calculateRelevance($cliente, $query, ['name', 'rut', 'email', 'phone'])
                 ]);
             });
     }
@@ -125,7 +125,7 @@ class BusquedaController extends Controller
      */
     private function buscarProveedores($query, $limit)
     {
-        return Proveedor::select(['id', 'name', 'email', 'phone', 'created_at'])
+        return Proveedor::select(['id', 'name', 'email', 'rut', 'phone', 'created_at'])
             ->where(function($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
                   ->orWhere('email', 'LIKE', "%{$query}%")
@@ -143,7 +143,7 @@ class BusquedaController extends Controller
             ->get()
             ->map(function($proveedor) use ($query) {
                 return array_merge($proveedor->toArray(), [
-                    'relevance' => $this->calculateRelevance($proveedor, $query, ['name', 'email', 'phone'])
+                    'relevance' => $this->calculateRelevance($proveedor, $query, ['name', 'rut','email', 'phone'])
                 ]);
             });
     }
@@ -233,15 +233,15 @@ class BusquedaController extends Controller
         $data = Cache::remember($cacheKey, self::CACHE_TIME, function() use ($entidad) {
             switch ($entidad) {
                 case 'clientes':
-                    return Cliente::select(['id', 'name', 'email', 'phone', 'created_at'])
+                    return Cliente::select(['id', 'name', 'rut', 'email', 'phone', 'created_at'])
                         ->orderBy('created_at', 'desc')
-                        ->limit(100)
+                        ->limit(1000)
                         ->get();
                         
                 case 'proveedores':
-                    return Proveedor::select(['id', 'name', 'email', 'phone', 'created_at'])
+                    return Proveedor::select(['id', 'name', 'rut', 'email', 'phone', 'created_at'])
                         ->orderBy('created_at', 'desc')
-                        ->limit(100)
+                        ->limit(1000)
                         ->get();
                         
                 case 'facturas':

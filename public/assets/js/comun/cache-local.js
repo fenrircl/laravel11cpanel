@@ -25,12 +25,12 @@ const CACHE_CONFIG = {
     VERSION: '1.0.0',
     
     // Número máximo de registros por entidad en caché
-    MAX_RECORDS_PER_ENTITY: 500,
+    MAX_RECORDS_PER_ENTITY: 1000,
     
     // Campos esenciales por entidad para reducir peso
     ENTITY_FIELDS: {
-        clientes: ['id', 'name', 'email', 'phone', 'created_at'],
-        proveedores: ['id', 'name', 'email', 'phone', 'created_at'],
+        clientes: ['id', 'name', 'rut', 'email', 'phone', 'created_at'],
+        proveedores: ['id', 'name', 'rut', 'email', 'phone', 'created_at'],
         facturas: ['id', 'numero', 'client_id', 'provider_id', 'total', 'fecha_emision', 'fecha_vencimiento']
     }
 };

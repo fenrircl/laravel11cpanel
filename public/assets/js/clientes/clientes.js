@@ -99,15 +99,27 @@ $(document).ready(function() {
     
     // Editar cliente
     window.editarCliente = function(id) {
-        const cliente = EntityHelpers.getCliente(id);
-        if (cliente) {
-            // Aquí podrías usar los datos almacenados para pre-llenar un formulario
-            console.log('Editando cliente:', cliente);
-            Swal.fire({
-                icon: 'info',
-                title: 'Función en desarrollo',
-                text: `Editando cliente: ${cliente.name}`
-            });
+        // Delegar al flujo real definido en la vista (abre modal y precarga datos)
+        if (typeof openEditModal === 'function') {
+            openEditModal(id);
+        } else {
+            // Fallback: cargar por AJAX similar a openEditModal
+            $.get(buildApiUrl('clientes/' + id))
+                .done(function(res){
+                    var c = res && res.cliente ? res.cliente : res;
+                    $('#clienteId').val(c.id);
+                    $('#rut').val(c.rut || '');
+                    $('#name').val(c.name || '');
+                    $('#email').val(c.email || '');
+                    $('#phone').val(c.phone || '');
+                    $('#address').val(c.address || '');
+                    $('#clienteModalLabel').text('Editar Cliente');
+                    var m = new bootstrap.Modal(document.getElementById('clienteModal'));
+                    m.show();
+                })
+                .fail(function(){
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el cliente.' });
+                });
         }
     };
     

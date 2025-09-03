@@ -1596,7 +1596,7 @@ function openEditFacturaModal(entity, id) {
                                                 class="btn btn-sm btn-outline-danger" 
                                                 onclick="eliminarArchivoFacturaModal()" 
                                                 title="Eliminar archivo">
-                                            <i class="fas fa-trash"></i> Eliminar
+                                            <i class="fas fa-trash"></i>
                                         </button>
                             </div>
                         </div>
@@ -1794,15 +1794,18 @@ function saveFactura() {
  * Cargar datos de clientes, proveedores y métodos de pago para los selectores
  */
 function loadSelectData() {
-    // Cargar datos de referencia una sola vez y poblar selects
+    // Cargar datos de referencia y poblar selects
     const $modal = $('#facturaModal');
-    return window.ReferenceDataManager
-        ? ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
+    if (!window.ReferenceDataManager) return Promise.resolve();
+
+    // Forzar refresh de clientes para asegurar que aparezcan los recién creados
+    return ReferenceDataManager.refresh('clientes')
+        .then(() => ReferenceDataManager.ensureLoaded(['proveedores', 'metodosPago']))
+        .then(() => {
             if (typeof window.populateFacturaSelects === 'function') {
                 window.populateFacturaSelects($modal);
             }
-        })
-        : Promise.resolve();
+        });
 }
 
 // Función para abrir modal de creación
@@ -2365,9 +2368,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const $client = $('#client_id');
         if ($client.length) {
             const current = $client.val();
+            console.log(current)
             $client.empty().append('<option value="">Seleccionar cliente...</option>');
             (ReferenceDataManager.data.clientes || []).forEach(c => {
-                $client.append(`<option value="${c.id}">${c.name}</option>`);
+                console.log(c)
+                const label = c && c.rut ? `${c.name} (${c.rut})` : (c && c.name ? c.name : '');
+                $client.append(`<option value="${c.id}">${label}</option>`);
             });
             if ($client.hasClass('select2-hidden-accessible')) { $client.select2('destroy'); }
             $client.select2(select2Options);
@@ -2433,7 +2439,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (entityKey && Array.isArray(ReferenceDataManager.data[entityKey])) {
                 const match = ReferenceDataManager.data[entityKey].find(it => String(it.id) === valStr);
-                if (match) text = match.name || text;
+                if (match) text = match.rut ? `${match.name} (${match.rut})` : (match.name || text);
             }
         }
 
