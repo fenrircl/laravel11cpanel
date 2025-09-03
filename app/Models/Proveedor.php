@@ -15,6 +15,7 @@ class Proveedor extends Model
         'name',
         'email', 
         'phone',
-        'address'
+        'address',
+        'rut'
     ];
 }

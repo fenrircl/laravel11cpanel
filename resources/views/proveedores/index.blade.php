@@ -5,29 +5,28 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Listado de Proveedores</h4>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#proveedorModal" onclick="openCreateModal()">
-                            <i class="fas fa-plus me-1"></i> Nuevo Proveedor
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Proveedores</h4>
+                    <div class="btn-group" role="group">
+                        <a href="{{ route('clientes.index') }}" class="btn btn-secondary btn-sm">Ver Clientes</a>
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#proveedorModal" onclick="openCreateModalProveedor()">
+                            Nuevo Proveedor
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="proveedores-table" class="table table-striped table-hover">
+                        <table id="proveedores-table" class="table table-striped table-hover w-100">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>RUT</th>
                                     <th>Nombre</th>
                                     <th>Email</th>
-                                    <th>Fecha de Registro</th>
+                                    <th>Creado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <!-- Los datos se cargarán con DataTables -->
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
@@ -41,49 +40,51 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="proveedorModalLabel">Proveedor</h5>
+                <h5 class="modal-title" id="proveedorModalLabel">Nuevo Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="proveedorForm">
-                <div class="modal-body">
+            <div class="modal-body">
+                <form id="proveedorForm">
                     @csrf
-                    <input type="hidden" id="proveedorId" name="id">
-                    
+                    <input type="hidden" id="proveedorId" name="id" value="">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="nombre" class="form-label">Nombre *</label>
-                                <input type="text" class="form-control" id="nombre" name="nombre" required>
+                                <label for="rut_prov" class="form-label">RUT</label>
+                                <input type="text" class="form-control" id="rut_prov" name="rut" data-format="rut" placeholder="12.345.678-9" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email">
+                                <label for="name_prov" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="name_prov" name="name" placeholder="Nombre del proveedor" required>
                             </div>
                         </div>
                     </div>
-                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="telefono" class="form-label">Teléfono</label>
-                                <input type="text" class="form-control" id="telefono" name="telefono">
+                                <label for="email_prov" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email_prov" name="email" data-format="email" placeholder="correo@dominio.cl">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="direccion" class="form-label">Dirección</label>
-                                <input type="text" class="form-control" id="direccion" name="direccion">
+                                <label for="phone_prov" class="form-label">Teléfono</label>
+                                <input type="text" class="form-control" id="phone_prov" name="phone" data-format="phone-cl" placeholder="9 dígitos" maxlength="9">
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="saveBtn">Guardar</button>
-                </div>
-            </form>
+                    <div class="mb-3">
+                        <label for="address_prov" class="form-label">Dirección</label>
+                        <input type="text" class="form-control" id="address_prov" name="address" placeholder="Dirección">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveProveedorBtn">Guardar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -93,30 +94,11 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="viewProveedorModalLabel">Detalles del Proveedor</h5>
+                <h5 class="modal-title" id="viewProveedorModalLabel">Detalle del Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div class="proveedor-details">
-                    <div class="detail-item">
-                        <strong>ID:</strong> <span id="viewId"></span>
-                    </div>
-                    <div class="detail-item">
-                        <strong>Nombre:</strong> <span id="viewNombre"></span>
-                    </div>
-                    <div class="detail-item">
-                        <strong>Email:</strong> <span id="viewEmail"></span>
-                    </div>
-                    <div class="detail-item">
-                        <strong>Teléfono:</strong> <span id="viewTelefono"></span>
-                    </div>
-                    <div class="detail-item">
-                        <strong>Dirección:</strong> <span id="viewDireccion"></span>
-                    </div>
-                    <div class="detail-item">
-                        <strong>Fecha de Registro:</strong> <span id="viewCreatedAt"></span>
-                    </div>
-                </div>
+            <div class="modal-body" id="viewProveedorContent">
+                <!-- Contenido dinámico -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -129,95 +111,87 @@
 @push('scripts')
 <script>
 // Variables globales
-var isEdit = false;
+var isEditProveedor = false;
 var currentProveedor = null;
 
-// Función para abrir modal de creación
-function openCreateModal() {
-    isEdit = false;
+function openCreateModalProveedor() {
+    isEditProveedor = false;
+    currentProveedor = null;
     document.getElementById('proveedorModalLabel').textContent = 'Nuevo Proveedor';
     document.getElementById('proveedorForm').reset();
     document.getElementById('proveedorId').value = '';
-    document.getElementById('saveBtn').textContent = 'Crear';
 }
 
-// Función para abrir modal de edición
-function openEditModal(id) {
-    isEdit = true;
-    currentProveedor = PROVEEDORES.find(p => p.id == id);
-    
-    if (currentProveedor) {
-        document.getElementById('proveedorModalLabel').textContent = 'Editar Proveedor';
-        document.getElementById('proveedorId').value = currentProveedor.id;
-        document.getElementById('nombre').value = currentProveedor.name || '';
-        document.getElementById('email').value = currentProveedor.email || '';
-        document.getElementById('telefono').value = currentProveedor.phone || '';
-        document.getElementById('direccion').value = currentProveedor.address || '';
-        document.getElementById('saveBtn').textContent = 'Actualizar';
-        
-        var modal = new bootstrap.Modal(document.getElementById('proveedorModal'));
-        modal.show();
-    }
+function openEditModalProveedor(id) {
+    isEditProveedor = true;
+    document.getElementById('proveedorModalLabel').textContent = 'Editar Proveedor';
+    $.get(buildApiUrl('proveedores/' + id))
+        .done(function(res){
+            var p = res && res.proveedor ? res.proveedor : res;
+            currentProveedor = p;
+            $('#proveedorId').val(p.id);
+            $('#rut_prov').val(p.rut || '');
+            $('#name_prov').val(p.name || '');
+            $('#email_prov').val(p.email || '');
+            $('#phone_prov').val(p.phone || '');
+            $('#address_prov').val(p.address || '');
+            var m = new bootstrap.Modal(document.getElementById('proveedorModal'));
+            m.show();
+        })
+        .fail(function(){
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el proveedor.' });
+        });
 }
 
-// Función para ver detalles
 function viewProveedor(id) {
-    var proveedor = PROVEEDORES.find(p => p.id == id);
-    
-    if (proveedor) {
-        document.getElementById('viewId').textContent = proveedor.id;
-        document.getElementById('viewNombre').textContent = proveedor.name || 'N/A';
-        document.getElementById('viewEmail').textContent = proveedor.email || 'N/A';
-        document.getElementById('viewTelefono').textContent = proveedor.phone || 'N/A';
-        document.getElementById('viewDireccion').textContent = proveedor.address || 'N/A';
-        
-        if (proveedor.created_at) {
-            let date = new Date(proveedor.created_at);
-            document.getElementById('viewCreatedAt').textContent = date.toLocaleDateString('es-ES') + ' ' + date.toLocaleTimeString('es-ES');
-        } else {
-            document.getElementById('viewCreatedAt').textContent = 'N/A';
-        }
-        
-        var modal = new bootstrap.Modal(document.getElementById('viewProveedorModal'));
-        modal.show();
-    }
+    $.get(buildApiUrl('proveedores/' + id))
+        .done(function(res){
+            var p = res && res.proveedor ? res.proveedor : res;
+            var html = '<ul class="list-group">'
+                + '<li class="list-group-item"><strong>RUT:</strong> ' + (p.rut||'') + '</li>'
+                + '<li class="list-group-item"><strong>Nombre:</strong> ' + (p.name||'') + '</li>'
+                + '<li class="list-group-item"><strong>Email:</strong> ' + (p.email||'') + '</li>'
+                + '<li class="list-group-item"><strong>Teléfono:</strong> ' + (p.phone||'') + '</li>'
+                + '<li class="list-group-item"><strong>Dirección:</strong> ' + (p.address||'') + '</li>'
+                + '</ul>';
+            $('#viewProveedorContent').html(html);
+            var m = new bootstrap.Modal(document.getElementById('viewProveedorModal'));
+            m.show();
+        })
+        .fail(function(){
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el proveedor.' });
+        });
 }
 
-// Manejo del formulario
-document.getElementById('proveedorForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    var formData = new FormData(this);
-    var url = isEdit ? `/proveedores/${formData.get('id')}` : '/proveedores';
-    var method = isEdit ? 'PUT' : 'POST';
-    
-    // Agregar método para PUT
-    if (isEdit) {
-        formData.append('_method', 'PUT');
+$('#saveProveedorBtn').on('click', function(){
+    var form = $('#proveedorForm');
+    if (!form[0].checkValidity()) {
+        form[0].reportValidity();
+        return;
     }
-    
+    var id = $('#proveedorId').val();
+    var editMode = !!id;
+    var url = editMode ? buildApiUrl('proveedores/' + id) : buildApiUrl('proveedores');
+    var data = form.serialize();
+    if (editMode) { data += '&_method=PUT'; }
+
     $.ajax({
         url: url,
         type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            $('#proveedorModal').modal('hide');
-            Swal.fire({
-                title: 'Éxito',
-                text: isEdit ? 'Proveedor actualizado correctamente' : 'Proveedor creado correctamente',
-                icon: 'success'
-            }).then(() => {
-                location.reload();
+        data: data,
+        success: function(response){
+            showSuccessMessage('Proveedor guardado correctamente', function(){
+                $('#proveedorModal').modal('hide');
+                if ($('#proveedores-table').length) {
+                    $('#proveedores-table').DataTable().ajax.reload();
+                }
+                document.dispatchEvent(new CustomEvent('proveedores:updated'));
             });
         },
-        error: function(xhr) {
-            Swal.fire({
-                title: 'Error',
-                text: 'Ocurrió un error al procesar la solicitud',
-                icon: 'error'
-            });
+        error: function(xhr){
+            var msg = 'Error al guardar el proveedor';
+            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+            Swal.fire({ icon: 'error', title: 'Error', text: msg });
         }
     });
 });
@@ -226,8 +200,5 @@ document.getElementById('proveedorForm').addEventListener('submit', function(e) 
 
 @push('styles')
 <style>
-    .btn-group .btn {
-        margin-right: 3px;
-    }
 </style>
 @endpush

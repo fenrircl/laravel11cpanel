@@ -23,7 +23,7 @@ class ClientesController extends Controller
      */
     public function getData()
     {
-        $clientes = Cliente::select(['id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
+        $clientes = Cliente::select(['id', 'rut', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
                           ->orderBy('created_at', 'desc')
                           ->get();
         

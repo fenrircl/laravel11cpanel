@@ -12,7 +12,7 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de facturas de clientes
     const columns = [
-        // {data: 'id', name: 'id'},
+        {data: 'rut', name: 'rut'},
         {data: 'invoice', name: 'invoice', title: 'Número Factura'},
         {
             data: 'cliente.name', 

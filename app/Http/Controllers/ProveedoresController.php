@@ -23,7 +23,7 @@ class ProveedoresController extends Controller
      */
     public function getData()
     {
-        $proveedores = Proveedor::select(['id', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
+        $proveedores = Proveedor::select(['id', 'rut', 'name', 'email', 'phone', 'address', 'created_at', 'updated_at'])
                                ->orderBy('created_at', 'desc')
                                ->get();
         
