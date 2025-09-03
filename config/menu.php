@@ -51,14 +51,14 @@ return [
                 'tooltip' => 'Facturas de proveedores',
                 'auth_required' => true
             ],
-            [
-                'title' => 'Cotizaciones',
-                'icon' => 'fas fa-file-alt',
-                'route' => null,
-                'url' => '#',
-                'tooltip' => 'Gestión de cotizaciones',
-                'auth_required' => true
-            ]
+            // [
+            //     'title' => 'Cotizaciones',
+            //     'icon' => 'fas fa-file-alt',
+            //     'route' => null,
+            //     'url' => '#',
+            //     'tooltip' => 'Gestión de cotizaciones',
+            //     'auth_required' => true
+            // ]
             // [
             //     'title' => 'Métodos de Pago',
             //     'icon' => 'fas fa-credit-card',

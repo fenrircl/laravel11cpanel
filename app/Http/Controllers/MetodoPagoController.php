@@ -22,7 +22,7 @@ class MetodoPagoController extends Controller
     public function getData()
     {
         $metodosPago = MetodoPago::active()
-                                ->select(['id', 'name', 'description', 'is_active'])
+                                ->select(['id', 'name',  'is_active'])
                                 ->orderBy('name')
                                 ->get();
         
@@ -46,7 +46,6 @@ class MetodoPagoController extends Controller
     {
         $validatedData = $request->validate([
             'name' => 'required|string|max:100|unique:payment_methods',
-            'description' => 'nullable|string|max:255',
             'is_active' => 'boolean'
         ]);
 
@@ -89,7 +88,6 @@ class MetodoPagoController extends Controller
     {
         $validatedData = $request->validate([
             'name' => 'required|string|max:100|unique:payment_methods,name,' . $metodoPago->id,
-            'description' => 'nullable|string|max:255',
             'is_active' => 'boolean'
         ]);
 
