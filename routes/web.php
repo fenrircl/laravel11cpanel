@@ -8,6 +8,7 @@ use App\Http\Controllers\ProveedoresController;
 use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\R2Controller;
+use App\Http\Controllers\CotizacionesController;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -84,5 +85,12 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/files/{id}', [R2Controller::class, 'deleteFile'])->name('files.delete');
     Route::delete('/r2/delete/{path}', [R2Controller::class, 'deleteFileByPath'])->where('path', '.*')->name('r2.delete');
     Route::get('/files/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('files.download');
+
+    // Cotizaciones
+    Route::get('/cotizaciones', [CotizacionesController::class, 'index'])->name('cotizaciones.index');
+    Route::get('/cotizaciones/create', [CotizacionesController::class, 'create'])->name('cotizaciones.create');
+    Route::post('/cotizaciones', [CotizacionesController::class, 'store'])->name('cotizaciones.store');
+    Route::get('/cotizaciones/data', [CotizacionesController::class, 'getData'])->name('cotizaciones.data');
+    Route::get('/cotizaciones/{cotizacion}', [CotizacionesController::class, 'show'])->name('cotizaciones.show');
 });
 
