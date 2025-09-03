@@ -980,18 +980,19 @@ function populateForm(data, prefix = '') {
         const element = document.getElementById(prefix + key);
         if (element) {
             let value = data[key];
-            
+            console.log(key)
+            if(key === "invoice" ) $("#"+prefix + key).attr("readonly", true).attr("disabled", true);
             // Manejar valores null/undefined
             if (value === null || value === undefined) {
                 value = '';
             }
-            
+            console.log(element.type == 'text' && element.getAttribute('data-format') == 'clp')
             // Manejar fechas en formato ISO (2025-06-08T00:00:00.000000Z)
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
                 if (element.type === 'date') {
                     // Para inputs tipo date, extraer solo la fecha (YYYY-MM-DD)
                     value = value.split('T')[0];
-                } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
+                }else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
                     // Para inputs de texto con formato chileno, convertir a DD-MM-YYYY
                     const dateOnly = value.split('T')[0];
                     if (window.CLFormat) {
@@ -1001,7 +1002,7 @@ function populateForm(data, prefix = '') {
                         const [year, month, day] = dateOnly.split('-');
                         value = `${day}-${month}-${year}`;
                     }
-                } else {
+                }  else {
                     // Para otros casos, mantener solo la fecha
                     value = value.split('T')[0];
                 }
@@ -1019,6 +1020,10 @@ function populateForm(data, prefix = '') {
             } else {
                 element.value = value;
             }
+
+             if (element.type == 'text' && element.getAttribute('data-format') == 'clp') {
+                    element.value  = window.CLFormat.formatCLPInput(value);
+                } 
             
             // Manejar formateo especial para campos con data-format
             const format = element.getAttribute('data-format');
