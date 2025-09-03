@@ -103,8 +103,8 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="text" class="form-control item-desc" placeholder="Descripción" value="${data.description||''}" required></td>
-            <td><input type="number" min="1" class="form-control text-end item-qty" value="${data.quantity||1}" required></td>
-            <td><input type="text" class="form-control text-end item-unit" value="${data.unit_price? (data.unit_price.toLocaleString('es-CL')):''}" placeholder="0" inputmode="numeric"></td>
+            <td><input type="number" min="1" class="form-control text-end item-qty" value="${data.amount||1}" required></td>
+            <td><input type="text" class="form-control text-end item-unit" value="${data.price? (data.price.toLocaleString('es-CL')):''}" placeholder="0" inputmode="numeric"></td>
             <td class="text-end item-total">$0</td>
             <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item"><i class="fas fa-trash"></i></button></td>
         `;
@@ -133,10 +133,10 @@
         const items = [];
         tbody.querySelectorAll('tr').forEach(tr => {
             const description = tr.querySelector('.item-desc').value.trim();
-            const quantity = parseInt(tr.querySelector('.item-qty').value||'0')||0;
-            const unit_price = parseCLP(tr.querySelector('.item-unit').value);
-            if (description && quantity>0 && unit_price>=0){
-                items.push({ description, quantity, unit_price });
+            const amount = parseInt(tr.querySelector('.item-qty').value||'0')||0;
+            const price = parseCLP(tr.querySelector('.item-unit').value);
+            if (description && amount>0 && price>=0){
+                items.push({ description, amount, price });
             }
         });
         if (!items.length){

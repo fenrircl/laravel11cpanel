@@ -48,8 +48,8 @@ $(document).ready(function() {
                     c.items.map(it => `
                         <tr>
                             <td>${it.description}</td>
-                            <td class="text-end">${it.quantity}</td>
-                            <td class="text-end">${formatCurrency(it.unit_price, 'CLP')}</td>
+                            <td class="text-end">${it.amount}</td>
+                            <td class="text-end">${formatCurrency(it.price, 'CLP')}</td>
                             <td class="text-end">${formatCurrency(it.total, 'CLP')}</td>
                         </tr>`).join('') +
                     `</tbody></table>`;

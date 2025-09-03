@@ -12,16 +12,16 @@ class CotizacionItem extends Model
     protected $table = 'quotation_items';
 
     protected $fillable = [
-        'quotation_id',
-        'description',
-        'quantity',
-        'unit_price', // CLP entero
-        'total',      // CLP entero
+      'amount',
+      'description',
+      'price',
+      'total',
+      'quotation_id',
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
-        'unit_price' => 'integer',
+        'amount' => 'integer',
+        'price' => 'integer',
         'total' => 'integer',
     ];
 

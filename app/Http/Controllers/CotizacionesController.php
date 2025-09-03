@@ -35,20 +35,20 @@ class CotizacionesController extends Controller
             'work' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:255',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required', // se normaliza
+            'items.*.amount' => 'required|integer|min:1',
+            'items.*.price' => 'required', // se normaliza
         ]);
 
         DB::transaction(function() use ($request, $validated, $normalizeCLP) {
             // Calcular totales
             $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
-                $qty = (int) $it['quantity'];
-                $unit = $normalizeCLP($it['unit_price']);
+                $qty = (int) $it['amount'];
+                $unit = $normalizeCLP($it['price']);
                 $total = $qty * $unit;
                 return [
                     'description' => $it['description'],
-                    'quantity' => $qty,
-                    'unit_price' => $unit,
+                    'amount' => $qty,
+                    'price' => $unit,
                     'total' => $total,
                 ];
             });
