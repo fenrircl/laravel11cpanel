@@ -3,9 +3,7 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de proveedores
     const columns = [
-        // {data: 'id', name: 'id', width: '80px'},
-        {data: 'rut', name: 'rut'},
-
+        {data: 'rut', name: 'rut',width: '80px'},
         {data: 'name', name: 'name'},
         {data: 'email', name: 'email'},
         {
@@ -23,12 +21,8 @@ $(document).ready(function() {
             searchable: false,
             width: '120px',
             render: function(data, type, row) {
-                // Botones personalizados para editar factura
-                return `
-                    <button class="btn btn-sm btn-action btn-view" title="Ver" onclick="verProveedor(${row.id})"><i class="fas fa-eye"></i></button>
-                    <button class="btn btn-sm btn-action btn-edit" title="Editar" onclick="openEditFacturaModal('proveedor', ${row.id})"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-action btn-delete" title="Eliminar" data-id="${row.id}" data-entity="proveedor"><i class="fas fa-trash"></i></button>
-                `;
+                // Reutilizar el generador de botones estándar
+                return generateActionButtons(row.id, 'proveedores');
             }
         }
     ];
@@ -53,7 +47,8 @@ $(document).ready(function() {
                 });
             }
         },
-        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+        // Ordenar por fecha de creación descendente
+        order: [[3, 'desc']]
     };
     
     // Inicializar DataTable usando la función reutilizable
@@ -105,15 +100,38 @@ $(document).ready(function() {
     
     // Editar proveedor
     window.editarProveedor = function(id) {
+        if (typeof openEditModalProveedor === 'function') {
+            openEditModalProveedor(id);
+            return;
+        }
         const proveedor = EntityHelpers.getProveedor(id);
         if (proveedor) {
-            // Aquí podrías usar los datos almacenados para pre-llenar un formulario
-            console.log('Editando proveedor:', proveedor);
-            Swal.fire({
-                icon: 'info',
-                title: 'Función en desarrollo',
-                text: `Editando proveedor: ${proveedor.name}`
-            });
+            // Poblar formulario y abrir modal (fallback)
+            $('#proveedorId').val(proveedor.id);
+            $('#rut_prov').val(proveedor.rut || '');
+            $('#name_prov').val(proveedor.name || '');
+            $('#email_prov').val(proveedor.email || '');
+            $('#phone_prov').val(proveedor.phone || '');
+            $('#address_prov').val(proveedor.address || '');
+            $('#proveedorModalLabel').text('Editar Proveedor');
+            new bootstrap.Modal(document.getElementById('proveedorModal')).show();
+        } else {
+            // Intentar cargar por AJAX si no está en cache
+            $.get(buildApiUrl('proveedores/' + id))
+                .done(function(res){
+                    var p = res && res.proveedor ? res.proveedor : res;
+                    $('#proveedorId').val(p.id);
+                    $('#rut_prov').val(p.rut || '');
+                    $('#name_prov').val(p.name || '');
+                    $('#email_prov').val(p.email || '');
+                    $('#phone_prov').val(p.phone || '');
+                    $('#address_prov').val(p.address || '');
+                    $('#proveedorModalLabel').text('Editar Proveedor');
+                    new bootstrap.Modal(document.getElementById('proveedorModal')).show();
+                })
+                .fail(function(){
+                    Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el proveedor.' });
+                });
         }
     };
     

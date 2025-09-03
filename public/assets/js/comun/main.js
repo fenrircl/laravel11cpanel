@@ -2386,7 +2386,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const current = $prov.val();
             $prov.empty().append('<option value="">Seleccionar proveedor...</option>');
             (ReferenceDataManager.data.proveedores || []).forEach(p => {
-                $prov.append(`<option value="${p.id}">${p.name}</option>`);
+                const label = p && p.rut ? `${p.name} (${p.rut})` : (p && p.name ? p.name : '');
+                $prov.append(`<option value="${p.id}">${label}</option>`);
             });
             if ($prov.hasClass('select2-hidden-accessible')) { $prov.select2('destroy'); }
             $prov.select2(select2Options);
