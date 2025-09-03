@@ -76,9 +76,12 @@ class FacturasController extends Controller
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
-                              $factura->has_file = $factura->archivo ? true : false;
-                              $factura->file_path = $factura->archivo->path ?? null;
-                              return $factura;
+                              $arr = $factura->toArray();
+                              $arr['has_file'] = $factura->archivo ? true : false;
+                              $arr['file_path'] = $factura->archivo->path ?? null;
+                              // Forzar amount entero en la respuesta
+                              $arr['amount'] = (int) round($factura->amount);
+                              return $arr;
                           });
         
         return response()->json([
@@ -97,11 +100,13 @@ class FacturasController extends Controller
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
-                              $factura->has_file = $factura->archivo ? true : false;
-                              $factura->file_path = $factura->archivo->path ?? null;
-                              return $factura;
+                              $arr = $factura->toArray();
+                              $arr['has_file'] = $factura->archivo ? true : false;
+                              $arr['file_path'] = $factura->archivo->path ?? null;
+                              // Forzar amount entero en la respuesta
+                              $arr['amount'] = (int) round($factura->amount);
+                              return $arr;
                           });
-        
         return response()->json([
             'data' => $facturas
         ]);

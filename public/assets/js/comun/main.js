@@ -1485,23 +1485,29 @@ function openEditFacturaModal(entity, id) {
     if(factura.detail)
         document.getElementById('detail').value = factura.detail;
     
-    // Cargar datos de los selectores primero
-    loadSelectData();
+    // Cargar datos de los selectores primero usando datos precargados
+    ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
+        populateFacturaSelects($('#facturaModal'));
+        // Seleccionar valores en los selects (soporta id directo o relación cargada)
+        const clientId = (factura.client_id != null) ? factura.client_id : (factura.cliente && factura.cliente.id != null ? factura.cliente.id : '');
+        const providerId = (factura.provider_id != null) ? factura.provider_id : (factura.proveedor && factura.proveedor.id != null ? factura.proveedor.id : '');
+        const metodoPagoId = (factura.payment_method_id != null) ? factura.payment_method_id : (factura.metodoPago && factura.metodoPago.id != null ? factura.metodoPago.id : '');
+        const clientName = (factura.cliente && factura.cliente.name) ? factura.cliente.name : undefined;
+        const providerName = (factura.proveedor && factura.proveedor.name) ? factura.proveedor.name : undefined;
+        const metodoPagoName = (factura.metodoPago && factura.metodoPago.name) ? factura.metodoPago.name : undefined;
 
-    // Seleccionar valores en los selects después de cargar datos
-    setTimeout(() => {
-        if (factura.client_id !== undefined) {
-            $('#client_id').val(factura.client_id).trigger('change');
+        if (typeof window.setSelect2Value === 'function') {
+            setSelect2Value('#client_id', clientId, clientName);
+            setSelect2Value('#provider_id', providerId, providerName);
+            setSelect2Value('#payment_method_id', metodoPagoId, metodoPagoName);
+        } else {
+            if (clientId !== '') $('#client_id').val(clientId).trigger('change');
+            if (providerId !== '') $('#provider_id').val(providerId).trigger('change');
+            if (metodoPagoId !== '') $('#payment_method_id').val(metodoPagoId).trigger('change');
         }
-        if (factura.provider_id !== undefined) {
-            $('#provider_id').val(factura.provider_id).trigger('change');
-        }
-        if (factura.payment_method_id !== undefined) {
-            $('#payment_method_id').val(factura.payment_method_id).trigger('change');
-        }
-        // Poblar el formulario del modal con los datos después de un pequeño delay
+        // Poblar el formulario del modal con los datos
         populateForm(factura, '');
-    }, 500);
+    });
     
     // Establecer el ID de la factura en el campo oculto
     const facturaIdField = document.getElementById('factura_id');
@@ -1783,76 +1789,15 @@ function saveFactura() {
  * Cargar datos de clientes, proveedores y métodos de pago para los selectores
  */
 function loadSelectData() {
-    // Detectar el modal abierto
+    // Cargar datos de referencia una sola vez y poblar selects
     const $modal = $('#facturaModal');
-    const select2Options = $modal.length ? { width: '100%', dropdownParent: $modal } : { width: '100%' };
-
-    // Cargar clientes
-    $.get(buildApiUrl('clientes/data'))
-        .done(function(response) {
-            const clientSelect = $('#client_id');
-            if (clientSelect.length) {
-                clientSelect.empty().append('<option value="">Seleccionar cliente...</option>');
-                response.data.forEach(cliente => {
-                    clientSelect.append(`<option value="${cliente.id}">${cliente.name}</option>`);
-                });
-                clientSelect.select2(select2Options);
+    return window.ReferenceDataManager
+        ? ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
+            if (typeof window.populateFacturaSelects === 'function') {
+                window.populateFacturaSelects($modal);
             }
         })
-        .fail(function() {
-            console.error('Error al cargar clientes');
-        });
-    
-    // Cargar proveedores
-    $.get(buildApiUrl('proveedores/data'))
-        .done(function(response) {
-            const providerSelect = $('#provider_id');
-            if (providerSelect.length) {
-                providerSelect.empty().append('<option value="">Seleccionar proveedor...</option>');
-                response.data.forEach(proveedor => {
-                    providerSelect.append(`<option value="${proveedor.id}">${proveedor.name}</option>`);
-                });
-                providerSelect.select2(select2Options);
-            }
-        })
-        .fail(function() {
-            console.error('Error al cargar proveedores');
-        });
-    
-    // Cargar métodos de pago
-    $.get(buildApiUrl('metodos-pago/data'))
-        .done(function(response) {
-            const paymentMethodSelect = $('#payment_method_id');
-            if (paymentMethodSelect.length) {
-                paymentMethodSelect.empty().append('<option value="">Seleccionar método...</option>');
-                if (response.data) {
-                    response.data.forEach(metodo => {
-                        paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
-                    });
-                }
-                paymentMethodSelect.select2(select2Options);
-            }
-        })
-        .fail(function() {
-            console.error('Error al cargar métodos de pago');
-            // Fallback con métodos básicos si no hay endpoint
-            const paymentMethodSelect = $('#payment_method_id');
-            if (paymentMethodSelect.length) {
-                paymentMethodSelect.empty().append('<option value="">Seleccionar método...</option>');
-                // Agregar métodos básicos por defecto
-                const metodosBasicos = [
-                    {id: 0, name: ''},
-                    {id: 1, name: 'Transferencia bancaria'},
-                    {id: 2, name: 'Efectivo'},
-                    {id: 3, name: 'Red Compra'},
-                    {id: 4, name: 'Cheque'},
-                ];
-                metodosBasicos.forEach(metodo => {
-                    paymentMethodSelect.append(`<option value="${metodo.id}">${metodo.name}</option>`);
-                });
-                paymentMethodSelect.select2(select2Options);
-            }
-        });
+        : Promise.resolve();
 }
 
 // Función para abrir modal de creación
@@ -1861,8 +1806,10 @@ function openCreateFacturaModal(entity) {
     $('#facturaForm')[0].reset();
     $('#factura_id').val('');
     
-    // Cargar datos de los selectores
-    loadSelectData();
+    // Cargar datos de los selectores desde referencias
+    ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
+        populateFacturaSelects($('#facturaModal'));
+    });
     
     // Configurar modal según entidad
     if (entity === 'cliente') {
@@ -2296,3 +2243,201 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ==============================
+// Referencias de datos (clientes, proveedores, métodos de pago)
+// Carga perezosa + caché local opcional
+// ==============================
+(function(){
+    if (window.ReferenceDataManager) return;
+
+    const ENTITY_ENDPOINTS = {
+        clientes: 'clientes/data',
+        proveedores: 'proveedores/data',
+        metodosPago: 'metodos-pago/data'
+    };
+
+    const ReferenceDataManager = {
+        data: { clientes: null, proveedores: null, metodosPago: null },
+        isLoading: { clientes: false, proveedores: false, metodosPago: false },
+
+        getFromLocalCache(entity){
+            try {
+                if (window.searchCacheManager && typeof window.searchCacheManager.getEntityData === 'function') {
+                    const d = window.searchCacheManager.getEntityData(entity);
+                    if (Array.isArray(d) && d.length) return d;
+                }
+            } catch(e) { /* noop */ }
+            return null;
+        },
+        set(entity, list){
+            this.data[entity] = Array.isArray(list) ? list : [];
+            try {
+                if (window.searchCacheManager && typeof window.searchCacheManager.updateEntityCache === 'function') {
+                    window.searchCacheManager.updateEntityCache(entity, this.data[entity]);
+                }
+            } catch(e) { /* noop */ }
+            document.dispatchEvent(new CustomEvent(`${entity}:ready`, { detail: this.data[entity] }));
+        },
+        ensureLoaded(entities){
+            const items = Array.isArray(entities) ? entities : [entities];
+            const tasks = items.map((entity) => this.load(entity));
+            return Promise.all(tasks);
+        },
+        load(entity){
+            if (this.data[entity]) return Promise.resolve(this.data[entity]);
+            if (this.isLoading[entity]) {
+                // Esperar a que termine otra carga en curso
+                return new Promise((resolve) => {
+                    const handler = (e) => { document.removeEventListener(`${entity}:ready`, handler); resolve(e.detail || this.data[entity] || []); };
+                    document.addEventListener(`${entity}:ready`, handler);
+                });
+            }
+
+            this.isLoading[entity] = true;
+
+            // 1) Intentar desde caché local
+            const cached = this.getFromLocalCache(entity);
+            if (cached) {
+                this.set(entity, cached);
+                this.isLoading[entity] = false;
+                // 2) Opcionalmente refrescar en background si el caché venció
+                try {
+                    if (window.searchCacheManager && typeof window.searchCacheManager.needsUpdate === 'function' && window.searchCacheManager.needsUpdate(entity)) {
+                        this.fetchFromServer(entity).catch(() => {});
+                    }
+                } catch(e) { /* noop */ }
+                return Promise.resolve(cached);
+            }
+
+            // 3) Cargar desde servidor
+            return this.fetchFromServer(entity).finally(() => {
+                this.isLoading[entity] = false;
+            });
+        },
+        fetchFromServer(entity){
+            const endpoint = ENTITY_ENDPOINTS[entity];
+            if (!endpoint) return Promise.resolve([]);
+            return new Promise((resolve) => {
+                $.get(buildApiUrl(endpoint))
+                    .done((response) => {
+                        const list = (response && response.data) ? response.data : [];
+                        this.set(entity, list);
+                        resolve(list);
+                    })
+                    .fail(() => {
+                        // Fallback para métodos de pago
+                        if (entity === 'metodosPago') {
+                            const fallback = [
+                                {id: 0, name: ''},
+                                {id: 1, name: 'Transferencia bancaria'},
+                                {id: 2, name: 'Efectivo'},
+                                {id: 3, name: 'Red Compra'},
+                                {id: 4, name: 'Cheque'}
+                            ];
+                            this.set(entity, fallback);
+                            resolve(fallback);
+                        } else {
+                            console.error(`Error al cargar ${entity}`);
+                            this.set(entity, []);
+                            resolve([]);
+                        }
+                    });
+            });
+        },
+        refresh(entity){
+            this.data[entity] = null;
+            return this.load(entity);
+        }
+    };
+
+    // Helper para poblar selects del modal de factura usando datos de referencia
+    function populateFacturaSelects(dropdownParent){
+        const $modal = dropdownParent && dropdownParent.length ? dropdownParent : $('#facturaModal');
+        const select2Options = $modal.length ? { width: '100%', dropdownParent: $modal } : { width: '100%' };
+
+        // Clientes
+        const $client = $('#client_id');
+        if ($client.length) {
+            const current = $client.val();
+            $client.empty().append('<option value="">Seleccionar cliente...</option>');
+            (ReferenceDataManager.data.clientes || []).forEach(c => {
+                $client.append(`<option value="${c.id}">${c.name}</option>`);
+            });
+            if ($client.hasClass('select2-hidden-accessible')) { $client.select2('destroy'); }
+            $client.select2(select2Options);
+            if (current) $client.val(current).trigger('change');
+        }
+
+        // Proveedores
+        const $prov = $('#provider_id');
+        if ($prov.length) {
+            const current = $prov.val();
+            $prov.empty().append('<option value="">Seleccionar proveedor...</option>');
+            (ReferenceDataManager.data.proveedores || []).forEach(p => {
+                $prov.append(`<option value="${p.id}">${p.name}</option>`);
+            });
+            if ($prov.hasClass('select2-hidden-accessible')) { $prov.select2('destroy'); }
+            $prov.select2(select2Options);
+            if (current) $prov.val(current).trigger('change');
+        }
+
+        // Métodos de pago
+        const $pm = $('#payment_method_id');
+        if ($pm.length) {
+            const current = $pm.val();
+            $pm.empty().append('<option value="">Seleccionar método...</option>');
+            (ReferenceDataManager.data.metodosPago || []).forEach(m => {
+                $pm.append(`<option value="${m.id}">${m.name}</option>`);
+            });
+            if ($pm.hasClass('select2-hidden-accessible')) { $pm.select2('destroy'); }
+            $pm.select2(select2Options);
+            if (current) $pm.val(current).trigger('change');
+        }
+    }
+
+    // Exponer globalmente
+    window.ReferenceDataManager = ReferenceDataManager;
+    window.populateFacturaSelects = populateFacturaSelects;
+    window.setSelect2Value = function(selector, value, label){
+        const $el = $(selector);
+        if (!$el.length) return;
+
+        const valStr = (value === undefined || value === null) ? '' : String(value);
+
+        // Asegurar que Select2 esté inicializado sobre el elemento
+        if (!$el.hasClass('select2-hidden-accessible')) {
+            const $modal = $('#facturaModal');
+            const select2Options = $modal.length ? { width: '100%', dropdownParent: $modal } : { width: '100%' };
+            try { $el.select2(select2Options); } catch(e) { /* noop */ }
+        }
+
+        const exists = $el.find(`option[value="${valStr}"]`).length > 0;
+        if (exists || valStr === '') {
+            $el.val(valStr).trigger('change');
+            return;
+        }
+
+        // Si no existe la opción, intentar obtener el nombre desde los datos de referencia o usar label provisto
+        let text = label;
+        if (!text && window.ReferenceDataManager && ReferenceDataManager.data) {
+            let entityKey = null;
+            if (selector.includes('client_id')) entityKey = 'clientes';
+            else if (selector.includes('provider_id')) entityKey = 'proveedores';
+            else if (selector.includes('payment_method_id')) entityKey = 'metodosPago';
+
+            if (entityKey && Array.isArray(ReferenceDataManager.data[entityKey])) {
+                const match = ReferenceDataManager.data[entityKey].find(it => String(it.id) === valStr);
+                if (match) text = match.name || text;
+            }
+        }
+
+        const opt = new Option(text || valStr, valStr, true, true);
+        $el.append(opt).trigger('change');
+    };
+
+    // Actualizar datos cuando se emitan eventos globales
+    document.addEventListener('clientes:updated', () => ReferenceDataManager.refresh('clientes').then(() => populateFacturaSelects($('#facturaModal'))));
+    document.addEventListener('proveedores:updated', () => ReferenceDataManager.refresh('proveedores').then(() => populateFacturaSelects($('#facturaModal'))));
+    document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago').then(() => populateFacturaSelects($('#facturaModal'))));
+})();

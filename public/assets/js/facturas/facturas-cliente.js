@@ -1,9 +1,18 @@
 $(document).ready(function() {
     console.log('Facturas Cliente DataTable initialized');
+
+    // Precargar datos necesarios para esta vista
+    if (window.ReferenceDataManager) {
+        ReferenceDataManager.ensureLoaded(['clientes', 'metodosPago']);
+    }
+
+    // Refrescar datasets si hay cambios en clientes o métodos de pago
+    document.addEventListener('clientes:updated', () => ReferenceDataManager.refresh('clientes'));
+    document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago'));
     
     // Configuración de columnas para la tabla de facturas de clientes
     const columns = [
-        {data: 'id', name: 'id'},
+        // {data: 'id', name: 'id'},
         {data: 'invoice', name: 'invoice', title: 'Número Factura'},
         {
             data: 'cliente.name', 

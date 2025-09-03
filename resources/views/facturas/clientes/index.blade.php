@@ -26,7 +26,7 @@
                         <table id="facturas-clientes-table" class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    {{-- <th>ID</th> --}}
                                     <th>Número Factura</th>
                                     <th>Cliente</th>
                                     <th>Fecha</th>
@@ -146,7 +146,7 @@
                     
                     <!-- Sección de gestión de archivos (solo para edición) -->
                     <div id="file-management-section" style="display: none;">
-                        <hr>
+                       
                         <h6><i class="fas fa-file-upload me-2"></i>Gestión de Archivos</h6>
                         
                         <!-- Subida de archivos -->

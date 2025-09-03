@@ -26,7 +26,7 @@
                         <table id="facturas-proveedores-table" class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    {{-- <th>ID</th> --}}
                                     <th>Número Factura</th>
                                     <th>Proveedor</th>
                                     <th>Fecha</th>
@@ -97,7 +97,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Monto <span class="text-danger">*</span></label>
-                                <input type="number" class="form-control" id="amount" name="amount" step="1" min="0" required data-format="clp">
+                                <input type="text" class="form-control" id="amount" name="amount" step="1" min="0" required data-format="clp">
                             </div>
                         </div>
                     </div>

@@ -1,9 +1,18 @@
 $(document).ready(function() {
     console.log('Facturas Proveedor DataTable initialized');
+
+    // Precargar datos necesarios para esta vista
+    if (window.ReferenceDataManager) {
+        ReferenceDataManager.ensureLoaded(['proveedores', 'metodosPago']);
+    }
+
+    // Refrescar datasets si hay cambios en proveedores o métodos de pago
+    document.addEventListener('proveedores:updated', () => ReferenceDataManager.refresh('proveedores'));
+    document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago'));
     
     // Configuración de columnas para la tabla de facturas de proveedores
     const columns = [
-        {data: 'id', name: 'id'},
+        // {data: 'id', name: 'id'},
         {data: 'invoice', name: 'invoice', title: 'Número Factura'},
         {
             data: 'proveedor.name', 
