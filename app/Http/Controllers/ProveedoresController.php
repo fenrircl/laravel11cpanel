@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Proveedor;
+use App\Models\FilesRegistry;
 
 class ProveedoresController extends Controller
 {
@@ -82,7 +83,17 @@ class ProveedoresController extends Controller
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json(['proveedor' => $proveedor]);
         }
-        return view('proveedores.show', compact('proveedor'));
+        // Cargar archivos asociados
+        $files = FilesRegistry::where('model_type','App\\Provider')
+            ->where('model_id', $proveedor->id)
+            ->orderByDesc('created_at')
+            ->get();
+        $data = [
+            'proveedor' => $proveedor,
+            'files' => $files,
+            'asset_js' => ['proveedores/proveedor-show']
+        ];
+        return view('proveedores.show', $data);
     }
 
     /**

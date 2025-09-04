@@ -1487,8 +1487,11 @@ function openEditFacturaModal(entity, id) {
     }
     console.log(factura)
     
-    if(factura.detail)
-        document.getElementById('detail').value = factura.detail;
+    // Asegurar que el campo existe antes de asignar
+    if (factura.detail) {
+        const detailEl = document.getElementById('detail');
+        if (detailEl) detailEl.value = factura.detail;
+    }
     
     // Cargar datos de los selectores primero usando datos precargados
     ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
@@ -2024,6 +2027,8 @@ function openCreateFacturaModal(entity) {
     F.onRutBlur = function(el){
         const clean = CLFormat.cleanRut(el.value);
         const valid = CLFormat.isValidRut(clean);
+        // Formatear el valor visible al estilo chileno (12.345.678-9)
+        el.value = CLFormat.formatRut(clean);
         el.classList.toggle('is-invalid', !!el.value && !valid);
         F.updateHint(el);
     };

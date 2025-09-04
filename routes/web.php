@@ -68,7 +68,9 @@ Route::middleware(['auth'])->group(function () {
     
     // Recursos completos para CRUD
     Route::resource('facturas', FacturasController::class)->except(['index']);
-    Route::resource('clientes', ClientesController::class)->except(['index']);
+    Route::resource('clientes', ClientesController::class)
+        ->parameters(['clientes' => 'cliente'])
+        ->except(['index']);
     Route::resource('proveedores', ProveedoresController::class)
         ->parameters(['proveedores' => 'proveedor'])
         ->except(['index']);

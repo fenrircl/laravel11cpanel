@@ -139,8 +139,22 @@ function openEditModal(id) {
             $('#phone').val(c.phone || '');
             $('#address').val(c.address || '');
             // Mostrar modal
-            var m = new bootstrap.Modal(document.getElementById('clienteModal'));
+            var modalEl = document.getElementById('clienteModal');
+            var m = new bootstrap.Modal(modalEl);
             m.show();
+            // Formatear y validar RUT al abrir y en blur
+            if (window.CLInputFormatter) {
+                const rutEl = document.getElementById('rut');
+                if (rutEl) {
+                    window.CLInputFormatter.bind(rutEl);
+                    // Forzar validación/actualización inmediata
+                    if (typeof window.CLInputFormatter.onRutBlur === 'function') {
+                        window.CLInputFormatter.onRutBlur(rutEl);
+                    } else {
+                        window.CLInputFormatter.updateHint(rutEl);
+                    }
+                }
+            }
         })
         .fail(function(){
             Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el cliente.' });

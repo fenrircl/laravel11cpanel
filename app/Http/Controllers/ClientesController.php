@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Cliente; 
+use App\Models\FilesRegistry;
 
 class ClientesController extends Controller
 {
@@ -82,10 +83,21 @@ class ClientesController extends Controller
         if (request()->ajax()) {
             return response()->json(['cliente' => $cliente]);
         }
-        return view('clientes.show', compact('cliente'));
+
+        // Archivos asociados en files_registry con model_type 'App\\Client'
+        $files = FilesRegistry::where('model_type', 'App\\Client')
+            ->where('model_id', $cliente->id)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $data = [
+            'cliente' => $cliente,
+            'files' => $files,
+            'asset_js' => ['clientes/cliente-show']
+        ];
+        return view('clientes.show', $data);
     }
 
-  
     /**
      * Show the form for editing the specified resource.
      */

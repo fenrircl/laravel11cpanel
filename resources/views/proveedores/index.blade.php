@@ -139,9 +139,21 @@ function openEditModalProveedor(id) {
             $('#email_prov').val(p.email || '');
             $('#phone_prov').val(p.phone || '');
             $('#address_prov').val(p.address || '');
-            var m = new bootstrap.Modal(document.getElementById('proveedorModal'));
+            var modalEl = document.getElementById('proveedorModal');
+            var m = new bootstrap.Modal(modalEl);
             m.show();
-            if (window.CLInputFormatter) { window.CLInputFormatter.refreshAllHints(); }
+            // Formatear y validar RUT al abrir y en blur
+            if (window.CLInputFormatter) {
+                const rutEl = document.getElementById('rut_prov');
+                if (rutEl) {
+                    window.CLInputFormatter.bind(rutEl);
+                    if (typeof window.CLInputFormatter.onRutBlur === 'function') {
+                        window.CLInputFormatter.onRutBlur(rutEl);
+                    } else {
+                        window.CLInputFormatter.updateHint(rutEl);
+                    }
+                }
+            }
         })
         .fail(function(xhr){
             console.error('Error cargando proveedor', xhr);
@@ -150,23 +162,8 @@ function openEditModalProveedor(id) {
 }
 
 function viewProveedor(id) {
-    $.get(buildApiUrl('proveedores/' + id))
-        .done(function(res){
-            var p = res && res.proveedor ? res.proveedor : res;
-            var html = '<ul class="list-group">'
-                + '<li class="list-group-item"><strong>RUT:</strong> ' + (p.rut||'') + '</li>'
-                + '<li class="list-group-item"><strong>Nombre:</strong> ' + (p.name||'') + '</li>'
-                + '<li class="list-group-item"><strong>Email:</strong> ' + (p.email||'') + '</li>'
-                + '<li class="list-group-item"><strong>Teléfono:</strong> ' + (p.phone||'') + '</li>'
-                + '<li class="list-group-item"><strong>Dirección:</strong> ' + (p.address||'') + '</li>'
-                + '</ul>';
-            $('#viewProveedorContent').html(html);
-            var m = new bootstrap.Modal(document.getElementById('viewProveedorModal'));
-            m.show();
-        })
-        .fail(function(){
-            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el proveedor.' });
-        });
+    // Redirigir a la vista de detalle del proveedor
+    window.location.href = buildApiUrl('proveedores/' + id);
 }
 
 $('#saveProveedorBtn').on('click', function(){

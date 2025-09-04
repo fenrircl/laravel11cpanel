@@ -61,41 +61,9 @@ $(document).ready(function() {
     
     // Funciones específicas de proveedores que usan el sistema de almacenamiento
     
-    // Ver detalles de proveedor
+    // Ver detalles de proveedor -> redirigir a la vista
     window.verProveedor = function(id) {
-        const proveedor = EntityHelpers.getProveedor(id);
-        if (proveedor) {
-            // Crear modal con los datos almacenados
-            const modalContent = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>ID:</strong> ${proveedor.id}</p>
-                        <p><strong>Nombre:</strong> ${proveedor.name}</p>
-                        <p><strong>Email:</strong> ${proveedor.email}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Teléfono:</strong> ${proveedor.phone || 'No especificado'}</p>
-                        <p><strong>Dirección:</strong> ${proveedor.address || 'No especificada'}</p>
-                        <p><strong>Fecha de registro:</strong> ${formatTableDate(proveedor.created_at, true)}</p>
-                    </div>
-                </div>
-            `;
-            
-            Swal.fire({
-                title: 'Detalles del Proveedor',
-                html: modalContent,
-                width: '600px',
-                showCloseButton: true,
-                showConfirmButton: false
-            });
-        } else {
-            console.error('Proveedor no encontrado:', id);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se encontraron los datos del proveedor.'
-            });
-        }
+        window.location.href = buildApiUrl('proveedores/' + id);
     };
     
     // Editar proveedor

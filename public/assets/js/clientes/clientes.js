@@ -60,41 +60,9 @@ $(document).ready(function() {
     
     // Funciones específicas de clientes que usan el sistema de almacenamiento
     
-    // Ver detalles de cliente
+    // Ver detalles de cliente => redirigir a la vista clientes/{id}
     window.verCliente = function(id) {
-        const cliente = EntityHelpers.getCliente(id);
-        if (cliente) {
-            // Crear modal con los datos almacenados
-            const modalContent = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>ID:</strong> ${cliente.id}</p>
-                        <p><strong>Nombre:</strong> ${cliente.name}</p>
-                        <p><strong>Email:</strong> ${cliente.email}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Teléfono:</strong> ${cliente.phone || 'No especificado'}</p>
-                        <p><strong>Dirección:</strong> ${cliente.address || 'No especificada'}</p>
-                        <p><strong>Fecha de registro:</strong> ${formatTableDate(cliente.created_at, true)}</p>
-                    </div>
-                </div>
-            `;
-            
-            Swal.fire({
-                title: 'Detalles del Cliente',
-                html: modalContent,
-                width: '600px',
-                showCloseButton: true,
-                showConfirmButton: false
-            });
-        } else {
-            console.error('Cliente no encontrado:', id);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se encontraron los datos del cliente.'
-            });
-        }
+        window.location.href = buildApiUrl('clientes/' + id);
     };
     
     // Editar cliente
