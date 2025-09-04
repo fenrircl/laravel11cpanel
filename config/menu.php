@@ -91,5 +91,24 @@ return [
             //     'auth_required' => true
             // ]
         ]
+    ],
+    [
+        'section' => 'ADMINISTRACIÓN',
+        'items' => [
+            [
+                'title' => 'Usuarios',
+                'icon' => 'fas fa-user-shield',
+                'route' => 'admin.users.index',
+                'tooltip' => 'Gestión de usuarios',
+                'auth_required' => true
+            ],
+            [
+                'title' => 'Roles',
+                'icon' => 'fas fa-user-tag',
+                'route' => 'admin.roles.index',
+                'tooltip' => 'Gestión de roles',
+                'auth_required' => true
+            ],
+        ]
     ]
 ];

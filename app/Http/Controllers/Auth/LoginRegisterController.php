@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -20,6 +21,14 @@ class LoginRegisterController extends Controller implements HasMiddleware
             new Middleware('guest', except: ['home', 'logout']),
             new Middleware('auth', only: ['home', 'logout']),
         ];
+    }
+
+    private function putUserRolesInSession(User $user, Request $request): void
+    {
+        $roles = $user->roles()->pluck('slug')->toArray();
+        $isAdmin = in_array('admin', $roles, true);
+        $request->session()->put('user_roles', $roles);
+        $request->session()->put('is_admin', $isAdmin);
     }
 
     public function register(): RedirectResponse
@@ -44,6 +53,9 @@ class LoginRegisterController extends Controller implements HasMiddleware
         $credentials = $request->only('email', 'password');
         Auth::attempt($credentials);
         $request->session()->regenerate();
+        if (Auth::check()) {
+            $this->putUserRolesInSession(Auth::user(), $request);
+        }
         return redirect()->route('home')
             ->withSuccess('You have successfully registered & logged in!');
     }
@@ -63,6 +75,7 @@ class LoginRegisterController extends Controller implements HasMiddleware
         if(Auth::attempt($credentials))
         {
             $request->session()->regenerate();
+            $this->putUserRolesInSession(Auth::user(), $request);
             return redirect()->route('home');
         }
 

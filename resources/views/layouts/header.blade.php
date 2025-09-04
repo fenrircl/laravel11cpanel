@@ -25,17 +25,26 @@
     
     <nav>
         @auth
-            <span class="text-white">Bienvenido, {{ Auth::user()->name }}</span>
-            <a href="{{ route('logout') }}"
-               onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
-               class="text-white ms-3 text-decoration-none">
-                Cerrar Sesión
-            </a>
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-2"></i>
+                    <span class="text-truncate" style="max-width: 180px;">{{ Auth::user()->name }}</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuButton">
+                    <li class="dropdown-header small text-muted px-3">{{ Auth::user()->email }}</li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                            <i class="fas fa-sign-out-alt me-2"></i> Cerrar sesión
+                        </a>
+                    </li>
+                </ul>
+            </div>
             <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                 @csrf
             </form>
         @else
-            <a href="{{ route('login') }}" class="text-white ms-3 text-decoration-none">Iniciar Sesión</a>
+            <a href="{{ route('login') }}" class="btn btn-outline-light btn-sm">Iniciar sesión</a>
         @endauth
     </nav>
 </div>

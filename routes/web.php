@@ -16,7 +16,7 @@ Route::controller(LoginRegisterController::class)->group(function() {
     Route::get('/login', 'login')->name('login');
     Route::post('/authenticate', 'authenticate')->name('authenticate');
     Route::get('/home', 'home')->name('home');
-    Route::post('/logout', 'logout')->name('logout');
+    // (Eliminada) Route::post('/logout', 'logout')->name('logout');
 });
 
 // Route::get('/', function () {
@@ -100,5 +100,19 @@ Route::middleware(['auth'])->group(function () {
     // Vista rápida y rutas por tipo para factura completa
     Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');
     Route::get('/facturas/proveedores/{factura}', [FacturasController::class, 'show'])->name('facturas.proveedores.show');
+
+    // Administración
+    Route::prefix('admin')->name('admin.')->middleware('admin.role')->group(function(){
+        Route::get('/users', [\App\Http\Controllers\Admin\UsersController::class, 'index'])->name('users.index');
+        Route::post('/users', [\App\Http\Controllers\Admin\UsersController::class, 'store'])->name('users.store');
+        Route::put('/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'update'])->name('users.update');
+        Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'destroy'])->name('users.destroy');
+        Route::post('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UsersController::class, 'resetPassword'])->name('users.reset');
+
+        Route::get('/roles', [\App\Http\Controllers\Admin\RolesController::class, 'index'])->name('roles.index');
+        Route::post('/roles', [\App\Http\Controllers\Admin\RolesController::class, 'store'])->name('roles.store');
+        Route::put('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'destroy'])->name('roles.destroy');
+    });
 });
 
