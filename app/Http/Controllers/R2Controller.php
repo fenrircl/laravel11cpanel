@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\FilesRegistry;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogger;
+use App\Models\Cotizacion; // agregar import para cotizaciones
 
 class R2Controller extends Controller
 {
@@ -172,6 +173,16 @@ class R2Controller extends Controller
                 $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
                 $numeroFactura = $factura->invoice; // Usar número de factura
                 $facturaPath = "facturas/{$tipoFactura}/{$numeroFactura}";
+            } elseif ($modelType === 'App\\Cotizacion') {
+                $cotizacion = Cotizacion::find($modelId);
+                if (!$cotizacion) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cotización no encontrada'
+                    ], 404);
+                }
+                // Por cliente (preferencia del usuario)
+                $storageBasePath = "cotizaciones/clientes/{$cotizacion->client_id}/{$cotizacion->id}";
             } else {
                 // Para otros tipos de modelos, usar estructura original
                 $facturaPath = "facturas/{$modelId}";
@@ -223,7 +234,8 @@ class R2Controller extends Controller
                     'id' => $fileRegistry->id,
                     'name' => $originalName,
                     'size' => $file->getSize(),
-                    'path' => $storagePath
+                    'path' => $storagePath,
+                    'download_url' => route('files.download', ['path' => $storagePath])
                 ]
             ]);
 

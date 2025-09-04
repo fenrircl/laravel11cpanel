@@ -96,6 +96,10 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/cotizaciones', [CotizacionesController::class, 'store'])->name('cotizaciones.store');
     Route::get('/cotizaciones/data', [CotizacionesController::class, 'getData'])->name('cotizaciones.data');
     Route::get('/cotizaciones/{cotizacion}', [CotizacionesController::class, 'show'])->name('cotizaciones.show');
+    Route::get('/cotizaciones/{cotizacion}/edit', [CotizacionesController::class, 'edit'])->name('cotizaciones.edit');
+    Route::put('/cotizaciones/{cotizacion}', [CotizacionesController::class, 'update'])->name('cotizaciones.update');
+    Route::get('/cotizaciones/{cotizacion}/pdf', [CotizacionesController::class, 'pdf'])->name('cotizaciones.pdf');
+    Route::get('/cotizaciones/{cotizacion}/export-upload', [CotizacionesController::class, 'exportPdfAndUpload'])->name('cotizaciones.export-upload');
 
     // Vista rápida y rutas por tipo para factura completa
     Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');

@@ -1,239 +1,158 @@
-
+@extends('layouts.app')
 
 @section('content')
-
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
-<style>
-  #left { float:left }
-  #right { float:right }
-  @media print {
-    .no-print {
-      visibility: hidden;
-    }
-  }
-
-  div.header {
-    line-height: 0.8;
-  }
-</style>
-
-<div id="quotation">
- 
-
-{{-- <header>
-    <div class="container header">
-      <section class="main row">
-   
-        <div class="col-xs-6 " >
-           
-            <img src="{{ public_path() . $image_path }}" style="width: 95%; height: 50%">        </div>
-    </section>
+<div class="pdf-container">
+  <div class="no-print no-export d-flex justify-content-end mb-2">
+    <button id="btnDownloadPdf" class="btn btn-primary btn-sm"><i class="fas fa-download"></i> Descargar PDF</button>
   </div>
-</header> --}}
-
-
-<div class="row">
-  <div class="col-md-6">
-    <img src="{{ asset('img/logo.png') }}" style="width: 25%;" alt="Logo">
-  </div>
-  
-  <div class="col-md-6">
-    <center>
-    <h1>  {!! Form::label('work', 'Trabajo:') !!}
-      {!! Form::label('work', $quotation->work, ['class' => 'add-on', 'placeholder' => "", 'size' => 100]) !!}
-    </h1>
-    <h2>{!! Form::label('id', 'Cotización ') !!}
-      {!! Form::label('id', $quotation->id, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-    </h2>
-    </center>
-  </div>
-</div>
-<br>
-
-  <div class="panel panel-default">
-      <div class="panel-body">
-
-  {!! Form::label('name', 'Nombre:') !!}
-  {!! Form::label('name', $quotation->client->name, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-  <br>
-  {!! Form::label('rut', 'Rut:') !!}
-  {{ Form::label('search', $quotation->client->rut, array('id' => 'search')) }}
-
-  <br>
-
-  {!! Form::label('rut', 'Direccion:') !!}
-  @if(isset($quotation->client->address))
-  {!! Form::label('address', $quotation->client->address, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-  @endif
-
-  @if(isset($quotation->client->cityname))
-  {!! Form::label('city', ' , ') !!}
-  {!! Form::label('city', $cityname,array('class' => '')) !!}
-  @endif
-
-  {!! Form::label('rut', 'Telefono:') !!}
-  @if(isset($quotation->client->phone))
-  {!! Form::label('phone', null, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-  @endif
-  <br>
-
-  {!! Form::label('rut', 'Email:') !!}
-  @if(isset($quotation->client->email))
-  {!! Form::label('email', $quotation->client->email, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-  @endif
-  <br>
-
-  {!! Form::label('date', 'Fecha:') !!}
-  {!! Form::label('date', $quotation->date, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-  <br>
-
-  {!! Form::label('agent', 'Representante:') !!}
-  {!! Form::label('agent', $quotation->agent, ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-
-
-
-<br>
-<br>
-<style>
-  
-  th,
-  td {
-    border: 1px solid black;
-    border-collapse: collapse;
-  }
-  table{
-    border-top:1px solid black;
-    border-collapse: collapse;
-  }
-</style>
-  </div>
-</div>
-<br>
-<div class="panel panel-primary">
-  <div class="panel-heading">
-    <h3 class="panel-title">Detalle</h3>
-  </div>
-  <div class="panel-body">
-    <table class="table table-responsive table-inverse " style="width:100%">
-      <thead class="thead-inverse">
-        <tr>
-          <th>Cantidad</th>
-          <th>descripcion</th>
-          <th>Precio</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-            
-    <tbody>
-      @foreach($item as $item)
-      <tr style=" border: 1px solid black;">
-      <td> {{ $item->amount }} </td>
-      <td> {{ $item->description }} </td>
-      <td>{{"$" . number_format($item->price, 0, ',', '.')}}</td>
-      <td>{{"$" . number_format($item->total, 0, ',', '.')}}</td>
-      </tr>
-      @endforeach
-      <tr>
-        <td colspan="2" style="border: 0px !important :border-collapse: collapse;"></td><td>NETO</td>
-        <td>{{ "$" . number_format(($quotation->total / 1.19)) }}</td>
-      </tr>
-      <tr>
-        <td colspan="2" style="border: 0px !important :border-collapse: collapse;"></td><td>IVA</td>
-        <td>{{ "$" . number_format(($quotation->total / 1.19)*0.19) }}</td>
-      </tr>
-      <tr>
-        <td colspan="2" style="border: 0px !important :border-collapse: collapse;"></td><td>TOTAL</td>
-        <td>{{ "$" . number_format(($quotation->total)) }}</td>
-      </tr>
-    </tbody>       
-  </table>
-</div>
-</div>
-{{-- <div class="panel panel-default">
-  <div class="panel-body">
-    <br>
-    <div align="right">
-    {!! Form::label('date', 'subtotal:') !!}
-    {!! Form::label('total', "$" . number_format(($quotation->total / 1.19), 0, ',', '.'), ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-    <br>
-
-    {!! Form::label('date', 'iva:') !!}
-    {!! Form::label('total', "$" . number_format((($quotation->total / 1.19) * 0.19), 0, ',', '.') , ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
-    <br>
-
-    {!! Form::label('date', 'total:') !!}
-    {!! Form::label('total', "$" . number_format($quotation->total, 0, ',', '.'), ['class' => 'add-on', 'placeholder' => "", 'size' => 20]) !!}
+  <div id="pdfPrintable">
+    <div class="pdf-header">
+      <div class="brand">
+        <img src="{{ asset('img/logo.png') }}" alt="Logo">
+        <div class="brand-info">
+          <h1>Sociedad Aceros Era Ltda.</h1>
+          <div>RUT 76.150.341-3</div>
+          <div>Alessandri 109, Tierras Blancas, Coquimbo</div>
+          <div>contacto@acerosera.cl — (051) 2249328</div>
+        </div>
+      </div>
+      <div class="doc-info">
+        <h2>Cotización #{{ $quotation->id }}</h2>
+        <div>Fecha: {{ optional($quotation->date)->format('d-m-Y') }}</div>
+        <div>Agente: {{ $quotation->agent }}</div>
       </div>
     </div>
-    <br>
-</div> --}}
 
+    <div class="section">
+      <h3>Cliente</h3>
+      <div class="client-grid">
+        <div><strong>Nombre:</strong><br>{{ $quotation->client->name ?? 'N/A' }}</div>
+        <div><strong>RUT:</strong><br>{{ $quotation->client->rut ?? 'N/A' }}</div>
+        <div><strong>Dirección:</strong><br>{{ $quotation->client->address ?? 'N/A' }}</div>
+        <div><strong>Ciudad:</strong><br>{{ $cityname ?? 'N/A' }}</div>
+        <div><strong>Teléfono:</strong><br>{{ $quotation->client->phone ?? 'N/A' }}</div>
+        <div><strong>Email:</strong><br>{{ $quotation->client->email ?? 'N/A' }}</div>
+      </div>
+    </div>
 
+    @if(!empty($quotation->work))
+    <div class="section">
+      <h3>Trabajo</h3>
+      <div class="work-box">{{ $quotation->work }}</div>
+    </div>
+    @endif
 
-<br><br><br><br><br><br>
-<footer>
-    <div class="container">
-       <section class="main row">       
-          <div class="col-md-12">
-          Hacer todos los cheques pagaderos a  Sociedad Aceros Era Ltda.</p>
-          Si tiene alguna pregunta relacionada con esta factura, le rogamos se ponga en contacto con:</p>
-          Ximena Valledor R.  Celular 9 - 88 63 192  E-Mail: contacto@acerosera.cl</p>
-          <br>
-          <p>Datos de transferencia : sociedad Aceros ERA Ltda<br />
-            Rut 76.150.341-3<br />
-            Cuenta corriente banco chile N*1201237809<br />
-            Administracion@acerosera.cl</p>            
-          </div>
-    </section>
+    <div class="section">
+      <h3>Detalle</h3>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width: 60%">Descripción</th>
+            <th class="num" style="width: 10%">Cant.</th>
+            <th class="num" style="width: 15%">Precio</th>
+            <th class="num" style="width: 15%">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @foreach($item as $it)
+          <tr>
+            <td>{{ $it->description }}</td>
+            <td class="num">{{ number_format($it->amount, 0, ',', '.') }}</td>
+            <td class="num">${{ number_format($it->price, 0, ',', '.') }}</td>
+            <td class="num">${{ number_format($it->total, 0, ',', '.') }}</td>
+          </tr>
+          @endforeach
+        </tbody>
+      </table>
+
+      <div class="summary">
+        <table>
+          @php
+            $neto = round($quotation->total / 1.19);
+            $iva = $neto * 0.19;
+            $total = $quotation->total;
+          @endphp
+          <tr>
+            <th>NETO</th>
+            <td>${{ number_format($neto, 0, ',', '.') }}</td>
+          </tr>
+          <tr>
+            <th>IVA (19%)</th>
+            <td>${{ number_format($iva, 0, ',', '.') }}</td>
+          </tr>
+          <tr>
+            <th>TOTAL</th>
+            <td>${{ number_format($total, 0, ',', '.') }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="pdf-footer">
+      <footer>
+        <div class="container">
+          <section class="main row">
+            <div class="col-md-12">
+              Hacer todos los cheques pagaderos a  Sociedad Aceros Era Ltda.<br>
+              Si tiene alguna pregunta relacionada con esta factura, le rogamos se ponga en contacto con:<br>
+              Ximena Valledor R.  Celular 9 - 88 63 192  E-Mail: contacto@acerosera.cl<br>
+              <br>
+              <p>Datos de transferencia : sociedad Aceros ERA Ltda<br />
+                Rut 76.150.341-3<br />
+                Cuenta corriente banco chile N*1201237809<br />
+                Administracion@acerosera.cl</p>
+            </div>
+          </section>
+        </div>
+      </footer>
+    </div>
   </div>
-</footer>
-
-
 </div>
-<script type="text/javascript">
-  function printDiv(divName) {
-       var printContents = document.getElementById(divName).innerHTML;
-       var originalContents = document.body.innerHTML;
+@endsection
 
-       document.body.innerHTML = printContents;
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/cotizaciones/pdf.css') }}">
+@endpush
 
-       window.print();
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('btnDownloadPdf');
+  if (!btn) { return; }
+  
+  btn.addEventListener('click', function() {
+    const element = document.getElementById('pdfPrintable');
+    if (!element || typeof html2pdf === 'undefined') { return; }
 
-       document.body.innerHTML = originalContents;
-  }
-      </script>
-      <style>
-        @media print {
-           a[href]:after {
-              content: none !important;
-           }
-        }
-        </style>
+    // Aumentar resolución equilibrada para buena nitidez sin peso excesivo
+    const scale = Math.min(2, Math.max(1.5, window.devicePixelRatio || 1));
 
+    const options = {
+      margin: 0.5,
+      filename: 'cotizacion_{{ $quotation->id }}.pdf',
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: {
+        scale: scale, // 1.5–2 mejora nitidez con peso moderado
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      },
+      jsPDF: {
+        unit: 'in',
+        format: 'a4',
+        orientation: 'portrait',
+        compress: true
+      }
+    };
 
-
-
-
-@include('scripts.scripts')
-
-
-  <link rel="stylesheet" type="text/css" href="{{ URL::asset('/css/sweetalert2.min.css') }} ">
-  <link rel="stylesheet" type="text/css" href="{{ URL::asset('/css/fixedHeader.dataTables.min.css') }} ">
-  <link rel="stylesheet" type="text/css" href="{{ URL::asset('/css/jquery.dataTables.yadcf.css') }} ">
-  <link rel="stylesheet" type="text/css" href="{{ URL::asset('/css/jquery-ui.min.css') }} ">
-    <!-- Bootstrap 3.3.7 -->
-    <script src="{{ asset('vendor/adminlte/vendor/bootstrap/dist/js/bootstrap.min.js') }}"></script>
-
-    <!-- Font Awesome -->
-
-  <script src={{ asset('/js/plugin/sweetalert2.min.js') }} ></script>
-  @show
+    try {
+      html2pdf(element, options);
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      alert('Error al generar el PDF: ' + error.message);
+    }
+  });
+});
+</script>
+@endpush

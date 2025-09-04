@@ -83,6 +83,8 @@
     <!-- Select2 -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.8.0/html2pdf.bundle.min.js"></script>
     <!-- JavaScript principal y común -->
     <script src="{{ asset('assets/js/principal/layout.js') }}"></script>
     <script src="{{ asset('assets/js/comun/main.js') }}"></script>
