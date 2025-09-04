@@ -266,11 +266,7 @@ function initDataTable(tableId, data, columns, options = {}) {
         processing: true,
         serverSide: false,
         columns: columns,
-        language: {
-            url: isLocal
-                ? buildApiUrl('assets/js/comun/plugins/datatable/es-ES.json')
-                : '//cdn.datatables.net/plug-ins/2.3.3/i18n/es-ES.json'
-        },
+        language: getDTLanguage(isLocal),
         responsive: true,
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
@@ -2458,3 +2454,40 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('proveedores:updated', () => ReferenceDataManager.refresh('proveedores').then(() => populateFacturaSelects($('#facturaModal'))));
     document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago').then(() => populateFacturaSelects($('#facturaModal'))));
 })();
+
+function getDTLanguage(isLocal) {
+    return {
+        // Se mantiene el URL por si quieres cargar traducciones extendidas
+        url: isLocal
+            ? buildApiUrl('assets/js/comun/plugins/datatable/es-ES.json')
+            : '//cdn.datatables.net/plug-ins/2.3.3/i18n/es-ES.json',
+        decimal: ',',
+        thousands: '.',
+        processing: 'Procesando...',
+        search: 'Buscar:',
+        lengthMenu: 'Mostrar _MENU_ registros',
+        info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+        infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+        infoFiltered: '(filtrado de _MAX_ registros)',
+        loadingRecords: 'Cargando...',
+        zeroRecords: 'No se encontraron resultados',
+        emptyTable: 'No hay datos disponibles en la tabla',
+        paginate: {
+            first: 'Primero',
+            previous: 'Anterior',
+            next: 'Siguiente',
+            last: 'Último'
+        },
+        aria: {
+            sortAscending: ': activar para ordenar la columna ascendente',
+            sortDescending: ': activar para ordenar la columna descendente'
+        },
+        buttons: {
+            copy: 'Copiar',
+            excel: 'Excel',
+            pdf: 'PDF',
+            print: 'Imprimir',
+            colvis: 'Columnas'
+        }
+    };
+}
