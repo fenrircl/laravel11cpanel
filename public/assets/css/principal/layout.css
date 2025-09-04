@@ -173,7 +173,15 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     position: sticky;
     top: 0;
-    z-index: 999;
+    z-index: 1030; /* por debajo del modal-backdrop (1050) y del modal (1055) */
+}
+
+/* Forzar z-index coherente con Bootstrap 5 para modales */
+.modal {
+    z-index: 1055;
+}
+.modal-backdrop {
+    z-index: 1050;
 }
 
 /* Área de contenido */

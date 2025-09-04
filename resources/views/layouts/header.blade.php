@@ -39,3 +39,5 @@
         @endauth
     </nav>
 </div>
+
+{{-- Modal movido al layout principal para evitar conflictos de z-index --}}

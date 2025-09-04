@@ -2491,3 +2491,15 @@ function getDTLanguage(isLocal) {
         }
     };
 }
+
+// Manejador global para ver factura: abre la vista rápida del header
+window.verFactura = function(id) {
+    try {
+        if (typeof openInvoiceQuickView === 'function') {
+            openInvoiceQuickView(id);
+            return;
+        }
+    } catch (e) { /* noop */ }
+    // Fallback: navegar a la vista completa estándar
+    window.location.href = buildApiUrl('facturas/' + id);
+};

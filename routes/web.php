@@ -96,5 +96,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/cotizaciones', [CotizacionesController::class, 'store'])->name('cotizaciones.store');
     Route::get('/cotizaciones/data', [CotizacionesController::class, 'getData'])->name('cotizaciones.data');
     Route::get('/cotizaciones/{cotizacion}', [CotizacionesController::class, 'show'])->name('cotizaciones.show');
+
+    // Vista rápida y rutas por tipo para factura completa
+    Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');
+    Route::get('/facturas/proveedores/{factura}', [FacturasController::class, 'show'])->name('facturas.proveedores.show');
 });
 

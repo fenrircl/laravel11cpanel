@@ -98,4 +98,73 @@
 
     @stack('scripts')
 </body>
+
+<!-- Modal global: Vista rápida de Factura (ubicado fuera del header) -->
+<div class="modal fade" id="invoiceQuickViewModal" tabindex="-1" aria-labelledby="invoiceQuickViewLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="invoiceQuickViewLabel"><i class="fas fa-file-invoice"></i> Factura</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="invoiceQuickViewBody">
+          <div class="text-muted">Cargando factura...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="invoiceFullViewLink" href="#" class="btn btn-primary" target="_self">
+          Ver factura completa
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal global: Vista rápida de Cliente -->
+<div class="modal fade" id="clienteQuickViewModal" tabindex="-1" aria-labelledby="clienteQuickViewLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="clienteQuickViewLabel"><i class="fas fa-user"></i> Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="clienteQuickViewBody">
+          <div class="text-muted">Cargando cliente...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="clienteFullViewLink" href="#" class="btn btn-primary" target="_self">
+          Ver más
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal global: Vista rápida de Proveedor -->
+<div class="modal fade" id="proveedorQuickViewModal" tabindex="-1" aria-labelledby="proveedorQuickViewLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="proveedorQuickViewLabel"><i class="fas fa-truck"></i> Proveedor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="proveedorQuickViewBody">
+          <div class="text-muted">Cargando proveedor...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a id="proveedorFullViewLink" href="#" class="btn btn-primary" target="_self">
+          Ver más
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
 </html>

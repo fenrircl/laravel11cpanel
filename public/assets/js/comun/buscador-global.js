@@ -10,6 +10,9 @@
 // Verificar si ya está inicializado para evitar redeclaraciones
 if (typeof window.globalSearchManager === 'undefined') {
 
+// Caché temporal para items renderizados (por ID)
+window.GlobalSearchTempCache = window.GlobalSearchTempCache || {};
+
 /**
  * Configuración del buscador
  */
@@ -290,6 +293,23 @@ class GlobalSearchManager {
         this.searchResults.innerHTML = '';
         this.searchResults.appendChild(container);
         
+        // Mapear datos JSON al elemento para prefill rápido
+        this.searchResults.querySelectorAll('.search-result-item').forEach(el => {
+            try {
+                const json = el.getAttribute('data-json');
+                if (json) el.__data = JSON.parse(decodeURIComponent(json));
+            } catch (e) { /* noop */ }
+        });
+        
+        // Registrar cache temporal de facturas
+        try {
+            results.forEach(r => {
+                if (r && r.entity === 'facturas' && r.id && r.data) {
+                    window.GlobalSearchTempCache[`facturas-${r.id}`] = r.data;
+                }
+            });
+        } catch(e) { /* noop */ }
+        
         this.showResults();
         
         // Agregar event listeners a los resultados
@@ -339,12 +359,13 @@ class GlobalSearchManager {
      */
     renderResultItem(result) {
         const iconClass = this.getEntityIcon(result.entity);
-        
-        return `
+        const dataJson = encodeURIComponent(JSON.stringify(result.data || {}));
+        const html = `
             <div class="search-result-item" 
                  data-entity="${result.entity}" 
                  data-id="${result.id}" 
-                 data-action="view">
+                 data-action="view"
+                 data-json="${dataJson}">
                 <div class="search-result-icon ${result.entity}">
                     <i class="${iconClass}"></i>
                 </div>
@@ -355,6 +376,7 @@ class GlobalSearchManager {
                 </div>
             </div>
         `;
+        return html;
     }
 
     /**
@@ -431,13 +453,54 @@ class GlobalSearchManager {
         resultItems?.forEach(item => {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
-                
                 const entity = item.dataset.entity;
                 const id = item.dataset.id;
+                if (entity === 'facturas') {
+                    e.stopPropagation();
+                    const prefill = window.GlobalSearchTempCache?.[`facturas-${id}`] || null;
+                    openInvoiceQuickView(id, prefill);
+                    return;
+                }
+                if (entity === 'clientes') {
+                    e.stopPropagation();
+                    const prefill = item.__data || null;
+                    openClienteQuickView(id, prefill);
+                    return;
+                }
+                if (entity === 'proveedores') {
+                    e.stopPropagation();
+                    const prefill = item.__data || null;
+                    openProveedorQuickView(id, prefill);
+                    return;
+                }
                 const action = item.dataset.action || 'view';
-                
                 this.handleResultClick(entity, id, action);
                 this.hideResults();
+            });
+
+            item.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const entity = item.dataset.entity;
+                    const id = item.dataset.id;
+                    if (entity === 'facturas') {
+                        e.preventDefault();
+                        const prefill = window.GlobalSearchTempCache?.[`facturas-${id}`] || null;
+                        openInvoiceQuickView(id, prefill);
+                        return;
+                    }
+                    if (entity === 'clientes') {
+                        e.preventDefault();
+                        const prefill = item.__data || null;
+                        openClienteQuickView(id, prefill);
+                        return;
+                    }
+                    if (entity === 'proveedores') {
+                        e.preventDefault();
+                        const prefill = item.__data || null;
+                        openProveedorQuickView(id, prefill);
+                        return;
+                    }
+                }
             });
         });
     }
@@ -462,6 +525,11 @@ class GlobalSearchManager {
      * Ver entidad
      */
     viewEntity(entity, id) {
+        // Manejo especial: facturas siempre abren vista rápida
+        if (entity === 'facturas' && typeof window.openInvoiceQuickView === 'function') {
+            window.openInvoiceQuickView(id);
+            return;
+        }
         const functionMap = {
             clientes: 'verCliente',
             proveedores: 'verProveedor',
@@ -480,14 +548,12 @@ class GlobalSearchManager {
             };
             if (urls[entity]) {
                 let url = buildApiUrl(urls[entity]);
-                // Normalizar para evitar doble slash
-                url = url.replace(/\/\/+/g, '/').replace(':/', '://');
-                window.location.href = url;
+                url = url.replace(/\/\/+/, '/').replace(':/', '://');
+                window.location.href = `${url}/${id}`;
             }
         }
     }
 
-    
     /**
      * Editar entidad
      */
@@ -611,6 +677,225 @@ window.GlobalSearchHelpers = {
     isSearching: () => {
         return window.globalSearchManager?.isSearching || false;
     }
+};
+
+// Vista rápida de factura (acepta prefill opcional)
+window.openInvoiceQuickView = function(id, prefill){
+    const modalEl = document.getElementById('invoiceQuickViewModal');
+    const bodyEl = document.getElementById('invoiceQuickViewBody');
+    const linkEl = document.getElementById('invoiceFullViewLink');
+    if (!modalEl || !bodyEl || !linkEl) return;
+
+    try { window.globalSearchManager?.hideResults(); } catch(e) {}
+
+    // Reusar instancia de modal si ya existe para evitar backdrops duplicados
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) modal = new bootstrap.Modal(modalEl, { backdrop: true, keyboard: true, focus: true });
+
+    const normId = String(id).trim();
+    if (!normId) {
+        bodyEl.innerHTML = '<div class="text-danger">ID de factura inválido.</div>';
+        modal.show();
+        return;
+    }
+
+    // Si tenemos datos preliminares del buscador, mostrarlos de inmediato
+    if (prefill && typeof prefill === 'object') {
+        try {
+            const esCliente = prefill.client_id != null;
+            const nombreEntidad = prefill.cliente_name || prefill.proveedor_name || (esCliente ? 'Cliente' : 'Proveedor');
+            const monto = prefill.total != null ? prefill.total : prefill.amount;
+            const fecha = prefill.fecha_emision || prefill.date;
+            const venc = prefill.fecha_vencimiento || prefill.expiry;
+            const numero = prefill.numero || prefill.invoice || normId;
+            const htmlPrefill = `
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div><strong>N° Factura:</strong> ${numero}</div>
+                    <div><strong>Fecha:</strong> ${fecha ? formatTableDate(fecha, false) : '—'}</div>
+                    <div><strong>Vencimiento:</strong> ${venc ? formatTableDate(venc, false) : '—'}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <div><strong>Entidad:</strong> ${nombreEntidad}</div>
+                    <div><strong>Monto:</strong> ${formatCurrency(monto)}</div>
+                  </div>
+                </div>`;
+            bodyEl.innerHTML = htmlPrefill;
+            // Link provisional según tipo inferido
+            const tipoPref = esCliente ? 'clientes' : 'proveedores';
+            linkEl.href = buildApiUrl('facturas/' + tipoPref + '/' + normId);
+            modal.show();
+        } catch(e) { /* noop */ }
+    } else {
+        bodyEl.innerHTML = '<div class="text-muted">Cargando factura...</div>';
+    }
+
+    // Cargar datos completos por AJAX y actualizar el modal
+    $.ajax({
+        url: buildApiUrl('facturas/' + encodeURIComponent(normId)),
+        type: 'GET',
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .done(function(res){
+        const factura = res && res.factura ? res.factura : res;
+        if (!factura || (!factura.id && !factura.invoice)) {
+            if (!prefill) bodyEl.innerHTML = '<div class="text-danger">No se encontraron datos de la factura.</div>';
+            return;
+        }
+        const tipo = factura.client_id ? 'clientes' : 'proveedores';
+        linkEl.href = buildApiUrl('facturas/' + tipo + '/' + factura.id);
+        const nombreEntidad = factura.client_id ? (factura.cliente?.name || 'Cliente') : (factura.proveedor?.name || 'Proveedor');
+        const metodoPago = factura.metodoPago?.name || '—';
+        const archivoHtml = (factura.has_file || factura.file_path) ? `<div class="mt-2"><i class="fas fa-paperclip"></i> Archivo disponible</div>` : '';
+        const html = `
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div><strong>N° Factura:</strong> ${factura.invoice || '—'}</div>
+                <div><strong>Fecha:</strong> ${formatTableDate(factura.date, false) || '—'}</div>
+                <div><strong>Vencimiento:</strong> ${factura.expiry ? formatTableDate(factura.expiry, false) : '—'}</div>
+                <div><strong>Pagado:</strong> ${factura.pay_date ? formatTableDate(factura.pay_date, false) : '—'}</div>
+              </div>
+              <div class="col-md-6">
+                <div><strong>Entidad:</strong> ${nombreEntidad}</div>
+                <div><strong>Método de pago:</strong> ${metodoPago}</div>
+                <div><strong>Monto:</strong> ${formatCurrency(factura.amount)}</div>
+                <div><strong>Estado:</strong> <span class="badge ${Number(factura.status)===1?'bg-success':'bg-warning'}">${Number(factura.status)===1?'Pagado':'Pendiente'}</span></div>
+              </div>
+              <div class="col-12">
+                <div><strong>Detalle:</strong></div>
+                <div class="border rounded p-2 bg-light">${(factura.detail||'').toString().trim() || '<span class="text-muted">Sin detalles</span>'}</div>
+                ${archivoHtml}
+              </div>
+            </div>`;
+        bodyEl.innerHTML = html;
+    })
+    .fail(function(xhr){
+        if (!prefill) {
+            let msg = 'No se pudo cargar la factura.';
+            if (xhr.status === 404) msg = 'Factura no encontrada (404).';
+            if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+            bodyEl.innerHTML = `<div class="text-danger">${msg}</div>`;
+        }
+    });
+};
+
+// Quick view Cliente
+window.openClienteQuickView = function(id, prefill){
+    try { window.globalSearchManager?.hideResults(); } catch(e) {}
+    const modalEl = document.getElementById('clienteQuickViewModal');
+    const bodyEl = document.getElementById('clienteQuickViewBody');
+    const linkEl = document.getElementById('clienteFullViewLink');
+    if (!modalEl || !bodyEl || !linkEl) return;
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) modal = new bootstrap.Modal(modalEl);
+
+    const normId = String(id).trim();
+    if (!normId) return;
+
+    if (prefill && typeof prefill === 'object') {
+        const nombre = prefill.name || `Cliente #${normId}`;
+        const email = prefill.email || '—';
+        const phone = prefill.phone || '—';
+        const rut = prefill.rut || '—';
+        const address = prefill.address || '—';
+        bodyEl.innerHTML = `
+            <div class="vstack gap-2">
+                <div><strong>Nombre:</strong> ${nombre}</div>
+                <div><strong>RUT:</strong> ${rut}</div>
+                <div><strong>Email:</strong> ${email}</div>
+                <div><strong>Teléfono:</strong> ${phone}</div>
+                <div><strong>Dirección:</strong> ${address}</div>
+            </div>`;
+        linkEl.href = buildApiUrl('clientes/' + normId);
+        modal.show();
+    } else {
+        bodyEl.innerHTML = '<div class="text-muted">Cargando cliente...</div>';
+    }
+
+    $.ajax({
+        url: buildApiUrl('clientes/' + encodeURIComponent(normId)),
+        type: 'GET',
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .done(function(res){
+        const c = res && res.cliente ? res.cliente : res;
+        if (!c || !c.id) return;
+        const nombre = c.name || `Cliente #${normId}`;
+        const email = c.email || '—';
+        const phone = c.phone || '—';
+        const rut = c.rut || '—';
+        const address = c.address || '—';
+        bodyEl.innerHTML = `
+            <div class="vstack gap-2">
+                <div><strong>Nombre:</strong> ${nombre}</div>
+                <div><strong>RUT:</strong> ${rut}</div>
+                <div><strong>Email:</strong> ${email}</div>
+                <div><strong>Teléfono:</strong> ${phone}</div>
+                <div><strong>Dirección:</strong> ${address}</div>
+            </div>`;
+        linkEl.href = buildApiUrl('clientes/' + c.id);
+    });
+};
+
+// Quick view Proveedor
+window.openProveedorQuickView = function(id, prefill){
+    try { window.globalSearchManager?.hideResults(); } catch(e) {}
+    const modalEl = document.getElementById('proveedorQuickViewModal');
+    const bodyEl = document.getElementById('proveedorQuickViewBody');
+    const linkEl = document.getElementById('proveedorFullViewLink');
+    if (!modalEl || !bodyEl || !linkEl) return;
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) modal = new bootstrap.Modal(modalEl);
+
+    const normId = String(id).trim();
+    if (!normId) return;
+
+    if (prefill && typeof prefill === 'object') {
+        const nombre = prefill.name || `Proveedor #${normId}`;
+        const email = prefill.email || '—';
+        const phone = prefill.phone || '—';
+        const rut = prefill.rut || '—';
+        const address = prefill.address || '—';
+        bodyEl.innerHTML = `
+            <div class="vstack gap-2">
+                <div><strong>Nombre:</strong> ${nombre}</div>
+                <div><strong>RUT:</strong> ${rut}</div>
+                <div><strong>Email:</strong> ${email}</div>
+                <div><strong>Teléfono:</strong> ${phone}</div>
+                <div><strong>Dirección:</strong> ${address}</div>
+            </div>`;
+        linkEl.href = buildApiUrl('proveedores/' + normId);
+        modal.show();
+    } else {
+        bodyEl.innerHTML = '<div class="text-muted">Cargando proveedor...</div>';
+    }
+
+    $.ajax({
+        url: buildApiUrl('proveedores/' + encodeURIComponent(normId)),
+        type: 'GET',
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .done(function(res){
+        const p = res && res.proveedor ? res.proveedor : res;
+        if (!p || !p.id) return;
+        const nombre = p.name || `Proveedor #${normId}`;
+        const email = p.email || '—';
+        const phone = p.phone || '—';
+        const rut = p.rut || '—';
+        const address = p.address || '—';
+        bodyEl.innerHTML = `
+            <div class="vstack gap-2">
+                <div><strong>Nombre:</strong> ${nombre}</div>
+                <div><strong>RUT:</strong> ${rut}</div>
+                <div><strong>Email:</strong> ${email}</div>
+                <div><strong>Teléfono:</strong> ${phone}</div>
+                <div><strong>Dirección:</strong> ${address}</div>
+            </div>`;
+        linkEl.href = buildApiUrl('proveedores/' + p.id);
+    });
 };
 
 } // Fin de la verificación de inicialización

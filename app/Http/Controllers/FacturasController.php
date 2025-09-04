@@ -179,12 +179,14 @@ class FacturasController extends Controller
      */
     public function show(Factura $factura)
     {
-        $factura->load(['cliente', 'proveedor', 'metodoPago']);
-        
-        if (request()->ajax()) {
+        $factura->load(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo']);
+        // Atributos calculados para quick view
+        $factura->has_file = $factura->archivo ? true : false;
+        $factura->file_path = $factura->archivo->path ?? null;
+
+        if (request()->ajax() || request()->wantsJson()) {
             return response()->json(['factura' => $factura]);
         }
-        
         return view('facturas.show', compact('factura'));
     }
 

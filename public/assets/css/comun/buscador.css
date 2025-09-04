@@ -182,7 +182,7 @@
     background: white;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-    z-index: 1050;
+    z-index: 1040; /* por debajo de modal-backdrop (1050) y del modal (1055) */
     max-height: 480px;
     overflow-y: auto;
     overflow-x: hidden;
