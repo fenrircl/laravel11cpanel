@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\FilesRegistry;
 use Illuminate\Support\Facades\DB;
+use App\Services\AuditLogger;
 
 class R2Controller extends Controller
 {
@@ -128,6 +129,9 @@ class R2Controller extends Controller
                     'created_at' => now()
                 ]);
 
+                // Auditoría
+                AuditLogger::log($request, 'upload', 'archivos', $factura->id, 'Subió archivo a factura #' . $factura->invoice);
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Archivo subido exitosamente',
@@ -208,6 +212,9 @@ class R2Controller extends Controller
                 'migrated' => 0,
                 'created_at' => now()
             ]);
+
+            // Auditoría
+            AuditLogger::log($request, 'upload', 'archivos', $modelId, 'Subió archivo a ' . $modelType . ' #' . $modelId);
 
             return response()->json([
                 'success' => true,
@@ -330,6 +337,9 @@ class R2Controller extends Controller
             // Delete from database
             $fileRegistry->delete();
 
+            // Auditoría
+            AuditLogger::log(request(), 'delete', 'archivos', $id, 'Eliminó archivo ' . $fileRegistry->file_name);
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Archivo eliminado exitosamente'
@@ -372,6 +382,9 @@ class R2Controller extends Controller
             
             // Delete from database
             $fileRegistry->delete();
+
+            // Auditoría
+            AuditLogger::log(request(), 'delete', 'archivos', $fileRegistry->id, 'Eliminó archivo por ruta ' . $fileRegistry->file_name);
 
             return response()->json([
                 'success' => true,

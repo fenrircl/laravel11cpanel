@@ -7,6 +7,7 @@ use App\Models\CotizacionItem;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\AuditLogger;
 
 class CotizacionesController extends Controller
 {
@@ -66,6 +67,9 @@ class CotizacionesController extends Controller
             foreach ($itemsData as $row) {
                 $cot->items()->create($row);
             }
+
+            // Registrar auditoría (dentro de la transacción para contar con el ID)
+            AuditLogger::log($request, 'create', 'cotizaciones', $cot->id, 'Creó cotización #' . $cot->id);
         });
 
         if ($request->ajax()) {
@@ -87,6 +91,8 @@ class CotizacionesController extends Controller
     public function show(Cotizacion $cotizacion)
     {
         $cotizacion->load(['cliente','items']);
+        // Log de visualización opcional
+        AuditLogger::log(request(), 'view', 'cotizaciones', $cotizacion->id, 'Vio cotización #' . $cotizacion->id);
         return view('cotizacion.show', compact('cotizacion'));
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Cliente; 
 use App\Models\FilesRegistry;
+use App\Services\AuditLogger;
 
 class ClientesController extends Controller
 {
@@ -67,6 +68,9 @@ class ClientesController extends Controller
         ];
 
         $cliente = Cliente::create($mapped);
+        
+        // Log auditoría
+        AuditLogger::log($request, 'create', 'clientes', $cliente->id, 'Creó cliente ' . $cliente->name);
         
         if ($request->ajax()) {
             return response()->json(['success' => true, 'cliente' => $cliente]);
@@ -133,6 +137,9 @@ class ClientesController extends Controller
 
         $cliente->update($mapped);
         
+        // Log auditoría
+        AuditLogger::log($request, 'update', 'clientes', $cliente->id, 'Actualizó cliente ' . $cliente->name);
+        
         if ($request->ajax()) {
             return response()->json(['success' => true, 'cliente' => $cliente]);
         }
@@ -145,7 +152,12 @@ class ClientesController extends Controller
      */
     public function destroy(Cliente $cliente)
     {
+        $id = $cliente->id;
+        $name = $cliente->name;
         $cliente->delete();
+        
+        // Log auditoría
+        AuditLogger::log(request(), 'delete', 'clientes', $id, 'Eliminó cliente ' . $name);
         
         if (request()->ajax()) {
             return response()->json(['success' => true, 'message' => 'Cliente eliminado exitosamente.']);

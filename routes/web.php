@@ -113,6 +113,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/roles', [\App\Http\Controllers\Admin\RolesController::class, 'store'])->name('roles.store');
         Route::put('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'destroy'])->name('roles.destroy');
+        Route::get('/audit', [\App\Http\Controllers\Admin\AuditLogsController::class, 'index'])->name('audit.index');
     });
 });
 

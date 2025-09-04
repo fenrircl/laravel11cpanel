@@ -6,8 +6,11 @@ use App\Models\Factura;
 use App\Models\Cliente;
 use App\Models\Proveedor;
 use App\Models\MetodoPago;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth as AuthFacade;
+use App\Services\AuditLogger;
 
 class FacturasController extends Controller
 {
@@ -164,6 +167,9 @@ class FacturasController extends Controller
 
         $factura = Factura::create($validatedData);
         
+        // Log auditoría (usar sesión)
+        AuditLogger::log($request, 'create', 'facturas', $factura->id, 'Creó factura #' . $factura->invoice);
+        
         if ($request->ajax()) {
             return response()->json([
                 'success' => true, 
@@ -259,6 +265,9 @@ class FacturasController extends Controller
         ]);
 
         $factura->update($validatedData);
+
+        // Log auditoría (usar sesión)
+        AuditLogger::log($request, 'update', 'facturas', $factura->id, 'Actualizó factura #' . $factura->invoice);
         
         if ($request->ajax()) {
             return response()->json([
@@ -273,9 +282,14 @@ class FacturasController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Factura $factura)
+    public function destroy(Request $request, Factura $factura)
     {
+        $facturaId = $factura->id;
+        $invoice = $factura->invoice;
         $factura->delete();
+        
+        // Log auditoría (usar sesión)
+        AuditLogger::log($request, 'delete', 'facturas', $facturaId, 'Eliminó factura #' . $invoice);
         
         if (request()->ajax()) {
             return response()->json(['success' => true, 'message' => 'Factura eliminada exitosamente.']);

@@ -109,6 +109,13 @@ return [
                 'tooltip' => 'Gestión de roles',
                 'auth_required' => true
             ],
+            [
+                'title' => 'Auditoría',
+                'icon' => 'fas fa-clipboard-list',
+                'route' => 'admin.audit.index',
+                'tooltip' => 'Logs de auditoría',
+                'auth_required' => true
+            ],
         ]
     ]
 ];

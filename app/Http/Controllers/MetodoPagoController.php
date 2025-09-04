@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MetodoPago;
 use Illuminate\Http\Request;
+use App\Services\AuditLogger;
 
 class MetodoPagoController extends Controller
 {
@@ -51,6 +52,9 @@ class MetodoPagoController extends Controller
 
         $metodoPago = MetodoPago::create($validatedData);
         
+        // Log auditoría
+        AuditLogger::log($request, 'create', 'metodos_pago', $metodoPago->id, 'Creó método de pago ' . $metodoPago->name);
+        
         if ($request->ajax()) {
             return response()->json([
                 'success' => true, 
@@ -93,6 +97,9 @@ class MetodoPagoController extends Controller
 
         $metodoPago->update($validatedData);
         
+        // Log auditoría
+        AuditLogger::log($request, 'update', 'metodos_pago', $metodoPago->id, 'Actualizó método de pago ' . $metodoPago->name);
+        
         if ($request->ajax()) {
             return response()->json([
                 'success' => true, 
@@ -121,7 +128,12 @@ class MetodoPagoController extends Controller
                            ->with('error', 'No se puede eliminar este método de pago porque está siendo usado en facturas.');
         }
         
+        $id = $metodoPago->id;
+        $name = $metodoPago->name;
         $metodoPago->delete();
+        
+        // Log auditoría
+        AuditLogger::log(request(), 'delete', 'metodos_pago', $id, 'Eliminó método de pago ' . $name);
         
         if (request()->ajax()) {
             return response()->json(['success' => true, 'message' => 'Método de pago eliminado exitosamente.']);
@@ -138,6 +150,9 @@ class MetodoPagoController extends Controller
         $metodoPago->update(['is_active' => !$metodoPago->is_active]);
         
         $status = $metodoPago->is_active ? 'activado' : 'desactivado';
+        
+        // Log auditoría
+        AuditLogger::log(request(), 'update', 'metodos_pago', $metodoPago->id, 'Estado ' . $status . ' de método de pago ' . $metodoPago->name);
         
         if (request()->ajax()) {
             return response()->json([

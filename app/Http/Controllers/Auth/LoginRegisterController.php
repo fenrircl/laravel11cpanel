@@ -12,6 +12,8 @@ use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use App\Models\AuditLog;
+use App\Services\AuditLogger;
 
 class LoginRegisterController extends Controller implements HasMiddleware
 {
@@ -55,6 +57,8 @@ class LoginRegisterController extends Controller implements HasMiddleware
         $request->session()->regenerate();
         if (Auth::check()) {
             $this->putUserRolesInSession(Auth::user(), $request);
+            // Guardar también user_id para auditoría
+            $request->session()->put('user_id', Auth::id());
         }
         return redirect()->route('home')
             ->withSuccess('You have successfully registered & logged in!');
@@ -76,6 +80,12 @@ class LoginRegisterController extends Controller implements HasMiddleware
         {
             $request->session()->regenerate();
             $this->putUserRolesInSession(Auth::user(), $request);
+
+            // Persistir también user_id en sesión para auditoría
+            $request->session()->put('user_id', Auth::id());
+
+            // Log de auditoría usando sesión
+            AuditLogger::log($request, 'login', 'auth', null, 'Ingreso al sistema');
             return redirect()->route('home');
         }
 
@@ -92,6 +102,10 @@ class LoginRegisterController extends Controller implements HasMiddleware
     
     public function logout(Request $request): RedirectResponse
     {
+        if (Auth::check()) {
+            // Log de auditoría antes de cerrar sesión
+            AuditLogger::log($request, 'logout', 'auth', null, 'Salida del sistema');
+        }
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

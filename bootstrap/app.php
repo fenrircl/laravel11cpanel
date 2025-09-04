@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'admin.role' => \App\Http\Middleware\AdminRoleMiddleware::class,
+            'user.context' => \App\Http\Middleware\UserContextMiddleware::class,
+        ]);
+        $middleware->appendToGroup('web', [
+            'user.context',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

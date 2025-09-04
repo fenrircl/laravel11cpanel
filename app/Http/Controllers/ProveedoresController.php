@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Proveedor;
 use App\Models\FilesRegistry;
+use App\Services\AuditLogger;
 
 class ProveedoresController extends Controller
 {
@@ -67,6 +68,9 @@ class ProveedoresController extends Controller
         ];
 
         $proveedor = Proveedor::create($mapped);
+        
+        // Log auditoría
+        AuditLogger::log($request, 'create', 'proveedores', $proveedor->id, 'Creó proveedor ' . $proveedor->name);
         
         if ($request->ajax()) {
             return response()->json(['success' => true, 'proveedor' => $proveedor]);
@@ -131,6 +135,9 @@ class ProveedoresController extends Controller
 
         $proveedor->update($mapped);
         
+        // Log auditoría
+        AuditLogger::log($request, 'update', 'proveedores', $proveedor->id, 'Actualizó proveedor ' . $proveedor->name);
+        
         if ($request->ajax()) {
             return response()->json(['success' => true, 'proveedor' => $proveedor]);
         }
@@ -143,7 +150,12 @@ class ProveedoresController extends Controller
      */
     public function destroy(Proveedor $proveedor)
     {
+        $id = $proveedor->id;
+        $name = $proveedor->name;
         $proveedor->delete();
+        
+        // Log auditoría
+        AuditLogger::log(request(), 'delete', 'proveedores', $id, 'Eliminó proveedor ' . $name);
         
         if (request()->ajax()) {
             return response()->json(['success' => true, 'message' => 'Proveedor eliminado exitosamente.']);
