@@ -11,8 +11,8 @@ $(function(){
         {data: 'amount', name: 'amount', title: 'Monto', render: d => formatCurrency(d)},
         {data: 'status', name: 'status', title: 'Estado', render: (s)=> `<span class="badge ${s===1?'bg-success':'bg-warning'}">${s===1?'Pagado':'Pendiente'}</span>`},
         {data: 'action', name: 'action', orderable:false, searchable:false, title: 'Acciones', render: (data, type, row) => {
-            const opts = {};
-            if (!row.has_file || !row.file_path) { opts.exclude = ['download']; }
+            const opts = { exclude: ['view'] };
+            if (!row.has_file || !row.file_path) { (opts.exclude || (opts.exclude=[])).push('download'); }
             return generateActionButtons(row.id, 'facturas', opts);
         }}
     ];
@@ -22,9 +22,15 @@ $(function(){
             url: buildApiUrl(`facturas/clientes/data`),
             type: 'GET',
             dataSrc: function(json){
-                const rows = (json && json.data) ? json.data.filter(f => String(f.client_id) === String(clientId)) : [];
-                EntityDataManager.setEntityData('facturas', rows);
-                return rows;
+                const list = (json && json.data) ? json.data : [];
+                const filtered = list.filter(f => String(f.client_id) === String(clientId));
+                const seen = new Set();
+                const unique = [];
+                for (const r of filtered) {
+                    if (r && r.id != null && !seen.has(r.id)) { seen.add(r.id); unique.push(r); }
+                }
+                EntityDataManager.setEntityData('facturas', unique);
+                return unique;
             }
         },
         order: [[0, 'desc']]

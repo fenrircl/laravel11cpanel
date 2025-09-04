@@ -13,8 +13,8 @@ $(function(){
         {
             data: 'action', name: 'action', orderable:false, searchable:false, title: 'Acciones',
             render: (data, type, row) => {
-                const opts = {};
-                if (!row.has_file || !row.file_path) { opts.exclude = ['download']; }
+                const opts = { exclude: ['view'] };
+                if (!row.has_file || !row.file_path) { (opts.exclude || (opts.exclude=[])).push('download'); }
                 return generateActionButtons(row.id, 'facturas', opts);
             }
         }
@@ -25,9 +25,16 @@ $(function(){
             url: buildApiUrl('facturas/proveedores/data'),
             type: 'GET',
             dataSrc: function(json){
-                const rows = (json && json.data) ? json.data.filter(f => String(f.provider_id) === String(providerId)) : [];
-                EntityDataManager.setEntityData('facturas', rows);
-                return rows;
+                const list = (json && json.data) ? json.data : [];
+                // Filtrar por proveedor y deduplicar por ID
+                const filtered = list.filter(f => String(f.provider_id) === String(providerId));
+                const seen = new Set();
+                const unique = [];
+                for (const r of filtered) {
+                    if (r && r.id != null && !seen.has(r.id)) { seen.add(r.id); unique.push(r); }
+                }
+                EntityDataManager.setEntityData('facturas', unique);
+                return unique;
             },
             error: function(xhr){
                 console.error('Error cargando facturas de proveedor', xhr);
@@ -37,7 +44,12 @@ $(function(){
         order: [[0, 'desc']]
     };
 
-    initDataTable('proveedor-facturas-table', null, columns, tableOptions);
+    // Evitar doble inicialización
+    if ($.fn.DataTable.isDataTable('#proveedor-facturas-table')) {
+        $('#proveedor-facturas-table').DataTable().ajax.reload(null, false);
+    } else {
+        initDataTable('proveedor-facturas-table', null, columns, tableOptions);
+    }
 
     // Toggle archivos
     $('#filesToggleProv').on('click', function(){ $('#filesCollapseProv').collapse('toggle'); });

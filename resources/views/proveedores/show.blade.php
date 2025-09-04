@@ -76,12 +76,12 @@
         </div>
     </div>
 </div>
-<!-- Modal para CRUD de Facturas de Cliente -->
+<!-- Modal para CRUD de Facturas de Proveedor -->
 <div class="modal fade" id="facturaModal" tabindex="-1" aria-labelledby="facturaModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="facturaModalLabel">Factura de Cliente</h5>
+                <h5 class="modal-title" id="facturaModalLabel">Factura de Proveedor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -106,9 +106,9 @@
                     <div class="row">
                         <div class="col-md-12">
                             <div class="mb-3">
-                                <label for="client_id" class="form-label">Cliente <span class="text-danger">*</span></label>
-                                <select class="form-select" id="client_id" name="client_id" required>
-                                    <option value="">Seleccionar cliente...</option>
+                                <label for="provider_id" class="form-label">Proveedor <span class="text-danger">*</span></label>
+                                <select class="form-select" id="provider_id" name="provider_id" required>
+                                    <option value="">Seleccionar proveedor...</option>
                                     <!-- Se llenarán dinámicamente -->
                                 </select>
                             </div>
@@ -125,7 +125,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="amount" class="form-label">Monto <span class="text-danger">*</span></label>
-                                <input class="form-control" type="text" id="amount" name="amount" inputmode="numeric" required data-format="clp" placeholder="$ 0">  
+                                <input type="text" class="form-control" id="amount" name="amount" step="1" min="0" required data-format="clp">
                             </div>
                         </div>
                     </div>
@@ -174,7 +174,7 @@
                     
                     <!-- Sección de gestión de archivos (solo para edición) -->
                     <div id="file-management-section" style="display: none;">
-                       
+                        <hr>
                         <h6><i class="fas fa-file-upload me-2"></i>Gestión de Archivos</h6>
                         
                         <!-- Subida de archivos -->

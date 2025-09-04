@@ -22,10 +22,10 @@ const CACHE_CONFIG = {
     STORAGE_KEY: 'search_cache',
     
     // Versión del caché (cambiar cuando cambie la estructura)
-    VERSION: '1.0.0',
+    VERSION: '1.0.1',
     
     // Número máximo de registros por entidad en caché
-    MAX_RECORDS_PER_ENTITY: 1000,
+    MAX_RECORDS_PER_ENTITY: 2000,
     
     // Campos esenciales por entidad para reducir peso
     ENTITY_FIELDS: {
