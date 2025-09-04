@@ -19,7 +19,9 @@ window.ENTITY_DATA = {
     proveedores: [],
     facturas: [],
     usuarios: [],
-    productos: []
+    productos: [],
+    cotizaciones: [],
+    'metodos-pago': []
 };
 
 /**
@@ -46,12 +48,12 @@ class EntityDataManager {
      * @param {Array} data - Array de datos
      */
     static setEntityData(entity, data) {
-        if (window.ENTITY_DATA.hasOwnProperty(entity)) {
-            window.ENTITY_DATA[entity] = Array.isArray(data) ? data : [];
-            console.log(`✓ Datos cargados para ${entity}: ${window.ENTITY_DATA[entity].length} registros`);
-        } else {
-            console.warn(`⚠️ Entidad '${entity}' no está configurada en ENTITY_DATA`);
+        if (!window.ENTITY_DATA.hasOwnProperty(entity)) {
+            // Crear la entidad dinámicamente si no existe
+            window.ENTITY_DATA[entity] = [];
         }
+        window.ENTITY_DATA[entity] = Array.isArray(data) ? data : [];
+        console.log(`✓ Datos cargados para ${entity}: ${window.ENTITY_DATA[entity].length} registros`);
     }
 
     /**
@@ -60,7 +62,10 @@ class EntityDataManager {
      * @returns {Array} Array de datos
      */
     static getEntityData(entity) {
-        return window.ENTITY_DATA[entity] || [];
+        if (!window.ENTITY_DATA.hasOwnProperty(entity)) {
+            window.ENTITY_DATA[entity] = [];
+        }
+        return window.ENTITY_DATA[entity];
     }
 
     /**
@@ -213,7 +218,10 @@ window.EntityHelpers = {
     buscarProveedores: (term) => EntityDataManager.search('proveedores', term),
     
     // Buscar métodos de pago por texto
-    buscarMetodosPago: (term) => EntityDataManager.search('metodos-pago', term)
+    buscarMetodosPago: (term) => EntityDataManager.search('metodos-pago', term),
+
+    // Buscar cotización por ID
+    getCotizacion: (id) => EntityDataManager.findById('cotizaciones', id)
 };
 
 } // Fin de la verificación de inicialización
@@ -1071,6 +1079,8 @@ function fetchRecord(url, successCallback, errorCallback = null) {
     $.ajax({
         url: url,
         type: 'GET',
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(response) {
             if (successCallback) {
                 successCallback(response);
@@ -2503,3 +2513,29 @@ window.verFactura = function(id) {
     // Fallback: navegar a la vista completa estándar
     window.location.href = buildApiUrl('facturas/' + id);
 };
+
+// Helper básico para generar URLs por nombre de ruta (sin Ziggy)
+// Actualmente soporta los usos en cotizaciones; se puede extender según necesidad.
+if (typeof window.routeUrl !== 'function') {
+  window.routeUrl = function(name, param) {
+    try {
+      switch (name) {
+        case 'cotizaciones.show':
+          return buildApiUrl('cotizaciones/' + encodeURIComponent(param));
+        case 'cotizaciones.edit':
+          return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/edit');
+        case 'cotizaciones.pdf':
+          return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/pdf');
+        default:
+          // Fallback genérico: convertir puntos a slashes y anexar param si existe
+          var base = String(name || '').replace(/\.+/g, '/');
+          if (param !== undefined && param !== null && param !== '') {
+            return buildApiUrl(base + '/' + encodeURIComponent(param));
+          }
+          return buildApiUrl(base);
+      }
+    } catch (e) {
+      return '#';
+    }
+  };
+}

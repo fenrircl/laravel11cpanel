@@ -11,9 +11,12 @@ $(document).ready(function() {
         {
             data: 'action', name: 'action', orderable: false, searchable: false, title: 'Acciones',
             render: function(_data, _type, row) {
+                const pageEditUrl = routeUrl('cotizaciones.edit', row.id);
                 return `
                     <div class="btn-group">
                         <button class="btn btn-sm btn-action btn-view" title="Ver" onclick="verCotizacion(${row.id})"><i class="fas fa-eye"></i></button>
+                        <a class="btn btn-sm btn-action btn-primary" title="Editar" href="${pageEditUrl}"><i class="fas fa-edit"></i></a>
+                        <button class="btn btn-sm btn-action btn-secondary" title="PDF" onclick="pdfCotizacion(${row.id})"><i class="fas fa-file-pdf"></i></button>
                     </div>`;
             }
         }
@@ -38,8 +41,7 @@ $(document).ready(function() {
     initDataTable('cotizaciones-table', null, columns, tableOptions);
 
     window.verCotizacion = function(id) {
-        const cot = EntityDataManager.findById('cotizaciones', id);
-        if (!cot) return;
+        // Obtener siempre desde API para asegurar items actualizados
         fetchRecord(buildApiUrl(`cotizaciones/${id}`), function(res) {
             const c = res.cotizacion || res;
             let itemsHtml = '';
@@ -55,7 +57,7 @@ $(document).ready(function() {
                     `</tbody></table>`;
             }
             const html = `
-                <div>
+                <div id="cotizacionPrintableModal">
                     <p><strong>Cliente:</strong> ${c.cliente ? c.cliente.name : ''}</p>
                     <p><strong>Fecha:</strong> ${formatTableDate(c.date, false)}</p>
                     <p><strong>Agente:</strong> ${c.agent || ''}</p>
@@ -71,5 +73,28 @@ $(document).ready(function() {
             $('#cotizacionDetailsContent').html(html);
             $('#cotizacionDetailsModal').modal('show');
         });
+    };
+
+    window.pdfCotizacion = function(id) {
+        const url = routeUrl('cotizaciones.pdf', id);
+        window.open(url, '_blank');
+    };
+
+    // Exportar y subir a R2 desde backend (preferido por el usuario)
+    window.exportarYSubirCotizacion = function(id) {
+        const url = routeUrl('cotizaciones.export-upload', id);
+        Swal.fire({title: 'Generando...', text: 'Creando PDF y subiendo a R2', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+            .then(r => r.json())
+            .then(res => {
+                Swal.close();
+                if (!res.success) throw new Error(res.message || 'Error');
+                Swal.fire({ icon: 'success', title: 'Listo', html: `Archivo subido.<br><a href="${res.download_url}" target="_blank">Descargar</a>` });
+            })
+            .catch(err => {
+                Swal.close();
+                console.error(err);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar/subir el PDF' });
+            });
     };
 });
