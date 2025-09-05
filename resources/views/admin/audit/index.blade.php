@@ -51,7 +51,7 @@
                     @foreach($logs as $log)
                     <tr>
                         <td class="text-muted">#{{ $log->id }}</td>
-                        <td>{{ $log->created_at }}</td>
+                        <td>{{ $log->created_at?->timezone('America/Santiago')->format('Y-m-d H:i:s') }}</td>
                         <td>{{ $log->user?->name ?? '—' }} <span class="text-muted">({{ $log->user_id ?? '—' }})</span></td>
                         <td><span class="badge bg-secondary">{{ $log->action }}</span></td>
                         <td>{{ $log->module ?? '—' }}</td>
