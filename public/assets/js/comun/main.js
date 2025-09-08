@@ -452,10 +452,13 @@ class ActionButtonFactory {
                 break;
             case 'edit':
                 if (entity === 'facturas') {
-                    // Detectar si la tabla es de cliente o proveedor por el contexto del botón
+                    // Detectar correctamente el contexto (cliente o proveedor)
                     button.onclick = `
-                        var tipo = (document.getElementById('facturas-clientes-table')) ? 'cliente' : 'proveedor';
-                        openEditFacturaModal(tipo, ${id});
+                        (function(){
+                            var tipo = document.getElementById('cliente-facturas-table') ? 'cliente'
+                                : (document.getElementById('proveedor-facturas-table') ? 'proveedor' : 'cliente');
+                            openEditFacturaModal(tipo, ${id});
+                        })();
                     `;
                 } else {
                     button.onclick = `editar${entityInfo.display}(${id})`;
@@ -566,17 +569,7 @@ class ActionButtonFactory {
                                 timer: 2500,
                                 showConfirmButton: false
                             }).then(() => {
-                                // Recargar las tablas de facturas para actualizar el estado has_file
-                                if ($('#facturas-table').length) {
-                                    $('#facturas-table').DataTable().ajax.reload();
-                                }
-                                if ($('#facturas-clientes-table').length) {
-                                    $('#facturas-clientes-table').DataTable().ajax.reload();
-                                }
-                                if ($('#facturas-proveedores-table').length) {
-                                    $('#facturas-proveedores-table').DataTable().ajax.reload();
-                                }
-                                
+                                reloadInvoiceTables();
                                 // Actualizar modal de edición si está abierto
                                 if ($('#facturaModal').hasClass('show')) {
                                     // Actualizar la sección de archivo asociado
@@ -1265,7 +1258,7 @@ function toggleElement(elementId, show) {
             } else if (fmt === 'clp') {
                 // Formato CLP directo en el input (sin símbolo $)
                 el.addEventListener('focus', () => this.onCLPFocus(el));
-                el.addEventListener('input', () => this.onCLPInput(el));
+                //el.addEventListener('input', () => this.onCLPInput(el));
                 el.addEventListener('blur', () => this.onCLPInlineBlur(el));
                 // Formatear al cargar si hay valor numérico
                 if (el.value && !isNaN(el.value.replace(/[^\d.]/g, ''))) {
@@ -1468,6 +1461,31 @@ $(document).ready(function() {
     // Refrescar pistas formateadas cuando se abren modales (por si el DOM se crea dinámicamente)
     $(document).on('shown.bs.modal', function(){
         if (window.CLInputFormatter) window.CLInputFormatter.refreshAllHints();
+    });
+
+    // Delegación para botón eliminar genérico
+    $(document).on('click', '.btn-delete', function(e){
+        e.preventDefault();
+        const id = $(this).data('id');
+        const singular = $(this).data('entity') || 'registro';
+        if (!id) return;
+        let url = '';
+        switch (singular) {
+            case 'factura':
+                url = buildApiUrl('facturas/' + id);
+                break;
+            case 'cliente':
+                url = buildApiUrl('clientes/' + id);
+                break;
+            case 'proveedor':
+                url = buildApiUrl('proveedores/' + id);
+                break;
+            default:
+                url = buildApiUrl(singular + 's/' + id);
+        }
+        handleDelete(singular, id, url, function(){
+            reloadInvoiceTables();
+        });
     });
 });
 
@@ -1687,12 +1705,7 @@ function saveFacturaEdit(entity) {
         success: function(response) {
             showSuccessMessage('Factura actualizada correctamente', function() {
                 $('#facturaModal').modal('hide');
-                // Recargar la tabla de facturas
-                if (entity === 'cliente') {
-                    $('#facturas-clientes-table').DataTable().ajax.reload();
-                } else {
-                    $('#facturas-proveedores-table').DataTable().ajax.reload();
-                }
+                reloadInvoiceTables();
             });
         },
         error: function(xhr) {
@@ -1754,18 +1767,7 @@ function saveFactura() {
                     text: isEdit ? 'Factura actualizada correctamente' : 'Factura creada correctamente'
                 }).then(() => {
                     $('#facturaModal').modal('hide');
-                    
-                    // Recargar la tabla correspondiente
-                    if ($('#facturas-table').length) {
-                        $('#facturas-table').DataTable().ajax.reload();
-                    }
-                    if ($('#facturas-clientes-table').length) {
-                        $('#facturas-clientes-table').DataTable().ajax.reload();
-                    }
-                    if ($('#facturas-proveedores-table').length) {
-                        $('#facturas-proveedores-table').DataTable().ajax.reload();
-                    }
-                    
+                    reloadInvoiceTables();
                     // Limpiar formulario
                     form[0].reset();
                     $('#factura_id').val('');
@@ -2179,15 +2181,7 @@ function uploadFile(formData, onSuccess = null) {
             }
             
             // Recargar tablas
-            if ($('#facturas-table').length) {
-                $('#facturas-table').DataTable().ajax.reload();
-            }
-            if ($('#facturas-clientes-table').length) {
-                $('#facturas-clientes-table').DataTable().ajax.reload();
-            }
-            if ($('#facturas-proveedores-table').length) {
-                $('#facturas-proveedores-table').DataTable().ajax.reload();
-            }
+            reloadInvoiceTables();
         } else {
             Swal.fire({
                 title: 'Error',
@@ -2538,4 +2532,22 @@ if (typeof window.routeUrl !== 'function') {
       return '#';
     }
   };
+}
+
+/**
+ * Recargar tablas de facturas
+ */
+function reloadInvoiceTables() {
+    const ids = [
+        '#facturas-table',
+        '#cliente-facturas-table',
+        '#facturas-clientes-table',
+        '#proveedor-facturas-table',
+        '#facturas-proveedores-table'
+    ];
+    ids.forEach(sel => {
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable(sel)) {
+            try { $(sel).DataTable().ajax.reload(null, false); } catch(e) { /* noop */ }
+        }
+    });
 }

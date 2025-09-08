@@ -24,6 +24,8 @@ $(function(){
         ajax: {
             url: buildApiUrl('facturas/proveedores/data'),
             type: 'GET',
+            cache: false, // evitar caché
+            data: function(d){ d._ = Date.now(); }, // cache-busting
             dataSrc: function(json){
                 const list = (json && json.data) ? json.data : [];
                 // Filtrar por proveedor y deduplicar por ID

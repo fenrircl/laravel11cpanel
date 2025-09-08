@@ -21,6 +21,8 @@ $(function(){
         ajax: {
             url: buildApiUrl(`facturas/clientes/data`),
             type: 'GET',
+            cache: false, // evitar respuestas cacheadas
+            data: function(d){ d._ = Date.now(); }, // cache-busting
             dataSrc: function(json){
                 const list = (json && json.data) ? json.data : [];
                 const filtered = list.filter(f => String(f.client_id) === String(clientId));
