@@ -117,7 +117,7 @@ class CotizacionesController extends Controller
             'client_id' => 'required|exists:clients,id',
             'work' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
-            'items.*.id' => 'nullable|integer|exists:cotizacion_items,id',
+            'items.*.id' => 'nullable|integer|exists:quotation_items,id',
             'items.*.description' => 'required|string|max:255',
             'items.*.amount' => 'required|integer|min:1',
             'items.*.price' => 'required',
