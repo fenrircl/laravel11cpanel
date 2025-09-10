@@ -41,35 +41,35 @@ class CotizacionesController extends Controller
         ]);
 
         DB::transaction(function() use ($request, $validated, $normalizeCLP) {
-            // Calcular totales
+            // Calcular totales NETOS (sin IVA) a partir de los items
             $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
                 $qty = (int) $it['amount'];
-                $unit = $normalizeCLP($it['price']);
-                $total = $qty * $unit;
+                $unit = $normalizeCLP($it['price']); // Precio NETO unitario
+                $total = $qty * $unit; // Total NETO por ítem
                 return [
                     'description' => $it['description'],
                     'amount' => $qty,
                     'price' => $unit,
-                    'total' => $total,
+                    'total' => $total, // Neto
                 ];
             });
 
-            $total = $itemsData->sum('total');
+            $netTotal = $itemsData->sum('total'); // Neto
+            $grossTotal = (int) round($netTotal * 1.19); // Con IVA 19%
 
             $cot = Cotizacion::create([
                 'agent' => $validated['agent'],
                 'date' => $validated['date'],
                 'client_id' => $validated['client_id'],
                 'work' => $validated['work'] ?? null,
-                'total' => $total,
+                'total' => $grossTotal, // Guardamos total con IVA
             ]);
 
             foreach ($itemsData as $row) {
                 $cot->items()->create($row);
             }
 
-            // Registrar auditoría (dentro de la transacción para contar con el ID)
-            AuditLogger::log($request, 'create', 'cotizaciones', $cot->id, 'Creó cotización #' . $cot->id);
+            AuditLogger::log($request, 'create', 'cotizaciones', $cot->id, 'Creó cotización #'.$cot->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
         });
 
         if ($request->ajax()) {
@@ -126,31 +126,31 @@ class CotizacionesController extends Controller
         DB::transaction(function() use ($request, $validated, $normalizeCLP, $cotizacion) {
             $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
                 $qty = (int) $it['amount'];
-                $unit = $normalizeCLP($it['price']);
-                $total = $qty * $unit;
+                $unit = $normalizeCLP($it['price']); // Precio NETO unitario
+                $total = $qty * $unit; // Neto por ítem
                 return [
                     'id' => $it['id'] ?? null,
                     'description' => $it['description'],
                     'amount' => $qty,
                     'price' => $unit,
-                    'total' => $total,
+                    'total' => $total, // Neto
                 ];
             });
 
-            $total = $itemsData->sum('total');
+            $netTotal = $itemsData->sum('total');
+            $grossTotal = (int) round($netTotal * 1.19);
 
             $cotizacion->update([
                 'agent' => $validated['agent'],
                 'date' => $validated['date'],
                 'client_id' => $validated['client_id'],
                 'work' => $validated['work'] ?? null,
-                'total' => $total,
+                'total' => $grossTotal,
             ]);
 
             // Sincronizar items: actualizar/crear según id, y eliminar los no presentes
             $existingIds = $cotizacion->items()->pluck('id')->toArray();
             $sentIds = [];
-
             foreach ($itemsData as $row) {
                 if (!empty($row['id'])) {
                     $item = $cotizacion->items()->where('id', $row['id'])->first();
@@ -163,13 +163,12 @@ class CotizacionesController extends Controller
                     $sentIds[] = $item->id;
                 }
             }
-
             $toDelete = array_diff($existingIds, $sentIds);
             if (!empty($toDelete)) {
                 $cotizacion->items()->whereIn('id', $toDelete)->delete();
             }
 
-            AuditLogger::log($request, 'update', 'cotizaciones', $cotizacion->id, 'Actualizó cotización #' . $cotizacion->id);
+            AuditLogger::log($request, 'update', 'cotizaciones', $cotizacion->id, 'Actualizó cotización #'.$cotizacion->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
         });
 
         if ($request->ajax()) {
@@ -200,4 +199,21 @@ class CotizacionesController extends Controller
         return view('cotizacion.pdf', $data);
     }
 
+    public function destroy(Request $request, Cotizacion $cotizacion)
+    {
+        $id = $cotizacion->id;
+        DB::transaction(function() use ($request, $cotizacion, $id) {
+            // Borrar items explícitamente si la relación no tiene cascade
+            if (method_exists($cotizacion, 'items')) {
+                $cotizacion->items()->delete();
+            }
+            $cotizacion->delete();
+            AuditLogger::log($request, 'delete', 'cotizaciones', $id, 'Eliminó cotización #' . $id);
+        });
+
+        if ($request->ajax()) {
+            return response()->json(['success' => true]);
+        }
+        return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada');
+    }
 }

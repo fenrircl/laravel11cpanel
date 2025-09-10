@@ -18,9 +18,19 @@
         <div class="col-md-4"><strong>Agente:</strong> {{ $cotizacion->agent }}</div>
       </div>
       <div class="mb-3"><strong>Trabajo:</strong> {{ $cotizacion->work ?: '-' }}</div>
+      @php
+        $totalBruto = $cotizacion->total; // Guardado con IVA
+        $subtotal = (int) round($totalBruto / 1.19);
+        $iva = $totalBruto - $subtotal;
+      @endphp
+      <div class="mb-2">
+        <strong>Subtotal:</strong> {{ number_format($subtotal,0,',','.') }} | 
+        <strong>IVA (19%):</strong> {{ number_format($iva,0,',','.') }} | 
+        <strong>Total:</strong> {{ number_format($totalBruto,0,',','.') }}
+      </div>
       <div id="cotizacionPrintable">
         <table class="table table-sm">
-          <thead><tr><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">Total</th></tr></thead>
+          <thead><tr><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio Neto</th><th class="text-end">Total Neto</th></tr></thead>
           <tbody>
           @foreach($cotizacion->items as $it)
             <tr>
@@ -33,8 +43,16 @@
           </tbody>
           <tfoot>
             <tr>
+              <th colspan="3" class="text-end">Subtotal</th>
+              <th class="text-end">{{ number_format($subtotal,0,',','.') }}</th>
+            </tr>
+            <tr>
+              <th colspan="3" class="text-end">IVA (19%)</th>
+              <th class="text-end">{{ number_format($iva,0,',','.') }}</th>
+            </tr>
+            <tr>
               <th colspan="3" class="text-end">Total</th>
-              <th class="text-end">{{ number_format($cotizacion->total,0,',','.') }}</th>
+              <th class="text-end">{{ number_format($totalBruto,0,',','.') }}</th>
             </tr>
           </tfoot>
         </table>

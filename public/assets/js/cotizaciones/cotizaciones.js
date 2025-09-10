@@ -17,6 +17,7 @@ $(document).ready(function() {
                         <button class="btn btn-sm btn-action btn-view" title="Ver" onclick="verCotizacion(${row.id})"><i class="fas fa-eye"></i></button>
                         <a class="btn btn-sm btn-action btn-primary" title="Editar" href="${pageEditUrl}"><i class="fas fa-edit"></i></a>
                         <button class="btn btn-sm btn-action btn-secondary" title="PDF" onclick="pdfCotizacion(${row.id})"><i class="fas fa-file-pdf"></i></button>
+                        <button class="btn btn-sm btn-action btn-danger" title="Eliminar" onclick="eliminarCotizacion(${row.id})"><i class="fas fa-trash"></i></button>
                     </div>`;
             }
         }
@@ -38,7 +39,7 @@ $(document).ready(function() {
         order: [[0, 'desc']]
     };
 
-    initDataTable('cotizaciones-table', null, columns, tableOptions);
+    const table = initDataTable('cotizaciones-table', null, columns, tableOptions);
 
     window.verCotizacion = function(id) {
         // Obtener siempre desde API para asegurar items actualizados
@@ -96,5 +97,36 @@ $(document).ready(function() {
                 console.error(err);
                 Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar/subir el PDF' });
             });
+    };
+
+    window.eliminarCotizacion = function(id) {
+        const url = routeUrl('cotizaciones.destroy', id);
+        Swal.fire({
+            title: '¿Eliminar cotización?',
+            text: 'Esta acción no se puede deshacer',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                }
+            }).then(r => r.json())
+            .then(res => {
+                if (!res.success) throw new Error('Error al eliminar');
+                Swal.fire({ icon: 'success', title: 'Eliminada', text: 'Cotización eliminada correctamente' });
+                table.ajax.reload(null, false);
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar la cotización' });
+            });
+        });
     };
 });
