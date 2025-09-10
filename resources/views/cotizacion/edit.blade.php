@@ -9,7 +9,7 @@
         <div class="row g-3">
             <div class="col-md-4">
                 <label class="form-label">Fecha</label>
-                <input type="date" name="date" class="form-control" value="{{ old('date', $cotizacion->date) }}" required>
+                <input type="date" name="date" class="form-control" value="{{ old('date', optional($cotizacion->date)->format('Y-m-d')) }}" required>
             </div>
             <div class="col-md-4">
                 <label class="form-label">Agente</label>
@@ -67,7 +67,7 @@
 
         <div class="mt-3">
             <button class="btn btn-primary">Guardar cambios</button>
-            <a href="{{ route('cotizaciones.show', $cotizacion) }}" class="btn btn-secondary">Cancelar</a>
+            <button type="button" id="btnCancel" class="btn btn-secondary">Cancelar</button>
         </div>
     </form>
 </div>
@@ -139,6 +139,18 @@
 
   // Calcular al cargar
   recalcTotals();
+
+  // Al final del script existente añadimos la lógica de Cancelar
+  const cancelBtn = document.getElementById('btnCancel');
+  if(cancelBtn){
+    cancelBtn.addEventListener('click', function(){
+      if(typeof buildApiUrl === 'function') {
+        window.location.href = buildApiUrl('cotizaciones');
+      } else {
+        window.location.href = '/cotizaciones';
+      }
+    });
+  }
 })();
 </script>
 @endpush
