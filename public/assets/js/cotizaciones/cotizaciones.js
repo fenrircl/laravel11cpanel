@@ -113,7 +113,7 @@ $(document).ready(function() {
     };
 
     window.eliminarCotizacion = function(id) {
-        const url = routeUrl('cotizaciones.destroy', id);
+        const url = buildApiUrl(`cotizaciones/${id}`); // DELETE /cotizaciones/{id}
         Swal.fire({
             title: '¿Eliminar cotización?',
             text: 'Esta acción no se puede deshacer',
