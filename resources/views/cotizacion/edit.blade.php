@@ -42,11 +42,11 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Cantidad</label>
-                    <input type="number" name="items[{{ $idx }}][amount]" class="form-control" value="{{ $it->amount }}" min="1" required>
+                    <input type="number" name="items[{{ $idx }}][amount]" class="form-control item-amount" value="{{ $it->amount }}" min="1" required>
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Precio</label>
-                    <input type="text" name="items[{{ $idx }}][price]" class="form-control clp" value="{{ number_format($it->price,0,',','.') }}" required>
+                    <label class="form-label">Precio Neto</label>
+                    <input type="text" name="items[{{ $idx }}][price]" class="form-control clp item-price" value="{{ number_format($it->price,0,',','.') }}" required>
                 </div>
                 <div class="col-md-1 text-end">
                     <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
@@ -55,6 +55,15 @@
             @endforeach
         </div>
         <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtn">Añadir ítem</button>
+
+        <div class="mt-4 p-3 border rounded bg-light" id="totalsBox">
+            <div class="row">
+                <div class="col-md-4"><strong>Subtotal (neto):</strong> <span id="subtotalDisplay">0</span></div>
+                <div class="col-md-4"><strong>IVA (19%):</strong> <span id="ivaDisplay">0</span></div>
+                <div class="col-md-4"><strong>Total (bruto):</strong> <span id="totalDisplay">0</span></div>
+            </div>
+            <small class="text-muted">El total mostrado incluye IVA y es el que se guardará.</small>
+        </div>
 
         <div class="mt-3">
             <button class="btn btn-primary">Guardar cambios</button>
@@ -71,7 +80,35 @@
     const v = el.value.replace(/[^0-9]/g,'');
     el.value = v ? v.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
   }
-  document.querySelectorAll('.clp').forEach(e=>e.addEventListener('input',()=>maskCLP(e)));
+  function parseCLP(val){
+    if(!val) return 0;
+    return parseInt((val+'').replace(/[^0-9]/g,''))||0;
+  }
+  function recalcTotals(){
+    let subtotal = 0;
+    document.querySelectorAll('#itemsContainer .item-row').forEach(row=>{
+      const amount = parseInt(row.querySelector('.item-amount')?.value || '0');
+      const price = parseCLP(row.querySelector('.item-price')?.value || '0');
+      if(amount>0 && price>=0){
+        subtotal += amount * price;
+      }
+    });
+    const iva = Math.round(subtotal * 0.19);
+    const total = subtotal + iva;
+    const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    document.getElementById('subtotalDisplay').textContent = fmt(subtotal);
+    document.getElementById('ivaDisplay').textContent = fmt(iva);
+    document.getElementById('totalDisplay').textContent = fmt(total);
+  }
+
+  // Inicializar masking y listeners existentes
+  document.querySelectorAll('.clp').forEach(e=>{
+    e.addEventListener('input',()=>{ maskCLP(e); recalcTotals(); });
+  });
+  document.querySelectorAll('.item-amount').forEach(e=>{
+    e.addEventListener('input', recalcTotals);
+  });
+  document.querySelectorAll('.remove-item').forEach(btn=>btn.addEventListener('click', function(){ this.closest('.item-row').remove(); recalcTotals(); }));
 
   document.getElementById('addItemBtn').addEventListener('click', function(){
     const idx = document.querySelectorAll('#itemsContainer .item-row').length;
@@ -84,23 +121,24 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">Cantidad</label>
-        <input type="number" name="items[${idx}][amount]" class="form-control" min="1" value="1" required>
+        <input type="number" name="items[${idx}][amount]" class="form-control item-amount" min="1" value="1" required>
       </div>
       <div class="col-md-3">
-        <label class="form-label">Precio</label>
-        <input type="text" name="items[${idx}][price]" class="form-control clp" required>
+        <label class="form-label">Precio Neto</label>
+        <input type="text" name="items[${idx}][price]" class="form-control clp item-price" required>
       </div>
       <div class="col-md-1 text-end">
         <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
       </div>`;
     document.getElementById('itemsContainer').appendChild(row);
-    row.querySelector('.clp').addEventListener('input', function(){ maskCLP(this); });
-    row.querySelector('.remove-item').addEventListener('click', function(){ row.remove(); });
+    row.querySelector('.clp').addEventListener('input', function(){ maskCLP(this); recalcTotals(); });
+    row.querySelector('.item-amount').addEventListener('input', recalcTotals);
+    row.querySelector('.remove-item').addEventListener('click', function(){ row.remove(); recalcTotals(); });
+    recalcTotals();
   });
 
-  document.querySelectorAll('.remove-item').forEach(btn=>btn.addEventListener('click', function(){
-    this.closest('.item-row').remove();
-  }));
+  // Calcular al cargar
+  recalcTotals();
 })();
 </script>
 @endpush

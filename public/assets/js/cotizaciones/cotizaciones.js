@@ -46,17 +46,34 @@ $(document).ready(function() {
         fetchRecord(buildApiUrl(`cotizaciones/${id}`), function(res) {
             const c = res.cotizacion || res;
             let itemsHtml = '';
+            let netSubtotal = 0;
             if (c.items && c.items.length) {
-                itemsHtml = `<table class="table table-sm"><thead><tr><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio</th><th class="text-end">Total</th></tr></thead><tbody>` +
-                    c.items.map(it => `
+                itemsHtml = `<table class="table table-sm"><thead><tr><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio Neto</th><th class="text-end">Total Neto</th></tr></thead><tbody>` +
+                    c.items.map(it => {
+                        const lineTotal = (parseInt(it.amount||0) * parseInt(it.price||0));
+                        netSubtotal += lineTotal;
+                        return `
                         <tr>
                             <td>${it.description}</td>
                             <td class="text-end">${it.amount}</td>
                             <td class="text-end">${formatCurrency(it.price, 'CLP')}</td>
-                            <td class="text-end">${formatCurrency(it.total, 'CLP')}</td>
-                        </tr>`).join('') +
+                            <td class="text-end">${formatCurrency(lineTotal, 'CLP')}</td>
+                        </tr>`;}).join('') +
                     `</tbody></table>`;
             }
+            const iva = Math.round(netSubtotal * 0.19);
+            const total = netSubtotal + iva; // debería coincidir con c.total
+            const summaryHtml = `
+                <div class="mt-2">
+                    <div class="d-flex justify-content-end">
+                        <table class="table table-sm w-auto mb-0">
+                            <tr><th class="text-end pe-3">Subtotal (Neto)</th><td class="text-end">${formatCurrency(netSubtotal, 'CLP')}</td></tr>
+                            <tr><th class="text-end pe-3">IVA 19%</th><td class="text-end">${formatCurrency(iva, 'CLP')}</td></tr>
+                            <tr><th class="text-end pe-3">Total</th><td class="text-end fw-bold">${formatCurrency(total, 'CLP')}</td></tr>
+                        </table>
+                    </div>
+                </div>`;
+
             const html = `
                 <div id="cotizacionPrintableModal">
                     <p><strong>Cliente:</strong> ${c.cliente ? c.cliente.name : ''}</p>
@@ -65,11 +82,7 @@ $(document).ready(function() {
                     <p><strong>Trabajo:</strong> ${c.work || ''}</p>
                     <hr>
                     ${itemsHtml}
-                    <div class="d-flex justify-content-end">
-                        <div class="text-end">
-                            <div><strong>Total:</strong> ${formatCurrency(c.total, 'CLP')}</div>
-                        </div>
-                    </div>
+                    ${summaryHtml}
                 </div>`;
             $('#cotizacionDetailsContent').html(html);
             $('#cotizacionDetailsModal').modal('show');

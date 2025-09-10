@@ -1,172 +1,108 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">Nueva Cotización</h4>
-                </div>
-                <div class="card-body">
-                    <form id="cotizacionForm">
-                        @csrf
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Cliente</label>
-                                <select id="client_id" name="client_id" class="form-select" required>
-                                    <option value="">Seleccione...</option>
-                                    @foreach($clientes as $c)
-                                        <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->rut }})</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Fecha</label>
-                                <input type="date" id="date" name="date" class="form-control" value="{{ date('Y-m-d') }}" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Agente</label>
-                                <input type="text" id="agent" name="agent" class="form-control" required>
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Trabajo</label>
-                                <input type="text" id="work" name="work" class="form-control" placeholder="Descripción breve">
-                            </div>
-                        </div>
-
-                        <hr>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h5 class="mb-0">Ítems</h5>
-                            <button type="button" class="btn btn-sm btn-primary" id="addItemBtn"><i class="fas fa-plus"></i> Agregar ítem</button>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table class="table table-bordered align-middle" id="itemsTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 45%">Descripción</th>
-                                        <th class="text-end" style="width: 10%">Cant.</th>
-                                        <th class="text-end" style="width: 20%">Precio unitario</th>
-                                        <th class="text-end" style="width: 20%">Total</th>
-                                        <th style="width: 5%"></th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                                <tfoot>
-                                    <tr>
-                                        <th colspan="3" class="text-end">Total</th>
-                                        <th class="text-end" id="grandTotal">$0</th>
-                                        <th></th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-
-                        <div class="text-end">
-                            <button type="button" id="saveCotizacionBtn" class="btn btn-success">Guardar Cotización</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div class="container">
+  <h4 class="mb-3">Nueva Cotización</h4>
+  <form action="{{ route('cotizaciones.store') }}" method="POST" id="cotizacionCreateForm">
+    @csrf
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Cliente</label>
+        <select id="client_id" name="client_id" class="form-select" required>
+          <option value="">Seleccione...</option>
+          @foreach($clientes as $c)
+          <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->rut }})</option>
+          @endforeach
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Fecha</label>
+        <input type="date" id="date" name="date" class="form-control"
+          value="{{ date('Y-m-d') }}" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Agente</label>
+        <input type="text" id="agent" name="agent" class="form-control" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label">Trabajo</label>
+        <input type="text" id="work" name="work" class="form-control"
+          placeholder="Descripción breve">
+      </div>
     </div>
+    <hr>
+    <h5>Ítems</h5>
+    <div id="itemsContainerCreate">
+      <!-- items dinámicos -->
+    </div>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="addItemBtnCreate">
+      <i class="fas fa-plus"></i> Añadir ítem
+    </button>
+
+    <div class="mt-4 p-3 border rounded bg-light" id="totalsBoxCreate">
+      <div class="row">
+        <div class="col-md-4">
+          <strong>Subtotal (neto):</strong>
+          <span id="subtotalDisplayCreate">0</span>
+        </div>
+        <div class="col-md-4">
+          <strong>IVA (19%):</strong>
+          <span id="ivaDisplayCreate">0</span>
+        </div>
+        <div class="col-md-4">
+          <strong>Total (bruto):</strong>
+          <span id="totalDisplayCreate">0</span>
+        </div>
+      </div>
+      <small class="text-muted">El total guardado incluye IVA.</small>
+    </div>
+
+    <div class="mt-3">
+      <button class="btn btn-primary">Guardar</button>
+      <a href="{{ route('cotizaciones.index') }}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
 </div>
 @endsection
 
 @push('scripts')
 <script>
 (function(){
-    const tbody = document.querySelector('#itemsTable tbody');
-    const grandTotalEl = document.getElementById('grandTotal');
-
-    function parseCLP(str){
-        return parseInt(String(str||'').replace(/[^0-9]/g,''))||0;
-    }
-    function formatCLP(n){
-        return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
-    }
-
-    function recalc(){
-        let total = 0;
-        tbody.querySelectorAll('tr').forEach(tr => {
-            const qty = parseInt(tr.querySelector('.item-qty').value||'0')||0;
-            const unit = parseCLP(tr.querySelector('.item-unit').value);
-            const line = qty * unit;
-            tr.querySelector('.item-total').textContent = formatCLP(line);
-            total += line;
-        });
-        grandTotalEl.textContent = formatCLP(total);
-    }
-
-    function addRow(data={}){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="text" class="form-control item-desc" placeholder="Descripción" value="${data.description||''}" required></td>
-            <td><input type="number" min="1" class="form-control text-end item-qty" value="${data.amount||1}" required></td>
-            <td><input type="text" class="form-control text-end item-unit" value="${data.price? (data.price.toLocaleString('es-CL')):''}" placeholder="0" inputmode="numeric"></td>
-            <td class="text-end item-total">$0</td>
-            <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item"><i class="fas fa-trash"></i></button></td>
-        `;
-        tbody.appendChild(tr);
-        // eventos
-        tr.querySelector('.item-qty').addEventListener('input', recalc);
-        const unitEl = tr.querySelector('.item-unit');
-        const formatUnit = ()=>{
-            const val = parseCLP(unitEl.value);
-            unitEl.value = val ? val.toLocaleString('es-CL') : '';
-            recalc();
-        };
-        unitEl.addEventListener('input', formatUnit);
-        unitEl.addEventListener('blur', formatUnit);
-        tr.querySelector('.remove-item').addEventListener('click', ()=>{ tr.remove(); recalc();});
-        recalc();
-    }
-
-    document.getElementById('addItemBtn').addEventListener('click', ()=> addRow());
-    // primera fila por defecto
-    addRow();
-
-    document.getElementById('saveCotizacionBtn').addEventListener('click', function(){
-        const form = document.getElementById('cotizacionForm');
-        if (!form.checkValidity()) { form.reportValidity(); return; }
-        const items = [];
-        tbody.querySelectorAll('tr').forEach(tr => {
-            const description = tr.querySelector('.item-desc').value.trim();
-            const amount = parseInt(tr.querySelector('.item-qty').value||'0')||0;
-            const price = parseCLP(tr.querySelector('.item-unit').value);
-            if (description && amount>0 && price>=0){
-                items.push({ description, amount, price });
-            }
-        });
-        if (!items.length){
-            Swal.fire({icon:'warning', title:'Ítems', text:'Agrega al menos un ítem'});
-            return;
-        }
-        const payload = {
-            _token: document.querySelector('#cotizacionForm input[name="_token"]').value,
-            client_id: document.getElementById('client_id').value,
-            date: document.getElementById('date').value,
-            agent: document.getElementById('agent').value,
-            work: document.getElementById('work').value,
-            items
-        };
-        $.ajax({
-            url: '{{ route('cotizaciones.store') }}',
-            type: 'POST',
-            data: payload,
-            success: function(){
-                showSuccessMessage('Cotización creada', function(){
-                    window.location.href = '{{ route('cotizaciones.index') }}';
-                });
-            },
-            error: function(xhr){
-                let msg = 'Error al crear la cotización';
-                if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-                Swal.fire({icon:'error', title:'Error', text: msg});
-            }
-        });
+  function maskCLP(el){
+    const v = el.value.replace(/[^0-9]/g,'');
+    el.value = v ? v.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+  }
+  function parseCLP(val){ return parseInt((val||'').replace(/[^0-9]/g,''))||0; }
+  function recalc(){
+    let subtotal=0; 
+    document.querySelectorAll('#itemsContainerCreate .item-row').forEach(r=>{
+      const amount = parseInt(r.querySelector('.item-amount')?.value||'0');
+      const price = parseCLP(r.querySelector('.item-price')?.value||'0');
+      if(amount>0 && price>=0){ subtotal += amount*price; }
     });
+    const iva = Math.round(subtotal*0.19);
+    const total = subtotal + iva;
+    const fmt = n => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    document.getElementById('subtotalDisplayCreate').textContent = fmt(subtotal);
+    document.getElementById('ivaDisplayCreate').textContent = fmt(iva);
+    document.getElementById('totalDisplayCreate').textContent = fmt(total);
+  }
+  document.getElementById('addItemBtnCreate').addEventListener('click', function(){
+    const idx = document.querySelectorAll('#itemsContainerCreate .item-row').length;
+    const row = document.createElement('div');
+    row.className='row g-2 align-items-end mb-2 item-row';
+    row.innerHTML=`<div class="col-md-6"><label class="form-label">Descripción</label><input name="items[${idx}][description]" class="form-control" required></div>
+    <div class="col-md-2"><label class="form-label">Cantidad</label><input type="number" name="items[${idx}][amount]" value="1" min="1" class="form-control item-amount" required></div>
+    <div class="col-md-3"><label class="form-label">Precio Neto</label><input name="items[${idx}][price]" class="form-control clp item-price" required></div>
+    <div class="col-md-1 text-end"><button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button></div>`;
+    document.getElementById('itemsContainerCreate').appendChild(row);
+    row.querySelector('.item-amount').addEventListener('input', recalc);
+    const priceEl = row.querySelector('.item-price');
+    priceEl.addEventListener('input', ()=>{ maskCLP(priceEl); recalc(); });
+    row.querySelector('.remove-item').addEventListener('click',()=>{ row.remove(); recalc(); });
+    recalc();
+  });
+  recalc();
 })();
 </script>
 @endpush
