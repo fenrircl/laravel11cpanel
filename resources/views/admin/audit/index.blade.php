@@ -65,8 +65,24 @@
             </table>
         </div>
         <div class="card-footer">
-            {{ $logs->links() }}
+            {{ $logs->onEachSide(1)->links('pagination::bootstrap-5') }}
         </div>
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+/* Fix tamaño de íconos en paginación si el theme aplica estilos globales a svg/img */
+.card-footer .pagination svg,
+.card-footer .pagination img {
+  width: 1rem !important;
+  height: 1rem !important;
+}
+.card-footer .pagination .page-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+}
+</style>
+@endpush

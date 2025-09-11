@@ -13,7 +13,7 @@ class CotizacionesController extends Controller
 {
     public function index()
     {
-        $data["asset_css"] = ['comun/tablas', 'cotizaciones/cotizaciones'];
+        $data["asset_css"] = ['comun/tablas'];
         $data["asset_js"] = ['cotizaciones/cotizaciones'];
         return view('cotizacion.index', $data);
     }
