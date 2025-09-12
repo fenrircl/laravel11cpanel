@@ -273,7 +273,7 @@ class FacturasController extends Controller
             'pay_date' => 'nullable|date',
             'amount' => 'required|numeric|min:0',
             'check' => 'nullable|string|max:100',
-            'payment_method_id' => 'required|exists:payment_methods,id',
+            'payment_method_id' => 'nullable|exists:payment_methods,id|required_if:status,1',
             'detail' => 'nullable|string|max:1000',
             'status' => 'required|in:0,1',
         ]);
