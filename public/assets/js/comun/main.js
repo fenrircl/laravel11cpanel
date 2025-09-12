@@ -2367,9 +2367,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
             });
         },
-        refresh(entity){
+        refresh(entity, options = {}){
+            const { force = false } = options || {};
+            // Si es forzado, evitar caché y pedir al servidor
+            if (force) {
+                if (this.isLoading[entity]) {
+                    // Esperar a que termine la carga en curso
+                    return new Promise((resolve) => {
+                        const handler = (e) => { document.removeEventListener(`${entity}:ready`, handler); resolve(e.detail || this.data[entity] || []); };
+                        document.addEventListener(`${entity}:ready`, handler);
+                    });
+                }
+                this.isLoading[entity] = true;
+                return this.fetchFromServer(entity).finally(() => {
+                    this.isLoading[entity] = false;
+                });
+            }
+            // Comportamiento original (puede usar caché)
             this.data[entity] = null;
             return this.load(entity);
+        },
+        // Inserta o actualiza uno o varios elementos en el caché sin ir al servidor
+        upsert(entity, items){
+            const list = Array.isArray(this.data[entity]) ? this.data[entity] : [];
+            const byId = new Map(list.map(it => [String(it && it.id), it]).filter(([k]) => k !== 'undefined'));
+            const arr = Array.isArray(items) ? items : [items];
+            arr.forEach(it => {
+                if (!it || it.id === undefined || it.id === null) return;
+                const key = String(it.id);
+                const prev = byId.get(key) || {};
+                byId.set(key, Object.assign({}, prev, it));
+            });
+            const merged = Array.from(byId.values());
+            this.set(entity, merged); // también actualiza caché local y emite `${entity}:ready`
+            return merged;
         }
     };
 
@@ -2420,6 +2451,38 @@ document.addEventListener('DOMContentLoaded', function() {
             $pm.select2(select2Options);
             if (current) $pm.val(current).trigger('change');
         }
+
+        // Asegurar los botones de refresco tras reinit de Select2
+        if (typeof ensureFacturaSelectRefreshButtons === 'function') {
+            ensureFacturaSelectRefreshButtons($modal);
+        }
+    }
+
+    // Inserta botones "Refrescar" junto a client_id y provider_id, sin duplicarlos
+    function ensureFacturaSelectRefreshButtons(dropdownParent) {
+        const $modal = dropdownParent && dropdownParent.length ? dropdownParent : $('#facturaModal');
+        const pairs = [
+            { selector: '#client_id', entity: 'clientes' },
+            { selector: '#provider_id', entity: 'proveedores' }
+        ];
+        pairs.forEach(({ selector, entity }) => {
+            const $sel = $modal.find(selector);
+            if (!$sel.length) return;
+            const id = $sel.attr('id');
+            const $anchor = $sel.next('.select2').length ? $sel.next('.select2') : $sel;
+
+            // Reutilizar si existe; eliminar duplicados
+            let $btns = $modal.find(`.btn-refresh-select[data-for="${id}"]`);
+            let $btn = $btns.first();
+            if ($btns.length > 1) { $btns.slice(1).remove(); }
+            if (!$btn.length) {
+                $btn = $(`<button type="button" class="btn btn-outline-secondary btn-sm ml-2 ms-2 btn-refresh-select" title="Refrescar" data-for="${id}" data-entity="${entity}">↻ Refrescar</button>`);
+            } else {
+                $btn.attr('data-entity', entity);
+            }
+            // Colocar el botón justo después del contenedor visible del select
+            $btn.insertAfter($anchor);
+        });
     }
 
     // Exponer globalmente
@@ -2466,7 +2529,38 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('clientes:updated', () => ReferenceDataManager.refresh('clientes').then(() => populateFacturaSelects($('#facturaModal'))));
     document.addEventListener('proveedores:updated', () => ReferenceDataManager.refresh('proveedores').then(() => populateFacturaSelects($('#facturaModal'))));
     document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago').then(() => populateFacturaSelects($('#facturaModal'))));
+
+    // Exponer helper para asegurar botones desde fuera si es necesario
+    window.ensureFacturaSelectRefreshButtons = ensureFacturaSelectRefreshButtons;
 })();
+
+// Iniciar y manejar botones de refresco en el modal de facturas
+$(document).on('shown.bs.modal', '#facturaModal', function(){
+    if (typeof window.ensureFacturaSelectRefreshButtons === 'function') {
+        window.ensureFacturaSelectRefreshButtons($('#facturaModal'));
+    }
+});
+
+$(document).on('click', '.btn-refresh-select', function(e){
+    e.preventDefault();
+    const $btn = $(this);
+    const entity = $btn.attr('data-entity');
+    const $modal = $('#facturaModal');
+    if (!entity || !window.ReferenceDataManager) return;
+
+    const originalText = $btn.text();
+    $btn.prop('disabled', true).addClass('disabled').text('Actualizando...');
+
+    window.ReferenceDataManager.refresh(entity, { force: true })
+        .then(() => {
+            if (typeof window.populateFacturaSelects === 'function') {
+                window.populateFacturaSelects($modal);
+            }
+        })
+        .finally(() => {
+            $btn.prop('disabled', false).removeClass('disabled').text(originalText);
+        });
+});
 
 function getDTLanguage(isLocal) {
     return {
