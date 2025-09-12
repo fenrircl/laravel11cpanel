@@ -9,6 +9,7 @@ use App\Http\Controllers\MetodoPagoController;
 use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\R2Controller;
 use App\Http\Controllers\CotizacionesController;
+use App\Http\Controllers\Admin\AuditLogsController;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -119,6 +120,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'update'])->name('roles.update');
         Route::delete('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'destroy'])->name('roles.destroy');
         Route::get('/audit', [\App\Http\Controllers\Admin\AuditLogsController::class, 'index'])->name('audit.index');
+        Route::post('/audit/{log}/restore', [AuditLogsController::class, 'restore'])->name('audit.restore');
     });
 });
 

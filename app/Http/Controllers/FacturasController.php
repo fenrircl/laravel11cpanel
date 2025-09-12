@@ -177,9 +177,16 @@ class FacturasController extends Controller
         ]);
 
         $factura = Factura::create($validatedData);
-        
-        // Log auditoría (usar sesión)
-        AuditLogger::log($request, 'create', 'facturas', $factura->id, 'Creó factura #' . $factura->invoice);
+
+        // Snapshot después de crear
+        $after = $factura->fresh()->toArray();
+        AuditLogger::log($request, 'create', 'facturas', $factura->id, 'Creó factura #' . $factura->invoice, [
+            'model' => Factura::class,
+            'data_before' => null,
+            'data_after' => $after,
+            'changes' => AuditLogger::simpleDiff([], $after),
+            'reversible' => false,
+        ]);
         
         if ($request->ajax()) {
             $factura->load(['cliente', 'proveedor', 'metodoPago']);
@@ -278,10 +285,18 @@ class FacturasController extends Controller
             'status' => 'required|in:0,1',
         ]);
 
+        $before = $factura->toArray();
         $factura->update($validatedData);
+        $after = $factura->fresh()->toArray();
+        $diff = AuditLogger::simpleDiff($before, $after);
 
-        // Log auditoría (usar sesión)
-        AuditLogger::log($request, 'update', 'facturas', $factura->id, 'Actualizó factura #' . $factura->invoice);
+        AuditLogger::log($request, 'update', 'facturas', $factura->id, 'Actualizó factura #' . $factura->invoice, [
+            'model' => Factura::class,
+            'data_before' => $before,
+            'data_after' => $after,
+            'changes' => $diff,
+            'reversible' => true,
+        ]);
         
         if ($request->ajax()) {
             return response()->json([
@@ -298,12 +313,18 @@ class FacturasController extends Controller
      */
     public function destroy(Request $request, Factura $factura)
     {
+        $before = $factura->toArray();
         $facturaId = $factura->id;
         $invoice = $factura->invoice;
         $factura->delete();
         
-        // Log auditoría (usar sesión)
-        AuditLogger::log($request, 'delete', 'facturas', $facturaId, 'Eliminó factura #' . $invoice);
+        AuditLogger::log($request, 'delete', 'facturas', $facturaId, 'Eliminó factura #' . $invoice, [
+            'model' => Factura::class,
+            'data_before' => $before,
+            'data_after' => null,
+            'changes' => AuditLogger::simpleDiff($before, []),
+            'reversible' => true,
+        ]);
         
         if (request()->ajax()) {
             return response()->json(['success' => true, 'message' => 'Factura eliminada exitosamente.']);

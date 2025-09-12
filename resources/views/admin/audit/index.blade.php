@@ -43,8 +43,8 @@
                         <th>Módulo</th>
                         <th>Entidad</th>
                         <th>Descripción</th>
-                        <th>IP</th>
-                        <th>Agente</th>
+                        <th>Detalles</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,8 +57,44 @@
                         <td>{{ $log->module ?? '—' }}</td>
                         <td>{{ $log->entity_id ?? '—' }}</td>
                         <td style="max-width: 380px;" class="text-truncate" title="{{ $log->description }}">{{ $log->description }}</td>
-                        <td>{{ $log->ip_address ?? '—' }}</td>
-                        <td style="max-width: 260px;" class="text-truncate" title="{{ $log->user_agent }}">{{ $log->user_agent }}</td>
+                        <td>
+                            @php
+                                $changes = is_array($log->changes) ? $log->changes : json_decode($log->changes ?? '[]', true);
+                            @endphp
+                            @if(!empty($changes))
+                                <details>
+                                    <summary>Ver cambios</summary>
+                                    <ul class="small mb-0">
+                                        @foreach($changes as $field => $diff)
+                                            <li>
+                                                <strong>{{ $field }}:</strong>
+                                                @if(is_array($diff) && array_key_exists('from', $diff) && array_key_exists('to', $diff))
+                                                    <span class="text-muted">{{ is_scalar($diff['from']) ? $diff['from'] : json_encode($diff['from']) }}</span>
+                                                    <i class="mx-1 fas fa-arrow-right"></i>
+                                                    <span>{{ is_scalar($diff['to']) ? $diff['to'] : json_encode($diff['to']) }}</span>
+                                                @else
+                                                    {{ is_scalar($diff) ? $diff : json_encode($diff) }}
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </details>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if(($log->module === 'facturas') && $log->reversible)
+                                <form method="POST" action="{{ route('admin.audit.restore', $log->id) }}" onsubmit="return confirm('¿Restaurar este cambio?');">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-undo"></i> Revertir
+                                    </button>
+                                </form>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>
@@ -83,6 +119,9 @@
   display: inline-flex;
   align-items: center;
   gap: .25rem;
+}
+details summary {
+  cursor: pointer;
 }
 </style>
 @endpush
