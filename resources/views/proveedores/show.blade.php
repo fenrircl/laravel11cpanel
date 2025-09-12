@@ -211,6 +211,4 @@
 </div>
 @endsection
 
-@push('scripts')
-<script src="{{ asset('assets/js/proveedores/proveedor-show.js') }}"></script>
-@endpush
+
