@@ -5,4 +5,5 @@ use App\Http\Controllers\BackupController;
 
 Route::resource('facturas', FacturasController::class);
 
-Route::middleware('auth:api')->get('/backup-db', [BackupController::class, 'download']);
+// Público: la validación de token se hará en el controlador
+Route::get('/backup-db', [BackupController::class, 'download']);
