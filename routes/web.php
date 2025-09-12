@@ -10,6 +10,7 @@ use App\Http\Controllers\BusquedaController;
 use App\Http\Controllers\R2Controller;
 use App\Http\Controllers\CotizacionesController;
 use App\Http\Controllers\Admin\AuditLogsController;
+use App\Http\Controllers\BackupController; // añadido
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -37,6 +38,9 @@ Route::get('/clear-laravel-11-caches', function () {
     // Para estar seguros, ejecutar los individuales puede ser mejor al depurar
     return "Laravel 11 Caches (config, view, route, app cache, event) have been cleared!";
 });
+
+// Ruta pública para backup (validación de token en el controlador)
+Route::get('/backup-db', [BackupController::class, 'download']);
 
 // Rutas protegidas (requieren autenticación)
 Route::middleware(['auth'])->group(function () {
