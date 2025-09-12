@@ -29,7 +29,7 @@ class Factura extends Model
         'date' => 'date',
         'expiry' => 'date',
         'pay_date' => 'date',
-        'amount' => 'decimal:2',
+        'amount' => 'integer',
         'status' => 'integer'
     ];
     

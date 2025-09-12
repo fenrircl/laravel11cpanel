@@ -140,6 +140,17 @@ class FacturasController extends Controller
             ], 422);
         }
 
+        // Normalizar amount si viene en formato CLP ("1.000", "$ 1.000.000", etc.) antes de validar
+        if ($request->has('amount')) {
+            $amt = $request->input('amount');
+            if (is_string($amt)) {
+                $normalized = preg_replace('/[^0-9]/', '', $amt);
+                $request->merge(['amount' => $normalized !== '' ? (int) $normalized : null]);
+            } elseif (is_numeric($amt)) {
+                $request->merge(['amount' => (int) $amt]);
+            }
+        }
+
         // Crear regla de validación unique condicional basada en si es cliente o proveedor
         $invoiceUniqueRule = Rule::unique('invoices', 'invoice');
         
@@ -158,7 +169,7 @@ class FacturasController extends Controller
             'date' => 'required|date',
             'expiry' => 'nullable|date|after_or_equal:date',
             'pay_date' => 'nullable|date',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|integer|min:0', // CLP entero
             'check' => 'nullable|string|max:100',
             'payment_method_id' => 'nullable|exists:payment_methods,id', // No requerido al crear
             'detail' => 'nullable|string|max:1000',
@@ -171,9 +182,12 @@ class FacturasController extends Controller
         AuditLogger::log($request, 'create', 'facturas', $factura->id, 'Creó factura #' . $factura->invoice);
         
         if ($request->ajax()) {
+            $factura->load(['cliente', 'proveedor', 'metodoPago']);
+            // Forzar amount entero en la respuesta JSON
+            $factura->amount = (int) round($factura->amount);
             return response()->json([
                 'success' => true, 
-                'factura' => $factura->load(['cliente', 'proveedor', 'metodoPago'])
+                'factura' => $factura
             ]);
         }
         

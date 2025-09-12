@@ -978,7 +978,12 @@ function populateForm(data, prefix = '') {
         if (element) {
             let value = data[key];
             console.log(key)
-            if(key === "invoice" ) $("#"+prefix + key).attr("readonly", true)
+            // Campo número de factura: solo readonly en modo edición
+            if (key === 'invoice') {
+                const isEditMode = !!document.getElementById('factura_id')?.value;
+                const $inv = $('#' + prefix + key);
+                $inv.prop('readonly', !!isEditMode);
+            }
             // Manejar valores null/undefined
             if (value === null || value === undefined) {
                 value = '';
@@ -1546,6 +1551,8 @@ function openEditFacturaModal(entity, id) {
     if (facturaIdField) {
         facturaIdField.value = factura.id;
     }
+    // Asegurar que el número quede bloqueado en edición
+    $('#invoice').prop('readonly', true);
     
     // Formatear el campo monto
     const amountEl = document.getElementById('amount');
@@ -1824,7 +1831,9 @@ function openCreateFacturaModal(entity) {
     // Limpiar formulario
     $('#facturaForm')[0].reset();
     $('#factura_id').val('');
-    
+    // Asegurar que el campo invoice esté editable en creación
+    $('#invoice').prop('readonly', false).prop('disabled', false);
+
     // Cargar datos de los selectores desde referencias
     ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
         populateFacturaSelects($('#facturaModal'));
@@ -2373,10 +2382,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const $client = $('#client_id');
         if ($client.length) {
             const current = $client.val();
-            console.log(current)
+            //console.log(current)
             $client.empty().append('<option value="">Seleccionar cliente...</option>');
             (ReferenceDataManager.data.clientes || []).forEach(c => {
-                console.log(c)
+                //console.log(c)
                 const label = c && c.rut ? `${c.name} (${c.rut})` : (c && c.name ? c.name : '');
                 $client.append(`<option value="${c.id}">${label}</option>`);
             });
