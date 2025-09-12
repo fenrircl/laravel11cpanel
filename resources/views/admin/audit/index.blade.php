@@ -61,6 +61,34 @@
                             @php
                                 $changes = is_array($log->changes) ? $log->changes : json_decode($log->changes ?? '[]', true);
                             @endphp
+                            @if($log->module === 'facturas' && !empty($log->entity_id))
+                                @php
+                                    $f = isset($facturas) ? ($facturas[$log->entity_id] ?? null) : null;
+                                @endphp
+                                @if($f)
+                                    @if($f->client_id)
+                                        <span class="badge bg-info">Cliente</span>
+                                        {{ $f->cliente?->name }}
+                                        @if($f->cliente?->rut)
+                                            <span class="text-muted">({{ $f->cliente->rut }})</span>
+                                        @endif
+                                    @elseif($f->provider_id)
+                                        <span class="badge bg-warning text-dark">Proveedor</span>
+                                        {{ $f->proveedor?->name }}
+                                        @if($f->proveedor?->rut)
+                                            <span class="text-muted">({{ $f->proveedor->rut }})</span>
+                                        @endif
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                                @if(!empty($changes))
+                                    <hr class="my-2">
+                                @endif
+                            @endif
+
                             @if(!empty($changes))
                                 <details>
                                     <summary>Ver cambios</summary>
@@ -80,7 +108,9 @@
                                     </ul>
                                 </details>
                             @else
-                                <span class="text-muted">—</span>
+                                @if(!($log->module === 'facturas' && !empty($log->entity_id)))
+                                    <span class="text-muted">—</span>
+                                @endif
                             @endif
                         </td>
                         <td>

@@ -34,9 +34,26 @@ class AuditLogsController extends Controller
 
         $logs = $query->paginate(25)->withQueryString();
 
+        // Cargar info de facturas relacionadas en la página actual (cliente/proveedor)
+        $facturas = collect();
+        try {
+            $facturaIds = collect($logs->items())
+                ->filter(fn($log) => $log->module === 'facturas' && !empty($log->entity_id))
+                ->map(fn($log) => (int) $log->entity_id)
+                ->unique()
+                ->values();
+            if ($facturaIds->isNotEmpty()) {
+                $facturas = \App\Models\Factura::with(['cliente:id,name,rut','proveedor:id,name,rut'])
+                    ->whereIn('id', $facturaIds)
+                    ->get()
+                    ->keyBy('id');
+            }
+        } catch (\Throwable $e) { /* noop */ }
+
         return view('admin.audit.index', [
             'logs' => $logs,
             'asset_css' => ['comun/tablas'],
+            'facturas' => $facturas,
         ]);
     }
 
