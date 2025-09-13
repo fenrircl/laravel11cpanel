@@ -27,7 +27,7 @@
                             <thead>
                                 <tr>
                                     {{-- <th>ID</th> --}}
-                                    <th>Número Factura</th>
+                                    <th>Factura</th>
                                     <th>Cliente</th>
                                     <th>Fecha</th>
                                     <th>Vencimiento</th>

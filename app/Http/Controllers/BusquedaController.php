@@ -233,7 +233,7 @@ class BusquedaController extends Controller
         $data = Cache::remember($cacheKey, self::CACHE_TIME, function() use ($entidad) {
             switch ($entidad) {
                 case 'clientes':
-                    return Cliente::select(['id', 'name', 'rut', 'email', 'phone', 'created_at'])
+                    return Cliente::select(['id', 'name', 'rut', 'date', 'email', 'phone', 'created_at'])
                         ->orderBy('created_at', 'desc')
                         ->limit(1000)
                         ->get();

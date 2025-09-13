@@ -4,7 +4,7 @@ $(document).ready(function() {
     // Configuración de columnas para la tabla de facturas
     const columns = [
         {data: 'id', name: 'id'},
-        {data: 'invoice', name: 'invoice', title: 'Número Factura'},
+        {data: 'invoice', name: 'invoice', title: 'Factura'},
         {
             data: 'tipo', 
             name: 'tipo',

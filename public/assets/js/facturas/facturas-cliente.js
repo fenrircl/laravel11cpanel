@@ -12,56 +12,28 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de facturas de clientes
     const columns = [
-        // {data: 'id', name: 'id'},
         {data: 'invoice', name: 'invoice', title: 'Número Factura'},
         {
             data: 'cliente.name', 
             name: 'cliente.name',
             title: 'Cliente',
-            render: function(data, type, row) {
-                return data || 'N/A';
+            render: function(data) {
+                const name = data || 'N/A';
+                return `<span class="text-truncate d-inline-block" style="max-width:240px" title="${name}">${name}</span>`;
             }
         },
+        { data: 'date', name: 'date', title: 'Fecha', render: (d)=> formatTableDate(d, false) },
+        { data: 'expiry', name: 'expiry', title: 'Vencimiento', render: (d)=> d ? formatTableDate(d, false) : 'N/A' },
+        { data: 'pay_date', name: 'pay_date', title: 'Fecha Pago', render: (d)=> d ? formatTableDate(d, false) : 'N/A' },
+        { data: 'amount', name: 'amount', title: 'Monto', render: (d)=> formatCurrency(d) },
         {
-            data: 'date', 
-            name: 'date',
-            title: 'Fecha',
-            render: function(data, type, row) {
-                return formatTableDate(data, false);
-            }
-        },
-        {
-            data: 'expiry', 
-            name: 'expiry',
-            title: 'Vencimiento',
-            render: function(data, type, row) {
-                return data ? formatTableDate(data, false) : 'N/A';
-            }
-        },
-        {
-            data: 'pay_date', 
-            name: 'pay_date',
-            title: 'Fecha Pago',
-            render: function(data, type, row) {
-                return data ? formatTableDate(data, false) : 'N/A';
-            }
-        },
-        {
-            data: 'amount', 
-            name: 'amount',
-            title: 'Monto',
-            render: function(data, type, row) {
-                return formatCurrency(data);
-            }
-        },
-        {
-            data: 'status', 
-            name: 'status',
+            data: null,
+            name: 'status_badge',
             title: 'Estado',
-            render: function(data, type, row) {
-                const badgeClass = data === 1 ? 'bg-success' : 'bg-warning';
-                const statusText = data === 1 ? 'Pagado' : 'Pendiente';
-                return `<span class="badge ${badgeClass}">${statusText}</span>`;
+            orderable: false,
+            searchable: false,
+            render: function(_data, _type, row){
+                return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry) : '';
             }
         },
         {
@@ -101,7 +73,15 @@ $(document).ready(function() {
                 });
             }
         },
-        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+        order: [[0, 'desc']], // Ordenar por ID descendente (más recientes primero)
+        columnDefs: [
+            { targets: 0, width: '140px', responsivePriority: 2 }, // Número Factura
+            { targets: 1, width: '260px', className: 'text-start', responsivePriority: 3 }, // Cliente
+            { targets: [2,3,4], width: '120px', responsivePriority: 5 }, // Fechas
+            { targets: 5, width: '120px', responsivePriority: 6 }, // Monto
+            { targets: 6, width: '110px', responsivePriority: 4 }, // Estado más prioritario que montos/fechas
+            { targets: -1, width: '160px', className: 'text-end nowrap', responsivePriority: 1 } // Acciones siempre visible
+        ]
     };
     
     // Inicializar DataTable usando la función reutilizable

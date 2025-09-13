@@ -275,61 +275,56 @@ function initDataTable(tableId, data, columns, options = {}) {
         serverSide: false,
         columns: columns,
         language: getDTLanguage(isLocal),
-        responsive: true,
+        responsive: { details: false, breakpoints: [
+            { name: 'desktop',  width: Infinity },
+            { name: 'tablet-l', width: 1188 },
+            { name: 'tablet',   width: 1024 },
+            { name: 'fablet',   width: 768 },
+            { name: 'phone',    width: 480 }
+        ]},
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
         dom: 'Bfrtip',
         buttons: [
-            {
-                extend: 'copy',
-                text: 'Copiar',
-                className: 'btn btn-secondary btn-sm'
-            },
-            {
-                extend: 'excel',
-                text: 'Excel',
-                className: 'btn btn-success btn-sm'
-            },
-            {
-                extend: 'pdf',
-                text: 'PDF',
-                className: 'btn btn-danger btn-sm'
-            },
-            {
-                extend: 'print',
-                text: 'Imprimir',
-                className: 'btn btn-info btn-sm'
-            }
+            { extend: 'copy',  text: 'Copiar',  className: 'btn btn-secondary btn-sm' },
+            { extend: 'excel', text: 'Excel',   className: 'btn btn-success btn-sm' },
+            { extend: 'pdf',   text: 'PDF',     className: 'btn btn-danger btn-sm' },
+            { extend: 'print', text: 'Imprimir',className: 'btn btn-info btn-sm' }
         ],
         autoWidth: false,
-        scrollX: false,
-        columnDefs: [
-            {
-                targets: '_all',
-                className: 'text-center'
-            }
-        ]
+        scrollX: true,
+        columnDefs: [ { targets: '_all', className: 'text-center' } ]
     };
 
-    // Si se proporcionan datos, los usamos en lugar de AJAX
-    if (data !== null) {
-        defaultOptions.data = data;
+    if (data !== null) defaultOptions.data = data;
+    const finalOptions = { ...defaultOptions, ...options };
+
+    const $table = $(`#${tableId}`);
+    // Asegurar contenedor con overflow para scrollX
+    const $wrapper = $table.closest('.table-responsive');
+    if ($wrapper.length) {
+        $wrapper.css({ overflowX: 'auto' });
     }
 
-    // Combinar opciones por defecto con opciones personalizadas
-    const finalOptions = { ...defaultOptions, ...options };
-    
-    const table = $(`#${tableId}`).DataTable(finalOptions);
-    
-    // Forzar redimensionamiento después de la inicialización con verificación de responsive
+    const table = $table.DataTable(finalOptions);
+
+    // Ajuste inicial diferido
     setTimeout(function() {
-        table.columns.adjust();
-        // Verificar si responsive está disponible antes de llamar a recalc()
-        if (table.responsive && typeof table.responsive.recalc === 'function') {
-            table.responsive.recalc();
-        }
+        try {
+            table.columns.adjust();
+            if (table.responsive && typeof table.responsive.recalc === 'function') table.responsive.recalc();
+        } catch(e) {}
     }, 100);
-    
+
+    // Reajustar al mostrar pestañas/bootstrap o modales que contengan la tabla
+    $(document).on('shown.bs.tab shown.bs.modal', function(e){
+        if ($(e.target).find(`#${tableId}`).length || $(e.relatedTarget).find(`#${tableId}`).length) {
+            setTimeout(function(){
+                try { table.columns.adjust(); if (table.responsive?.recalc) table.responsive.recalc(); } catch(e) {}
+            }, 100);
+        }
+    });
+
     return table;
 }
 
@@ -816,13 +811,14 @@ const ActionButtonPresets = {
 function resizeAllDataTables() {
     if ($.fn.DataTable) {
         const tables = $.fn.dataTable.tables({ visible: true, api: true });
-        tables.columns.adjust();
-        // Verificar si responsive está disponible antes de llamar a recalc()
+        try { tables.columns.adjust(); } catch(e) {}
         tables.iterator('table', function(context) {
             const api = $(context.nTable).DataTable();
-            if (api.responsive && typeof api.responsive.recalc === 'function') {
-                api.responsive.recalc();
-            }
+            try {
+                if (api.responsive && typeof api.responsive.recalc === 'function') api.responsive.recalc();
+                // Forzar draw cuando hay scrollX y ancho cambió mucho
+                api.draw(false);
+            } catch(e) {}
         });
     }
 }
@@ -849,6 +845,45 @@ function formatTableDate(dateString, includeTime = true) {
     
     return dateFormatted;
 }
+
+/**
+ * Renderizar badge de estado según vencimiento
+ * - status = 1 => Pagado (verde)
+ * - status = 0 => Pendiente: si no vencida => warning; si vencida <=7 días => warning; si >7 días => danger
+ */
+function renderInvoiceStatusBadge(status, expiryDate) {
+    try {
+        if (status === 1 || status === '1' || status === true) {
+            return '<span class="badge bg-success">Pagado</span>';
+        }
+        // Pendiente
+        if (!expiryDate) {
+            return '<span class="badge bg-warning">Pendiente</span>';
+        }
+        const exp = new Date(expiryDate);
+        const today = new Date();
+        // Normalizar a día
+        exp.setHours(0,0,0,0);
+        today.setHours(0,0,0,0);
+        const diff = today.getTime() - exp.getTime();
+        const days = Math.floor(diff / (1000*60*60*24));
+        if (days <= 0) {
+            // Aún no vence
+            return '<span class="badge bg-warning">Pendiente</span>';
+        }
+        if (days <= 7) {
+            // Vencida hace <=7 días => naranja
+            return '<span class="badge bg-warning">Vencida</span>';
+        }
+        // Vencida hace >7 días => rojo
+        return '<span class="badge bg-danger">Vencida</span>';
+    } catch (e) {
+        return '<span class="badge bg-secondary">—</span>';
+    }
+}
+
+// Exponer global
+window.renderInvoiceStatusBadge = renderInvoiceStatusBadge;
 
 /**
  * Función genérica para manejar eliminación con SweetAlert2
@@ -977,7 +1012,6 @@ function populateForm(data, prefix = '') {
         const element = document.getElementById(prefix + key);
         if (element) {
             let value = data[key];
-            console.log(key)
             // Campo número de factura: solo readonly en modo edición
             if (key === 'invoice') {
                 const isEditMode = !!document.getElementById('factura_id')?.value;
@@ -988,25 +1022,64 @@ function populateForm(data, prefix = '') {
             if (value === null || value === undefined) {
                 value = '';
             }
-            console.log(element.type == 'text' && element.getAttribute('data-format') == 'clp')
-            // Manejar fechas en formato ISO (2025-06-08T00:00:00.000000Z)
-            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+            //console.log(element.type == 'text' && element.getAttribute('data-format') == 'clp')
+            // Manejar fechas en distintos formatos
+            if (value instanceof Date) {
+                // Si es objeto Date
                 if (element.type === 'date') {
-                    // Para inputs tipo date, extraer solo la fecha (YYYY-MM-DD)
-                    value = value.split('T')[0];
-                }else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
-                    // Para inputs de texto con formato chileno, convertir a DD-MM-YYYY
-                    const dateOnly = value.split('T')[0];
+                    const yyyy = value.getFullYear();
+                    const mm = String(value.getMonth()+1).padStart(2,'0');
+                    const dd = String(value.getDate()).padStart(2,'0');
+                    value = `${yyyy}-${mm}-${dd}`;
+                } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
                     if (window.CLFormat) {
-                        value = window.CLFormat.formatDateCL(dateOnly);
-                    } else {
-                        // Fallback manual
-                        const [year, month, day] = dateOnly.split('-');
-                        value = `${day}-${month}-${year}`;
+                        value = window.CLFormat.formatDateCL(value);
                     }
-                }  else {
-                    // Para otros casos, mantener solo la fecha
-                    value = value.split('T')[0];
+                }
+            } else if (typeof value === 'number' || (typeof value === 'string' && /^\d{10,13}$/.test(value))) {
+                // Timestamp en segundos o milisegundos
+                const ts = Number(value);
+                const ms = ts < 1e12 ? ts * 1000 : ts; // si parece segundos, convertir a ms
+                const d = new Date(ms);
+                if (element.type === 'date') {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth()+1).padStart(2,'0');
+                    const dd = String(d.getDate()).padStart(2,'0');
+                    value = `${yyyy}-${mm}-${dd}`;
+                } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
+                    if (window.CLFormat) value = window.CLFormat.formatDateCL(d);
+                }
+            } else if (typeof value === 'string') {
+                // ISO con T
+                if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+                    if (element.type === 'date') {
+                        value = value.split('T')[0];
+                    } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
+                        const dateOnly = value.split('T')[0];
+                        if (window.CLFormat) {
+                            value = window.CLFormat.formatDateCL(dateOnly);
+                        } else {
+                            const [year, month, day] = dateOnly.split('-');
+                            value = `${day}-${month}-${year}`;
+                        }
+                    } else {
+                        value = dateOnly;
+                    }
+                // Formato MySQL con espacio "YYYY-MM-DD HH:MM:SS" o solo fecha
+                } else if (/^\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2}:\d{2})?$/.test(value)) {
+                    const dateOnly = value.substring(0, 10);
+                    if (element.type === 'date') {
+                        value = dateOnly; // compatible con input[type=date]
+                    } else if (element.type === 'text' && element.getAttribute('data-format') === 'date-cl') {
+                        if (window.CLFormat) {
+                            value = window.CLFormat.formatDateCL(dateOnly);
+                        } else {
+                            const [year, month, day] = dateOnly.split('-');
+                            value = `${day}-${month}-${year}`;
+                        }
+                    } else {
+                        value = dateOnly;
+                    }
                 }
             }
             
@@ -1139,593 +1212,6 @@ function toggleElement(elementId, show) {
 }
 
 /**
- * ============================================
- * HELPER DE FORMATO/VALIDACIÓN CHILENO (CLP/FECHA)
- * ============================================
- *\
- * Uso rápido en inputs:
- *  - data-format="clp"       => Mantiene valor numérico en el input y muestra pista formateada ($ 1.234.567)
- *  - data-format="date-cl"   => Acepta y valida DD-MM-AAAA en inputs de texto; muestra pista desde type=date
- *
- * Opcional: data-formatted-target="#selector" para indicar dónde pintar la pista.
- */
-(function(){
-    if (window.CLFormat) return; // evitar doble definición
-
-    const CLFormat = {
-        // Números/moneda
-        formatNumberCL(n) {
-            const num = Number(n || 0);
-            return new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
-        },
-        formatCurrencyCL(n, withSymbol = true) {
-            const num = Number(n || 0);
-            return withSymbol
-                ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
-                : CLFormat.formatNumberCL(num);
-        },
-        // Formatear solo con separadores de miles (sin símbolo $)
-        formatCLPInput(n) {
-            const num = Number(n || 0);
-            return new Intl.NumberFormat('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
-        },
-        parseCLP(str) {
-            if (str === null || str === undefined) return 0;
-            if (typeof str === 'number') return Math.floor(str);
-            
-            // Convertir a string y manejar decimales correctamente
-            const strValue = String(str);
-            
-            // Si contiene punto decimal, tomar solo la parte entera
-            if (strValue.includes('.')) {
-                const beforeDecimal = strValue.split('.')[0];
-                const digits = beforeDecimal.replace(/[^0-9]/g, '');
-                return digits ? parseInt(digits, 10) : 0;
-            }
-            
-            // Si no tiene decimales, remover todo excepto dígitos
-            const digits = strValue.replace(/[^0-9]/g, '');
-            return digits ? parseInt(digits, 10) : 0;
-        },
-        // Fechas
-        formatDateCL(value) {
-            if (!value) return '';
-            // Acepta Date o string ISO/aaaa-mm-dd
-            let d;
-            if (value instanceof Date) {
-                d = value;
-            } else if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
-                const [y,m,day] = String(value).split('-').map(Number);
-                d = new Date(y, m - 1, day);
-            } else {
-                const iso = CLFormat.parseDateCLToISO(String(value));
-                if (!iso) return '';
-                const [y,m,day] = iso.split('-').map(Number);
-                d = new Date(y, m - 1, day);
-            }
-            const dd = String(d.getDate()).padStart(2,'0');
-            const mm = String(d.getMonth()+1).padStart(2,'0');
-            const yyyy = d.getFullYear();
-            return `${dd}-${mm}-${yyyy}`;
-        },
-        parseDateCLToISO(str) {
-            if (!str) return '';
-            const s = String(str).trim();
-            const m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
-            if (!m) return '';
-            const dd = parseInt(m[1],10), mm = parseInt(m[2],10), yyyy = parseInt(m[3],10);
-            if (!CLFormat.isValidDateParts(dd, mm, yyyy)) return '';
-            return `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
-        },
-        isValidDateCL(str) {
-            const iso = CLFormat.parseDateCLToISO(str);
-            return !!iso;
-        },
-        isValidDateParts(dd, mm, yyyy) {
-            if (yyyy < 1900 || yyyy > 2999) return false;
-            if (mm < 1 || mm > 12) return false;
-            const daysInMonth = new Date(yyyy, mm, 0).getDate();
-            if (dd < 1 || dd > daysInMonth) return false;
-            return true;
-        }
-    };
-
-    const CLInputFormatter = {
-        init() {
-            // Vincular inputs existentes
-            document.querySelectorAll('input[data-format], textarea[data-format]').forEach(el => this.bind(el));
-            // Delegación para elementos que aparezcan dinámicamente (modales)
-            document.addEventListener('focusin', (e) => {
-                const el = e.target;
-                if (el && el.matches && el.matches('input[data-format], textarea[data-format]')) {
-                    this.bind(el);
-                }
-            });
-            // Normalizar antes de enviar formularios marcados
-            document.querySelectorAll('form').forEach(f => {
-                if (f.__clNormalizeHooked) return;
-                f.addEventListener('submit', (e) => this.normalizeOnSubmit(e));
-                f.__clNormalizeHooked = true;
-            });
-        },
-        bind(el) {
-            if (el.__clBound) return;
-            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-            if (fmt === 'clp-inline') {
-                // Formato CLP inline: valor visible con separadores/$ en blur, dígitos al editar
-                el.addEventListener('focus', () => this.onCLPFocus(el));
-                el.addEventListener('input', () => this.onCLPInput(el));
-                el.addEventListener('blur', () => this.onCLPInlineBlur(el));
-                // Solo formatear al cargar si el valor no está ya formateado
-                if (el.value && !el.value.includes('$') && !el.value.includes('.')) {
-                    this.onCLPInlineBlur(el);
-                }
-            } else if (fmt === 'clp') {
-                // Formato CLP directo en el input (sin símbolo $)
-                el.addEventListener('focus', () => this.onCLPFocus(el));
-                //el.addEventListener('input', () => this.onCLPInput(el));
-                el.addEventListener('blur', () => this.onCLPInlineBlur(el));
-                // Formatear al cargar si hay valor numérico
-                if (el.value && !isNaN(el.value.replace(/[^\d.]/g, ''))) {
-                    this.onCLPInlineBlur(el);
-                }
-            } else if (fmt === 'date-cl') {
-                if (el.type === 'text') {
-                    el.addEventListener('input', () => this.onDateInput(el));
-                    el.addEventListener('blur', () => this.onDateBlur(el));
-                }
-                this.updateHint(el);
-            }
-            el.__clBound = true;
-        },
-        normalizeOnSubmit(e) {
-            const form = e.target;
-            // Antes de serializar por jQuery, normalizamos valores visibles
-            form.querySelectorAll('input[data-format], textarea[data-format], select[data-format]').forEach(el => {
-                const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-                if (fmt === 'clp' || fmt === 'clp-inline') {
-                    // Forzar valor numérico entero sin separadores
-                    const val = CLFormat.parseCLP(el.value);
-                    el.value = String(val);
-                } else if (fmt === 'date-cl') {
-                    if (el.type === 'text') {
-                        const iso = CLFormat.parseDateCLToISO(el.value);
-                        if (iso) el.value = iso; // enviar en formato ISO que espera el backend
-                    }
-                }
-            });
-        },
-        // CLP handlers
-        onCLPInput(el) {
-            // Formatear en tiempo real mientras se escribe
-            const cursorPos = el.selectionStart;
-            const value = el.value;
-            
-            // Limpiar el valor: solo dígitos (los puntos son separadores de miles, no decimales)
-            const cleanValue = value.replace(/[^\d]/g, '');
-            
-            // Si no hay dígitos, limpiar el campo
-            if (!cleanValue) {
-                if (value !== '') {
-                    el.value = '';
-                }
-                return;
-            }
-            
-            // Formatear con separadores de miles
-            const formattedValue = CLFormat.formatCLPInput(parseInt(cleanValue));
-            
-            // Calcular nueva posición del cursor
-            // Contar cuántos separadores hay antes de la posición actual
-            const valueBeforeCursor = value.substring(0, cursorPos);
-            const digitsBeforeCursor = valueBeforeCursor.replace(/[^\d]/g, '').length;
-            
-            // Encontrar la nueva posición basada en los dígitos
-            let newPos = 0;
-            let digitCount = 0;
-            for (let i = 0; i < formattedValue.length && digitCount < digitsBeforeCursor; i++) {
-                if (/\d/.test(formattedValue[i])) {
-                    digitCount++;
-                }
-                newPos = i + 1;
-            }
-            
-            // Actualizar valor solo si cambió
-            if (formattedValue !== value) {
-                el.value = formattedValue;
-                // Restaurar posición del cursor
-                setTimeout(() => {
-                    el.setSelectionRange(newPos, newPos);
-                }, 0);
-            }
-        },
-        onCLPFocus(el) {
-            // Al enfocar, mantener el formato actual
-            // Solo seleccionar todo el texto para fácil reemplazo
-            setTimeout(() => el.select(), 10);
-        },
-        onCLPInlineBlur(el) {
-            // En blur, asegurarse de que esté bien formateado
-            const cleanValue = el.value.replace(/[^\d]/g, '');
-            if (cleanValue) {
-                el.value = CLFormat.formatCLPInput(parseInt(cleanValue));
-            } else {
-                el.value = '';
-            }
-            
-            // Crear o actualizar símbolo $ si no existe
-            // this.updateCLPSymbol(el); // Comentado: no mostrar CLP a la derecha
-        },
-        onCLPBlur(el) {
-            // Formatear en el mismo input (como onCLPInlineBlur)
-            const val = CLFormat.parseCLP(el.value);
-            if (el.type !== 'number') {
-                el.value = val ? CLFormat.formatCurrencyCL(val, true) : '';
-            } else {
-                // Para type=number no es posible mostrar separadores, mantener dígitos
-                el.value = String(val);
-            }
-        },
-        // Función para agregar símbolo $ a la derecha del input
-        updateCLPSymbol(el) {
-            // Solo agregar símbolo si el formato es 'clp' (no clp-inline)
-            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-            if (fmt !== 'clp') return;
-            
-            // Buscar si ya existe el símbolo
-            let symbolSpan = el.nextElementSibling;
-            if (symbolSpan && symbolSpan.classList && symbolSpan.classList.contains('clp-symbol')) {
-                // Ya existe, no hacer nada
-                return;
-            }
-            
-            // Crear el símbolo $ a la derecha
-            symbolSpan = document.createElement('span');
-            symbolSpan.className = 'clp-symbol';
-            symbolSpan.textContent = ' CLP';
-            symbolSpan.style.cssText = 'color: #6c757d; font-size: 0.875rem; margin-left: 0.25rem; user-select: none;';
-            
-            // Insertar después del input
-            el.parentNode.insertBefore(symbolSpan, el.nextSibling);
-        },
-        // Date handlers (DD-MM-AAAA en inputs de texto)
-        onDateInput(el) {
-            // Permitir solo dígitos y separadores, auto-insertar '-'
-            let s = el.value.replace(/[^0-9-/.]/g, '').replace(/[/.]/g, '-');
-            // Autoformato básico dd-mm-aaaa
-            s = s.replace(/(\d{2})(\d)/, '$1-$2').replace(/(\d{2}-\d{2})(\d)/, '$1-$2');
-            el.value = s.substring(0, 10);
-        },
-        onDateBlur(el) {
-            const iso = CLFormat.parseDateCLToISO(el.value);
-            if (iso) {
-                // Mostrar como dd-mm-aaaa pero enviar ISO en submit (normalizeOnSubmit)
-                el.value = CLFormat.formatDateCL(iso);
-                el.classList.remove('is-invalid');
-            } else if (el.value.trim() !== '') {
-                el.classList.add('is-invalid');
-            } else {
-                el.classList.remove('is-invalid');
-            }
-            this.updateHint(el);
-        },
-        // Hints
-        ensureHint(el) {
-            const targetSel = el.getAttribute('data-formatted-target');
-            if (targetSel) {
-                const node = document.querySelector(targetSel);
-                if (node) return node;
-            }
-            // Buscar siguiente elemento con clase .formatted-hint
-            let next = el.nextElementSibling;
-            if (next && next.classList && next.classList.contains('formatted-hint')) return next;
-            // Buscar span específico conocido
-            if (el.id && el.id.toLowerCase() === 'amount') {
-                const fixed = document.getElementById('amountFormatted');
-                if (fixed) return fixed;
-            }
-            // No crear hint automáticamente para CLP
-            return null;
-        },
-        updateHint(el) {
-            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-            if (fmt === 'clp-inline' || fmt === 'clp') {
-                // En modo inline o CLP normal no usamos hint
-                return;
-            }
-            if (fmt === 'date-cl') {
-                const hint = this.ensureHint(el);
-                const value = el.type === 'date' ? el.value : CLFormat.parseDateCLToISO(el.value);
-                const show = value ? CLFormat.formatDateCL(value) : '';
-                if (hint) hint.textContent = show;
-            }
-        },
-        refreshAllHints() {
-            document.querySelectorAll('input[data-format], textarea[data-format]').forEach(el => this.updateHint(el));
-        }
-    };
-
-    // Exponer globalmente
-    window.CLFormat = CLFormat;
-    window.CLInputFormatter = CLInputFormatter;
-})();
-
-/**
- * Inicializar eventos cuando el documento esté listo
- */
-$(document).ready(function() {
-    // Llamar a la inicialización de eventos después de un pequeño delay
-    // para asegurar que las DataTables estén inicializadas
-    // setTimeout(() => {
-    //     //initActionButtonEvents();
-    // }, 100);
-    // Inicializar formateadores chilenos para inputs marcados con data-format
-    if (window.CLInputFormatter) {
-        window.CLInputFormatter.init();
-    }
-    // Refrescar pistas formateadas cuando se abren modales (por si el DOM se crea dinámicamente)
-    $(document).on('shown.bs.modal', function(){
-        if (window.CLInputFormatter) window.CLInputFormatter.refreshAllHints();
-    });
-
-    // Delegación para botón eliminar genérico
-    $(document).on('click', '.btn-delete', function(e){
-        e.preventDefault();
-        const id = $(this).data('id');
-        const singular = $(this).data('entity') || 'registro';
-        if (!id) return;
-        let url = '';
-        switch (singular) {
-            case 'factura':
-                url = buildApiUrl('facturas/' + id);
-                break;
-            case 'cliente':
-                url = buildApiUrl('clientes/' + id);
-                break;
-            case 'proveedor':
-                url = buildApiUrl('proveedores/' + id);
-                break;
-            default:
-                url = buildApiUrl(singular + 's/' + id);
-        }
-        handleDelete(singular, id, url, function(){
-            reloadInvoiceTables();
-        });
-    });
-});
-
-/**
- * Abrir modal de edición de factura y cargar datos
- * @param {string} entity - 'cliente' o 'proveedor'
- * @param {number} id - ID de la factura
- */
-function openEditFacturaModal(entity, id) {
-    let factura = null;
-    if (entity === 'cliente') {
-        factura = EntityDataManager.findById('facturas', id);
-    } else if (entity === 'proveedor') {
-        factura = EntityDataManager.findById('facturas', id);
-    }
-    if (!factura) {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'No se encontró la factura.'
-        });
-        return;
-    }
-    console.log(factura)
-    
-    // Asegurar que el campo existe antes de asignar
-    if (factura.detail) {
-        const detailEl = document.getElementById('detail');
-        if (detailEl) detailEl.value = factura.detail;
-    }
-    
-    // Cargar datos de los selectores primero usando datos precargados
-    ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
-        populateFacturaSelects($('#facturaModal'));
-        // Seleccionar valores en los selects (soporta id directo o relación cargada)
-        const clientId = (factura.client_id != null) ? factura.client_id : (factura.cliente && factura.cliente.id != null ? factura.cliente.id : '');
-        const providerId = (factura.provider_id != null) ? factura.provider_id : (factura.proveedor && factura.proveedor.id != null ? factura.proveedor.id : '');
-        const metodoPagoId = (factura.payment_method_id != null) ? factura.payment_method_id : (factura.metodoPago && factura.metodoPago.id != null ? factura.metodoPago.id : '');
-        const clientName = (factura.cliente && factura.cliente.name) ? factura.cliente.name : undefined;
-        const providerName = (factura.proveedor && factura.proveedor.name) ? factura.proveedor.name : undefined;
-        const metodoPagoName = (factura.metodoPago && factura.metodoPago.name) ? factura.metodoPago.name : undefined;
-
-        if (typeof window.setSelect2Value === 'function') {
-            setSelect2Value('#client_id', clientId, clientName);
-            setSelect2Value('#provider_id', providerId, providerName);
-            setSelect2Value('#payment_method_id', metodoPagoId, metodoPagoName);
-        } else {
-            if (clientId !== '') $('#client_id').val(clientId).trigger('change');
-            if (providerId !== '') $('#provider_id').val(providerId).trigger('change');
-            if (metodoPagoId !== '') $('#payment_method_id').val(metodoPagoId).trigger('change');
-        }
-        // Poblar el formulario del modal con los datos
-        populateForm(factura, '');
-    });
-    
-    // Establecer el ID de la factura en el campo oculto
-    const facturaIdField = document.getElementById('factura_id');
-    if (facturaIdField) {
-        facturaIdField.value = factura.id;
-    }
-    // Asegurar que el número quede bloqueado en edición
-    $('#invoice').prop('readonly', true);
-    
-    // Formatear el campo monto
-    const amountEl = document.getElementById('amount');
-    if (amountEl) {
-        const fmt = (amountEl.getAttribute('data-format') || '').toLowerCase();
-        if (factura.amount !== undefined && factura.amount !== null) {
-            // Usar CLFormat.parseCLP para procesar correctamente el valor
-            let valorNumerico = 0;
-            if (window.CLFormat) {
-                valorNumerico = window.CLFormat.parseCLP(factura.amount);
-            } else {
-                valorNumerico = parseInt(String(factura.amount).replace(/[^\d]/g, '')) || 0;
-            }
-            
-            if ((fmt === 'clp-inline' || fmt === 'clp') && window.CLFormat) {
-                // Para ambos modos CLP, mostrar solo el valor formateado sin símbolo $
-                amountEl.value = valorNumerico > 0 ? window.CLFormat.formatCLPInput(valorNumerico) : '';
-                // Agregar símbolo CLP a la derecha si es formato 'clp'
-                // if (fmt === 'clp' && window.CLInputFormatter) {
-                //     setTimeout(() => window.CLInputFormatter.updateCLPSymbol(amountEl), 100);
-                // }
-            } else {
-                amountEl.value = valorNumerico > 0 ? String(valorNumerico) : '';
-                if (window.CLInputFormatter) {
-                    window.CLInputFormatter.updateHint(amountEl);
-                } else if (document.getElementById('amountFormatted')) {
-                    document.getElementById('amountFormatted').textContent = valorNumerico > 0 ? valorNumerico.toLocaleString('es-CL') : '';
-                }
-            }
-        } else {
-            amountEl.value = '';
-            if (fmt !== 'clp-inline' && fmt !== 'clp') {
-                if (window.CLInputFormatter) {
-                    window.CLInputFormatter.updateHint(amountEl);
-                } else if (document.getElementById('amountFormatted')) {
-                    document.getElementById('amountFormatted').textContent = '';
-                }
-            }
-        }
-    }
-    
-    // Configurar título del modal para edición
-    if (entity === 'cliente') {
-        $('#facturaModalLabel').text('Editar Factura de Cliente');
-    } else if (entity === 'proveedor') {
-        $('#facturaModalLabel').text('Editar Factura de Proveedor');
-    } else {
-        $('#facturaModalLabel').text('Editar Factura');
-    }
-    
-    // Mostrar sección de gestión de archivos en modo edición
-    const fileManagementSection = document.getElementById('file-management-section');
-    if (fileManagementSection) {
-        fileManagementSection.style.display = 'block';
-        
-        // Mostrar archivos existentes basándose en los datos de la factura (como verFactura)
-        const archivoAsociadoDiv = document.getElementById('archivo-asociado');
-        if (archivoAsociadoDiv) {
-            if (factura.has_file && factura.file_path) {
-                // Extraer nombre del archivo del path
-                const fileName = factura.file_path.split('/').pop() || 'archivo';
-                
-                archivoAsociadoDiv.innerHTML = `
-                    <div class="archivo-asociado">
-                        <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
-                        <div class="archivo-info">
-                            <span class="archivo-nombre">${fileName}</span>
-                            <div class="archivo-acciones">
-                                <a href="javascript:void(0)" 
-                                   class="btn btn-sm btn-outline-primary" 
-                                   onclick="descargarPDF(${factura.id})"
-                                   title="Descargar archivo">
-                                    <i class="fas fa-download"></i> Descargar
-                                </a>                                        <button type="button" 
-                                                class="btn btn-sm btn-outline-danger" 
-                                                onclick="eliminarArchivoFacturaModal()" 
-                                                title="Eliminar archivo">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                archivoAsociadoDiv.innerHTML = `
-                    <div class="archivo-asociado">
-                        <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
-                        <p class="text-muted">No hay archivo asociado a esta factura</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // Simplemente mostrar la lista de archivos vacía para el contenedor files-list
-        const filesListContainer = document.getElementById('files-list');
-        if (filesListContainer) {
-            if (factura.has_file && factura.file_path) {
-                const fileName = factura.file_path.split('/').pop() || 'archivo';
-                filesListContainer.innerHTML = `
-                    <div class="files-container">
-                        <div class="file-item mb-2 p-2 border rounded">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="file-name">${fileName}</span>
-                                <div class="file-actions">
-                                    <a href="javascript:void(0)" 
-                                       class="btn btn-sm btn-outline-primary" 
-                                       onclick="descargarPDF(${factura.id})"
-                                       title="Descargar">
-                                        <i class="fas fa-download"></i>
-                                    </a>
-                                    <button type="button" 
-                                            class="btn btn-sm btn-outline-danger" 
-                                            onclick="eliminarArchivoFacturaModal()" 
-                                            title="Eliminar">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                filesListContainer.innerHTML = '<p class="text-muted">No hay archivos asociados</p>';
-            }
-        }
-    }
-    
-    // Abrir el modal
-    $('#facturaModal').modal('show');
-}
-
-/**
- * Guardar cambios de edición de factura (cliente/proveedor)
- * @param {string} entity - 'cliente' o 'proveedor'
- */
-function saveFacturaEdit(entity) {
-    const form = $('#facturaForm');
-    if (!validateRequiredFields('facturaForm')) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Campos requeridos',
-            text: 'Por favor completa todos los campos obligatorios.'
-        });
-        return;
-    }
-    const formData = form.serialize();
-    let url = '';
-    if (entity === 'cliente') {
-        url = buildApiUrl('facturas/clientes/update');
-    } else if (entity === 'proveedor') {
-        url = buildApiUrl('facturas/proveedores/update');
-    }
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: formData,
-        success: function(response) {
-            showSuccessMessage('Factura actualizada correctamente', function() {
-                $('#facturaModal').modal('hide');
-                reloadInvoiceTables();
-            });
-        },
-        error: function(xhr) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudo actualizar la factura.'
-            });
-        }
-    });
-}
-
-/**
  * Guardar factura (crear o editar)
  * Función llamada desde los modales de facturas
  */
@@ -1768,6 +1254,29 @@ function saveFactura() {
         contentType: false,
         success: function(response) {
             if (response.success) {
+                // Si el backend devuelve la factura actualizada/creada, refrescar caches locales
+                try {
+                    const f = response.factura || response.data || null;
+                    if (f && window.EntityDataManager) {
+                        const exists = !!window.EntityDataManager.findById('facturas', f.id);
+                        if (exists) {
+                            window.EntityDataManager.updateItem('facturas', f.id, f);
+                        } else {
+                            window.EntityDataManager.addItem('facturas', f);
+                        }
+                        // Actualizar datasets del Home si están presentes
+                        (function(){
+                            const mergeInto = (arr, item) => {
+                                if (!Array.isArray(arr)) return;
+                                const idx = arr.findIndex(x => String(x.id) === String(item.id));
+                                if (idx !== -1) arr[idx] = { ...arr[idx], ...item };
+                            };
+                            mergeInto(window.__HOME_CLIENTES_VENCIDAS__, f);
+                            mergeInto(window.__HOME_PROVEEDORES_VENCIDAS__, f);
+                        })();
+                    }
+                } catch(e) { /* noop */ }
+
                 Swal.fire({
                     icon: 'success',
                     title: 'Éxito',
@@ -1803,6 +1312,259 @@ function saveFactura() {
                 icon: 'error',
                 title: 'Error',
                 text: errorMessage
+            });
+        }
+    });
+}
+
+/**
+ * Normaliza campos de fechas en una factura para asegurar que exista 'date', 'expiry' y 'pay_date'.
+ * Acepta alias comunes desde API/cachés y transforma a los nombres esperados por el formulario.
+ */
+function normalizeFacturaDates(factura) {
+    if (!factura || typeof factura !== 'object') return factura;
+    const f = { ...factura };
+    const pick = (...vals) => vals.find(v => v !== undefined && v !== null && String(v).trim() !== '');
+    // date (emisión)
+    f.date = pick(f.date, f.fecha, f.fecha_emision, f.emision, f.created_at);
+    // expiry (vencimiento)
+    f.expiry = pick(f.expiry, f.fecha_vencimiento, f.vencimiento, f.due_date);
+    // pay_date (fecha de pago)
+    f.pay_date = pick(f.pay_date, f.fecha_pago, f.pago, f.paid_at);
+    return f;
+}
+
+function openEditFacturaModal(entity, id) {
+    // Resolver ID numérico si llega el número de factura como string
+    const tryResolveNumericId = () => {
+        const strId = String(id).trim();
+        if (/^\d+$/.test(strId)) return parseInt(strId, 10);
+        // Buscar por número de factura en caches locales (Home datasets y ENTITY_DATA)
+        const fromEntityData = (window.FACTURAS && typeof window.FACTURAS === 'function')
+            ? window.FACTURAS().find(f => String(f.invoice) === strId)
+            : null;
+        if (fromEntityData?.id) return fromEntityData.id;
+        const cArr = window.__HOME_CLIENTES_VENCIDAS__ || [];
+        const pArr = window.__HOME_PROVEEDORES_VENCIDAS__ || [];
+        const fromHome = cArr.concat(pArr).find(f => String(f.invoice) === strId);
+        if (fromHome?.id) return fromHome.id;
+        return strId; // fallback: usar tal cual (puede fallar en AJAX si no es ID)
+    };
+
+    const numericOrRawId = tryResolveNumericId();
+
+    const tryGetFromCaches = () => {
+        let f = null;
+        try { f = window.EntityDataManager?.findById('facturas', numericOrRawId) || null; } catch(e) {}
+        if (f) return f;
+        const cArr = window.__HOME_CLIENTES_VENCIDAS__ || [];
+        const pArr = window.__HOME_PROVEEDORES_VENCIDAS__ || [];
+        return cArr.concat(pArr).find(x => String(x.id) === String(numericOrRawId) || String(x.invoice) === String(id)) || null;
+    };
+
+    const proceedWithFactura = (factura) => {
+        if (!factura) {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la factura.' });
+            return;
+        }
+        // Normalizar fechas para asegurar 'date'
+        let fNorm = normalizeFacturaDates(factura);
+        if (!fNorm.date) {
+            // Hidratar desde BD si falta la fecha
+            $.ajax({
+                url: buildApiUrl('facturas/' + encodeURIComponent(fNorm.id || numericOrRawId)),
+                type: 'GET',
+                dataType: 'json',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .done(function(res){
+                const full = res && res.factura ? res.factura : res;
+                const merged = normalizeFacturaDates({ ...fNorm, ...full });
+                // Actualizar cache global con datos completos
+                try {
+                    const exists = !!window.EntityDataManager?.findById('facturas', merged.id);
+                    if (exists) {
+                        window.EntityDataManager.updateItem('facturas', merged.id, merged);
+                    } else {
+                        window.EntityDataManager?.addItem('facturas', merged);
+                    }
+                } catch(e){}
+                // Continuar flujo con datos completos
+                proceedWithFactura(merged);
+            })
+            .fail(function(){
+                // Continuar sin fecha si la API falla
+                fNorm = fNorm; // noop
+                // seguir flujo con lo que hay
+                // (no return aquí para poder continuar)
+            });
+            // Detener esta ejecución hasta tener los datos completos
+            return;
+        }
+
+        // Inferir entidad si no llega o es inválida
+        let ent = entity;
+        if (!ent || (ent !== 'cliente' && ent !== 'proveedor')) {
+            ent = (fNorm.client_id != null) ? 'cliente' : (fNorm.provider_id != null ? 'proveedor' : '');
+        }
+
+        // Guardar/actualizar en cache global para futuros usos
+        try {
+            const existing = window.EntityDataManager?.findById('facturas', fNorm.id);
+            if (existing) {
+                window.EntityDataManager.updateItem('facturas', fNorm.id, fNorm);
+            } else {
+                window.EntityDataManager?.addItem('facturas', fNorm);
+            }
+        } catch(e) {}
+
+        // Prefill detalle si existe
+        if (fNorm.detail) {
+            const detailEl = document.getElementById('detail');
+            if (detailEl) detailEl.value = fNorm.detail;
+        }
+
+        // Cargar datos de selectores y popular formulario
+        ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
+            populateFacturaSelects($('#facturaModal'));
+            const clientId = (fNorm.client_id != null) ? fNorm.client_id : (fNorm.cliente && fNorm.cliente.id != null ? fNorm.cliente.id : '');
+            const providerId = (fNorm.provider_id != null) ? fNorm.provider_id : (fNorm.proveedor && fNorm.proveedor.id != null ? fNorm.proveedor.id : '');
+            const metodoPagoId = (fNorm.payment_method_id != null) ? fNorm.payment_method_id : (fNorm.metodoPago && fNorm.metodoPago.id != null ? fNorm.metodoPago.id : '');
+            const clientName = (fNorm.cliente && fNorm.cliente.name) ? fNorm.cliente.name : undefined;
+            const providerName = (fNorm.proveedor && fNorm.proveedor.name) ? fNorm.proveedor.name : undefined;
+            const metodoPagoName = (fNorm.metodoPago && fNorm.metodoPago.name) ? fNorm.metodoPago.name : undefined;
+
+            if (typeof window.setSelect2Value === 'function') {
+                setSelect2Value('#client_id', clientId, clientName);
+                setSelect2Value('#provider_id', providerId, providerName);
+                setSelect2Value('#payment_method_id', metodoPagoId, metodoPagoName);
+            } else {
+                if (clientId !== '') $('#client_id').val(clientId).trigger('change');
+                if (providerId !== '') $('#provider_id').val(providerId).trigger('change');
+                if (metodoPagoId !== '') $('#payment_method_id').val(metodoPagoId).trigger('change');
+            }
+
+            // Poblar formulario con datos normalizados
+            populateForm(fNorm, '');
+        });
+
+        // Set ID oculto y bloquear invoice en edición
+        const facturaIdField = document.getElementById('factura_id');
+        if (facturaIdField) facturaIdField.value = fNorm.id;
+        $('#invoice').prop('readonly', true);
+
+        // Formatear monto si es necesario
+        const amountEl = document.getElementById('amount');
+        if (amountEl) {
+            let valorNumerico = 0;
+            if (window.CLFormat && typeof window.CLFormat.parseCLP === 'function') {
+                valorNumerico = window.CLFormat.parseCLP(fNorm.amount);
+            } else {
+                valorNumerico = parseInt(String(fNorm.amount).replace(/[^\d]/g, '')) || 0;
+            }
+            amountEl.value = valorNumerico > 0 ? String(valorNumerico) : '';
+            if (window.CLInputFormatter) window.CLInputFormatter.updateHint(amountEl);
+        }
+
+        // Título modal según entidad
+        if (ent === 'cliente') {
+            $('#facturaModalLabel').text('Editar Factura de Cliente');
+            $('#client_id').closest('.mb-3, .col-md-6, .row').show();
+            $('#provider_id').closest('.mb-3, .col-md-6, .row').hide();
+        } else if (ent === 'proveedor') {
+            $('#facturaModalLabel').text('Editar Factura de Proveedor');
+            $('#provider_id').closest('.mb-3, .col-md-6, .row').show();
+            $('#client_id').closest('.mb-3, .col-md-6, .row').hide();
+        } else {
+            $('#facturaModalLabel').text('Editar Factura');
+            $('#client_id, #provider_id').closest('.mb-3, .col-md-6, .row').show();
+        }
+
+        // Mostrar sección de archivos en edición
+        const fileManagementSection = document.getElementById('file-management-section');
+        if (fileManagementSection) fileManagementSection.style.display = 'block';
+        $('#facturaModal').modal('show');
+    };
+
+    const cached = tryGetFromCaches();
+    if (cached) return proceedWithFactura(cached);
+
+    // Fallback: cargar por AJAX
+    $.ajax({
+        url: buildApiUrl('facturas/' + encodeURIComponent(numericOrRawId)),
+        type: 'GET',
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .done(function(res){
+        const factura = res && res.factura ? res.factura : res;
+        const fNorm = normalizeFacturaDates(factura);
+        proceedWithFactura(fNorm);
+    })
+    .fail(function(){
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar la factura.' });
+    });
+}
+
+/**
+ * Guardar cambios de edición de factura (cliente/proveedor)
+ * @param {string} entity - 'cliente' o 'proveedor'
+ */
+function saveFacturaEdit(entity) {
+    const form = $('#facturaForm');
+    if (!validateRequiredFields('facturaForm')) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos requeridos',
+            text: 'Por favor completa todos los campos obligatorios.'
+        });
+        return;
+    }
+    const formData = form.serialize();
+    let url = '';
+    if (entity === 'cliente') {
+        url = buildApiUrl('facturas/clientes/update');
+    } else if (entity === 'proveedor') {
+        url = buildApiUrl('facturas/proveedores/update');
+    }
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            // Actualizar caches si el backend entrega la factura
+            try {
+                const f = response.factura || response.data || null;
+                if (f && window.EntityDataManager) {
+                    const exists = !!window.EntityDataManager.findById('facturas', f.id);
+                    if (exists) {
+                        window.EntityDataManager.updateItem('facturas', f.id, f);
+                    } else {
+                        window.EntityDataManager.addItem('facturas', f);
+                    }
+                    // Actualizar datasets del Home
+                    (function(){
+                        const mergeInto = (arr, item) => {
+                            if (!Array.isArray(arr)) return;
+                            const idx = arr.findIndex(x => String(x.id) === String(item.id));
+                            if (idx !== -1) arr[idx] = { ...arr[idx], ...item };
+                        };
+                        mergeInto(window.__HOME_CLIENTES_VENCIDAS__, f);
+                        mergeInto(window.__HOME_PROVEEDORES_VENCIDAS__, f);
+                    })();
+                }
+            } catch(e) { /* noop */ }
+
+            showSuccessMessage('Factura actualizada correctamente', function() {
+                $('#facturaModal').modal('hide');
+                reloadInvoiceTables();
+            });
+        },
+        error: function(xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo actualizar la factura.'
             });
         }
     });
@@ -2151,7 +1913,7 @@ function uploadFile(formData, onSuccess = null) {
                                                 class="btn btn-sm btn-outline-danger" 
                                                 onclick="eliminarArchivoFacturaModal()" 
                                                 title="Eliminar archivo">
-                                            <i class="fas fa-trash"></i> Eliminar
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -2653,4 +2415,17 @@ function reloadInvoiceTables() {
             try { $(sel).DataTable().ajax.reload(null, false); } catch(e) { /* noop */ }
         }
     });
+    // Refrescar tablas del Home (datos locales)
+    const refreshLocal = (sel, dataArr) => {
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable(sel)) {
+            try {
+                const api = $(sel).DataTable();
+                api.clear();
+                api.rows.add(dataArr || []);
+                api.draw(false);
+            } catch(e) { /* noop */ }
+        }
+    };
+    refreshLocal('#home-clientes-vencidas', window.__HOME_CLIENTES_VENCIDAS__);
+    refreshLocal('#home-proveedores-vencidas', window.__HOME_PROVEEDORES_VENCIDAS__);
 }

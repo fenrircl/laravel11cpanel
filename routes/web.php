@@ -11,6 +11,7 @@ use App\Http\Controllers\R2Controller;
 use App\Http\Controllers\CotizacionesController;
 use App\Http\Controllers\Admin\AuditLogsController;
 use App\Http\Controllers\BackupController; // añadido
+use App\Http\Controllers\HomeController; // añadido
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -24,7 +25,7 @@ Route::controller(LoginRegisterController::class)->group(function() {
 // Route::get('/', function () {
 //     return view('welcome');
 // });
-Route::get('/', [LoginRegisterController::class, 'home'])->name('home');
+//Route::get('/', [LoginRegisterController::class, 'home'])->name('home');
 
 Route::get('/clear-laravel-11-caches', function () {
     Artisan::call('config:clear');
@@ -44,7 +45,9 @@ Route::get('/backup-db', [BackupController::class, 'download']);
 
 // Rutas protegidas (requieren autenticación)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/home', [LoginRegisterController::class, 'home'])->name('home');
+    Route::get('/', [HomeController::class, 'index'])->name('home');
+
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::post('/logout', [LoginRegisterController::class, 'logout'])->name('logout');
 
     // Rutas para Facturas (ahora protegidas)
@@ -126,5 +129,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/audit', [\App\Http\Controllers\Admin\AuditLogsController::class, 'index'])->name('audit.index');
         Route::post('/audit/{log}/restore', [AuditLogsController::class, 'restore'])->name('audit.restore');
     });
+
+    // Charts
+    Route::get('/charts/facturas/pendientes', [\App\Http\Controllers\ChartsController::class, 'facturasPendientes'])->name('charts.facturas.pendientes');
 });
 

@@ -699,6 +699,9 @@ window.openInvoiceQuickView = function(id, prefill){
         return;
     }
 
+    // Reiniciar link
+    linkEl.href = '#';
+
     // Si tenemos datos preliminares del buscador, mostrarlos de inmediato
     if (prefill && typeof prefill === 'object') {
         try {
@@ -728,6 +731,8 @@ window.openInvoiceQuickView = function(id, prefill){
         } catch(e) { /* noop */ }
     } else {
         bodyEl.innerHTML = '<div class="text-muted">Cargando factura...</div>';
+        // Mostrar modal incluso sin prefill
+        modal.show();
     }
 
     // Cargar datos completos por AJAX y actualizar el modal

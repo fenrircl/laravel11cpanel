@@ -27,7 +27,7 @@
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Número Factura</th>
+                                    <th>Factura</th>
                                     <th>Tipo</th>
                                     <th>Cliente/Proveedor</th>
                                     <th>Fecha</th>

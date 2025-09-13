@@ -27,6 +27,7 @@
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     margin-bottom: 0;
+    width: 100% !important;
 }
 
 .table thead th {
@@ -41,6 +42,7 @@
     position: relative;
     border-top: none;
     border-bottom: none;
+    white-space: nowrap;
 }
 
 .table thead th::after {
@@ -105,11 +107,25 @@
     padding: 0.875rem 0.75rem;
     border-bottom: 1px solid var(--dt-gray-200);
     vertical-align: middle;
+    white-space: nowrap;
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
     background-color: rgba(241, 245, 249, 0.5);
 }
+
+/* Evitar salto de línea en columna de acciones */
+.table td.nowrap, .table th.nowrap { white-space: nowrap !important; }
+
+/* Truncar columnas largas de entidad en tablas de facturas */
+#facturas-clientes-table td:nth-child(2) .text-truncate,
+#facturas-proveedores-table td:nth-child(2) .text-truncate {
+  max-width: 240px;
+}
+
+/* Ajustar botones de acción para caber mejor */
+.table td .btn.btn-action { padding: 0.25rem 0.4rem; font-size: 0.85rem; }
+.table td .btn-group .btn { padding: 0.25rem 0.4rem; }
 
 /* Controles superiores */
 .dataTables_length,
@@ -251,6 +267,7 @@
     margin-right: 3px;
     padding: 0.375rem 0.75rem;
     font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 .btn-group .btn:last-child {
@@ -269,6 +286,14 @@
     border-radius: 0.75rem;
     overflow: hidden;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    overflow-x: auto;
+}
+
+.table .text-truncate {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (max-width: 768px) {

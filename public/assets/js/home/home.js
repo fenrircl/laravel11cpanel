@@ -1,0 +1,183 @@
+$(function(){
+  // ====================
+  // Filtros de fecha
+  // ====================
+  const $from = $('#chart-from');
+  const $to = $('#chart-to');
+  const today = new Date();
+  const toStr = today.toISOString().slice(0,10);
+  const fromDate = new Date(today); fromDate.setMonth(fromDate.getMonth() - 3);
+  const fromStr = fromDate.toISOString().slice(0,10);
+  if (!$from.val()) $from.val(fromStr);
+  if (!$to.val()) $to.val(toStr);
+
+  // ====================
+  // Inicializar ECharts
+  // ====================
+  const chartDom = document.getElementById('home-invoices-chart');
+  if (chartDom) {
+    const chart = echarts.init(chartDom);
+
+    function fetchAndRender(){
+      const params = $.param({ from: $from.val(), to: $to.val() });
+      $.get(buildApiUrl('charts/facturas/pendientes') + '?' + params)
+        .done((resp)=>{
+          const clientes = resp.clientes || [];
+          const proveedores = resp.proveedores || [];
+          const namesC = clientes.map(x=> x.name);
+          const dataC = clientes.map(x=> (x.total||0)/100);
+          const namesP = proveedores.map(x=> x.name);
+          const dataP = proveedores.map(x=> (x.total||0)/100);
+
+          chart.setOption({
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['Clientes', 'Proveedores'] },
+            grid: { left: '3%', right: '3%', bottom: '8%', containLabel: true },
+            xAxis: [
+              { type: 'category', data: namesC, axisLabel: { interval: 0, rotate: 25, overflow: 'truncate' } },
+              { type: 'category', data: namesP, axisLabel: { show: false } }
+            ],
+            yAxis: { type: 'value', name: 'Monto (CLP)' },
+            series: [
+              { name: 'Clientes', type: 'bar', xAxisIndex: 0, data: dataC },
+              { name: 'Proveedores', type: 'bar', xAxisIndex: 1, data: dataP }
+            ]
+          });
+        })
+        .fail(()=>{
+          Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los datos del gráfico.' });
+        });
+    }
+
+    fetchAndRender();
+
+    $('#chart-apply').on('click', function(){ fetchAndRender(); });
+    $(window).on('resize', function(){ chart.resize(); });
+  }
+
+  // ====================
+  // Utilidades Home
+  // ====================
+  const cData = window.__HOME_CLIENTES_VENCIDAS__ || [];
+  const pData = window.__HOME_PROVEEDORES_VENCIDAS__ || [];
+
+  function getTipoFromRow(r){
+    if (r == null) return 'cliente';
+    if (r.tipo) return String(r.tipo).toLowerCase();
+    if (r.client_id || r.cliente) return 'cliente';
+    if (r.provider_id || r.proveedor) return 'proveedor';
+    // Heurística: si viene del dataset de proveedores
+    return (pData.find(x=> x.id===r.id)) ? 'proveedor' : 'cliente';
+  }
+
+  function getEntidadName(r){
+    return (
+      r.entidad ||
+      r.cliente?.name || r.proveedor?.name ||
+      r.cliente_name || r.proveedor_name ||
+      r.name || '—'
+    );
+  }
+
+  // Vista rápida local (fallback) usando los datasets embebidos
+  window.openInvoiceQuickViewHome = function(id){
+    const modalEl = document.getElementById('invoiceQuickViewModal');
+    const bodyEl = document.getElementById('invoiceQuickViewBody');
+    const linkEl = document.getElementById('invoiceFullViewLink');
+    if (!modalEl || !bodyEl || !linkEl) return;
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) modal = new bootstrap.Modal(modalEl);
+
+    const findIn = (arr)=> arr.find(x=> String(x.id) === String(id) || String(x.invoice) === String(id));
+    const r = findIn(cData) || findIn(pData);
+    if (!r) {
+      // Si no encontramos local y existe la global, usarla
+      if (typeof window.openInvoiceQuickView === 'function') return window.openInvoiceQuickView(id);
+      bodyEl.innerHTML = '<div class="text-danger">No se encontraron datos de la factura.</div>';
+      modal.show();
+      return;
+    }
+    const tipo = getTipoFromRow(r);
+    const entidad = getEntidadName(r);
+    const metodo = r.metodo_pago?.name || r.metodoPago?.name || r.payment_method_name || '—';
+    const estadoHtml = (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry) : '';
+
+    const html = `
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div><strong>N° Factura:</strong> ${r.invoice || '—'}</div>
+          <div><strong>Fecha:</strong> ${r.date ? formatTableDate(r.date, false) : '—'}</div>
+          <div><strong>Vencimiento:</strong> ${r.expiry ? formatTableDate(r.expiry, false) : '—'}</div>
+          <div><strong>Pagado:</strong> ${r.pay_date ? formatTableDate(r.pay_date, false) : '—'}</div>
+        </div>
+        <div class="col-md-6">
+          <div><strong>Entidad:</strong> ${entidad}</div>
+          <div><strong>Método de pago:</strong> ${metodo}</div>
+          <div><strong>Monto:</strong> ${formatCurrency(r.amount || 0)}</div>
+          <div><strong>Estado:</strong> ${estadoHtml}</div>
+        </div>
+        <div class="col-12">
+          <div><strong>Detalle:</strong></div>
+          <div class="border rounded p-2 bg-light">${(r.detail||'').toString().trim() || '<span class="text-muted">Sin detalles</span>'}</div>
+        </div>
+      </div>`;
+    bodyEl.innerHTML = html;
+    // Link a vista completa (si existiera)
+    linkEl.href = buildApiUrl('facturas/' + (tipo==='cliente'?'clientes':'proveedores') + '/' + (r.id || r.invoice));
+    modal.show();
+  };
+
+  // ====================
+  // Tablas Home
+  // ====================
+  try {
+    if (typeof initDataTable !== 'function') return;
+
+    const cols = [
+      { data: null, title: 'Entidad', className: 'text-start', render: (d, t, r) => {
+          const name = getEntidadName(r);
+          const rut = r.rut ? `<small class="text-muted d-block">${r.rut}</small>` : '';
+          return `<span class="text-truncate d-inline-block" style="max-width:220px" title="${name}">${name}</span>${rut}`;
+        }
+      },
+      { data: 'invoice', title: 'Factura', width: '120px', className: 'text-center' },
+      { data: 'expiry', title: 'Vencimiento', width: '130px', className: 'text-center', render: (d)=> d ? formatTableDate(d, false) : '—' },
+      { data: 'amount', title: 'Monto', width: '140px', className: 'text-end', render: (d)=> typeof formatCurrency === 'function' ? formatCurrency(d) : d },
+      { data: null, title: 'Estado', width: '110px', className: 'text-center', render: (d,t,r)=>{
+          return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry) : '';
+        }
+      },
+      { data: null, title: 'Acciones', orderable:false, searchable:false, className:'text-end nowrap', width: '150px', render: (d,t,r)=>{
+          const id = r.id || r.invoice;
+          const tipo = getTipoFromRow(r);
+          const viewAction = (typeof window.openInvoiceQuickView === 'function') ? `openInvoiceQuickView(${id})` : `openInvoiceQuickViewHome(${id})`;
+          const viewBtn = `<button type="button" class="btn btn-sm btn-outline-secondary me-1" title="Vista rápida" onclick="${viewAction}"><i class="fas fa-eye"></i></button>`;
+          const editBtn = (typeof window.openEditFacturaModal === 'function')
+            ? `<button type="button" class="btn btn-sm btn-outline-primary" title="Editar" onclick="openEditFacturaModal('${tipo}', ${id})"><i class="fas fa-pen"></i></button>`
+            : '';
+          return viewBtn + editBtn;
+        }
+      }
+    ];
+
+    const commonOptions = {
+      searching:false,
+      paging:false,
+      info:false,
+      order:[[2,'asc']], // ordenar por Vencimiento (nuevo índice)
+      columnDefs: [
+        { targets: 0, responsivePriority: 3 }, // Entidad
+        { targets: 1, responsivePriority: 5 }, // Factura
+        { targets: 2, responsivePriority: 4 }, // Vencimiento
+        { targets: 3, responsivePriority: 6 }, // Monto
+        { targets: 4, responsivePriority: 1 }, // Estado
+        { targets: 5, responsivePriority: 1 }  // Acciones
+      ]
+    };
+
+    initDataTable('home-clientes-vencidas', cData, cols, commonOptions);
+    initDataTable('home-proveedores-vencidas', pData, cols, commonOptions);
+  } catch(e) {
+    console.error('Error inicializando tablas de Home:', e);
+  }
+});
