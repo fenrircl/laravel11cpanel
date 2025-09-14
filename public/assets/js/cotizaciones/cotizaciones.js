@@ -315,6 +315,35 @@ $(document).ready(function() {
             const fileId = uploadJson.file && uploadJson.file.id;
             if (!fileUrl && !filePath && !fileId) throw new Error('Respuesta de subida sin URL/Path/ID');
 
+            // Esperar a que el archivo esté disponible en R2 (eventual consistency)
+            const checkUrl = (uploadJson.file && uploadJson.file.download_url)
+                ? uploadJson.file.download_url
+                : (fileUrl && /^https?:\/\//i.test(fileUrl) ? fileUrl : buildApiUrl(`files/download/${filePath}`));
+
+            const waitForFile = async (url, tries = 20, interval = 250) => {
+                for (let i = 0; i < tries; i++) {
+                    try {
+                        // Intentar HEAD primero
+                        const r = await fetch(url, { method: 'HEAD', cache: 'no-store', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache' } });
+                        if (r.ok) return true;
+                        // Si el servidor no permite HEAD, probar GET con Range mínimo
+                        if (r.status === 405) {
+                            const r2 = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-0', 'X-Requested-With': 'XMLHttpRequest', 'Cache-Control': 'no-cache' }, cache: 'no-store' });
+                            if (r2.ok) return true;
+                        }
+                    } catch (e) {
+                        // Ignorar y reintentar
+                    }
+                    await new Promise(res => setTimeout(res, interval));
+                }
+                return false;
+            };
+
+            const available = await waitForFile(checkUrl);
+            if (!available) {
+                throw new Error('El archivo aún no está disponible. Intente nuevamente en unos segundos.');
+            }
+
             Swal.close();
             Swal.fire({ title:'Enviando...', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
 
