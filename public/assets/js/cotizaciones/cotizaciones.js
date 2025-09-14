@@ -313,7 +313,7 @@ $(document).ready(function() {
             const fileUrl = uploadJson.url || (uploadJson.file && (uploadJson.file.download_url || uploadJson.file.url || uploadJson.file.path));
             const filePath = uploadJson.file && uploadJson.file.path;
             const fileId = uploadJson.file && uploadJson.file.id;
-            if (!fileUrl && !filePath && !fileId) throw new Error('Respuesta de subida sin URL/Path');
+            if (!fileUrl && !filePath && !fileId) throw new Error('Respuesta de subida sin URL/Path/ID');
 
             Swal.close();
             Swal.fire({ title:'Enviando...', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
@@ -321,7 +321,6 @@ $(document).ready(function() {
             const payload = new FormData();
             payload.append('to', to);
             if (msg) payload.append('message', msg);
-            // Enviar referencia al archivo en lugar del base64
             if (fileId) payload.append('file_id', String(fileId));
             if (filePath) payload.append('file_path', String(filePath));
             if (fileUrl) payload.append('file_url', String(fileUrl));

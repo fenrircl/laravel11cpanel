@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogger;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class CotizacionesController extends Controller
 {
@@ -250,24 +251,29 @@ class CotizacionesController extends Controller
                     $fr = \App\Models\FilesRegistry::find($fileId);
                     if ($fr && $fr->path) {
                         $filePath = $fr->path;
-                        $filename = $fr->name ?: $filename;
+                        $filename = $fr->file_name ?: $filename;
                     }
                 }
                 if ($filePath && !$fileUrl) {
-                    // Intentar leer desde storage o public
-                    $local = base_path($filePath);
-                    if (!is_readable($local)) {
-                        $local = storage_path('app/' . ltrim($filePath, '/'));
-                    }
-                    if (!is_readable($local)) {
-                        $local = public_path(ltrim($filePath, '/'));
-                    }
-                    if (is_readable($local)) {
-                        $pdfBinary = @file_get_contents($local);
+                    // Intentar leer primero desde R2 directamente
+                    if (Storage::disk('r2')->exists($filePath)) {
+                        $pdfBinary = Storage::disk('r2')->get($filePath);
                     } else {
-                        // Intentar vía endpoint de descarga si existe
-                        $dlUrl = url('/files/download/' . ltrim($filePath, '/'));
-                        $pdfBinary = @file_get_contents($dlUrl);
+                        // Fallback: rutas locales
+                        $local = base_path($filePath);
+                        if (!is_readable($local)) {
+                            $local = storage_path('app/' . ltrim($filePath, '/'));
+                        }
+                        if (!is_readable($local)) {
+                            $local = public_path(ltrim($filePath, '/'));
+                        }
+                        if (is_readable($local)) {
+                            $pdfBinary = @file_get_contents($local);
+                        } else {
+                            // Último intento vía endpoint de descarga
+                            $dlUrl = url('/files/download/' . ltrim($filePath, '/'));
+                            $pdfBinary = @file_get_contents($dlUrl);
+                        }
                     }
                 }
                 if (!$pdfBinary && $fileUrl) {
@@ -283,7 +289,22 @@ class CotizacionesController extends Controller
         }
 
         if ($pdfBinary) {
-            // ...existing code continues...
+            $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
+            $body = $request->input('message') ?: (
+                'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
+            );
+            // Usar destinatario real (calculado arriba)
+            $to = "cristofer.miranda@gmail.com";
+            // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
+            $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
+            if (!($result['success'] ?? false)) {
+                $err = $result['error'] ?? 'Error desconocido en API de correo';
+                throw new \RuntimeException($err);
+            }
+
+            AuditLogger::log($request, 'send_email', 'cotizaciones', $cotizacion->id, 'Envió cotización por correo a ' . $to);
+
+            return response()->json(['success' => true]);
         } else {
             // 2) Si no hay archivo referenciado, aceptar subida directa (archivo o base64)
             if ($request->hasFile('pdf')) {
@@ -316,7 +337,6 @@ class CotizacionesController extends Controller
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
-            $to = "cristofer.miranda@gmail.com";
             
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
@@ -361,17 +381,14 @@ class CotizacionesController extends Controller
         }
 
         $fromAddr = config('mail.from.address', 'no-reply@' . $domain);
-        // Asegurar dominio válido para Mailgun
         if (strpos($fromAddr, '@') === false) {
             $fromAddr = 'no-reply@' . $domain;
         } elseif (!str_ends_with(strtolower($fromAddr), '@' . strtolower($domain))) {
-            // Si el from no pertenece al dominio de Mailgun, usar uno válido del dominio
             $fromAddr = 'no-reply@' . $domain;
         }
         $fromName = config('mail.from.name', 'Sociedad Aceros Era Ltda.');
         $from = sprintf('%s <%s>', $fromName, $fromAddr);
 
-        // Crear archivo temporal para adjunto
         $tmpPath = tempnam(sys_get_temp_dir(), 'pdf_');
         if ($tmpPath === false) {
             return ['success' => false, 'error' => 'No se pudo crear archivo temporal'];

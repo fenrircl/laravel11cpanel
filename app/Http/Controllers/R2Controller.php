@@ -181,9 +181,8 @@ class R2Controller extends Controller
                         'message' => 'Cotización no encontrada'
                     ], 404);
                 }
-                // Por cliente (preferencia del usuario)
-                $storageBasePath = "cotizaciones/clientes/{$cotizacion->client_id}/{$cotizacion->id}";
-                $facturaPath = $storageBasePath;
+                // Path solicitado: cotizaciones/{idCotizacion}/nombrearchivo
+                $facturaPath = "cotizaciones/{$cotizacion->id}";
             } else {
                 // Para otros tipos de modelos, usar estructura original
                 $facturaPath = "facturas/{$modelId}";
@@ -230,6 +229,7 @@ class R2Controller extends Controller
 
             return response()->json([
                 'success' => true,
+                'status' => 'success',
                 'message' => 'Archivo subido exitosamente',
                 'file' => [
                     'id' => $fileRegistry->id,
@@ -243,6 +243,7 @@ class R2Controller extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
+                'status' => 'error',
                 'message' => 'Error al procesar el archivo: ' . $e->getMessage()
             ], 500);
         }
