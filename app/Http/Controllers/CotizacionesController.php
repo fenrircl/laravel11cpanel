@@ -8,6 +8,7 @@ use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogger;
+use Illuminate\Support\Facades\Mail;
 
 class CotizacionesController extends Controller
 {
@@ -20,7 +21,7 @@ class CotizacionesController extends Controller
 
     public function create()
     {
-        $clientes = Cliente::select('id','name','rut')->orderBy('name')->get();
+        $clientes = Cliente::select('id','name','rut','email')->orderBy('name')->get();
         return view('cotizacion.create', compact('clientes'));
     }
 
@@ -34,6 +35,7 @@ class CotizacionesController extends Controller
             'date' => 'required|date',
             'client_id' => 'required|exists:clients,id',
             'work' => 'nullable|string|max:255',
+            'email' => 'nullable|email',
             'items' => 'required|array|min:1',
             'items.*.description' => 'required|string|max:255',
             'items.*.amount' => 'required|integer|min:1',
@@ -62,6 +64,7 @@ class CotizacionesController extends Controller
                 'date' => $validated['date'],
                 'client_id' => $validated['client_id'],
                 'work' => $validated['work'] ?? null,
+                'email' => $validated['email'] ?? null,
                 'total' => $grossTotal, // Guardamos total con IVA
             ]);
 
@@ -81,8 +84,8 @@ class CotizacionesController extends Controller
 
     public function getData()
     {
-        $cotizaciones = Cotizacion::with(['cliente:id,name,rut'])
-            ->select(['id','client_id','agent','date','total','work','created_at'])
+        $cotizaciones = Cotizacion::with(['cliente:id,name,rut,email'])
+            ->select(['id','client_id','agent','date','total','work','email','created_at'])
             ->orderByDesc('created_at')
             ->get();
         return response()->json(['data' => $cotizaciones]);
@@ -103,7 +106,7 @@ class CotizacionesController extends Controller
     public function edit(Cotizacion $cotizacion)
     {
         $cotizacion->load('items');
-        $clientes = Cliente::select('id','name','rut')->orderBy('name')->get();
+        $clientes = Cliente::select('id','name','rut','email')->orderBy('name')->get();
         return view('cotizacion.edit', compact('cotizacion','clientes'));
     }
 
@@ -116,6 +119,7 @@ class CotizacionesController extends Controller
             'date' => 'required|date',
             'client_id' => 'required|exists:clients,id',
             'work' => 'nullable|string|max:255',
+            'email' => 'nullable|email',
             'items' => 'required|array|min:1',
             'items.*.id' => 'nullable|integer|exists:quotation_items,id',
             'items.*.description' => 'required|string|max:255',
@@ -145,6 +149,7 @@ class CotizacionesController extends Controller
                 'date' => $validated['date'],
                 'client_id' => $validated['client_id'],
                 'work' => $validated['work'] ?? null,
+                'email' => $validated['email'] ?? null,
                 'total' => $grossTotal,
             ]);
 
@@ -181,22 +186,14 @@ class CotizacionesController extends Controller
     public function pdf(Cotizacion $cotizacion)
     {
         $cotizacion->load(['cliente', 'items']);
-        if (method_exists($cotizacion, 'setRelation')) {
-            $cotizacion->setRelation('client', $cotizacion->cliente);
-        }
-        $items = $cotizacion->items;
-        $cityname = optional($cotizacion->cliente)->cityname;
 
         AuditLogger::log(request(), 'export_pdf', 'cotizaciones', $cotizacion->id, 'Exportó PDF cotización #' . $cotizacion->id);
 
-        $data = [
-            'asset_css' => ['cotizaciones/pdf'],
+        return view('cotizacion.index_pdf', [
             'quotation' => $cotizacion,
-            'item' => $items,
-            'cityname' => $cityname,
-        ];
-
-        return view('cotizacion.pdf', $data);
+            'asset_css' => ['cotizaciones/pdf'],
+            'asset_js' => ['cotizaciones/cotizacion_pdf'],
+        ]);
     }
 
     public function destroy(Request $request, Cotizacion $cotizacion)
@@ -215,5 +212,161 @@ class CotizacionesController extends Controller
             return response()->json(['success' => true]);
         }
         return redirect()->route('cotizaciones.index')->with('success', 'Cotización eliminada');
+    }
+
+    public function sendEmail(Request $request, Cotizacion $cotizacion)
+    {
+        $cotizacion->load('cliente');
+
+        // Validaciones mínimas: aceptar archivo PDF o base64, y correo opcional
+        $request->validate([
+            'to' => 'nullable|email',
+            'message' => 'nullable|string|max:5000',
+            'pdf' => 'nullable|file|mimetypes:application/pdf|max:10240', // 10MB
+            'pdf_base64' => 'nullable|string',
+        ]);
+
+        $to = $request->input('to')
+            ?: ($cotizacion->email ?: optional($cotizacion->cliente)->email);
+
+        if (!$to) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No existe un correo de destino (cotización o cliente).'
+            ], 422);
+        }
+
+        // Obtener binario del PDF ya generado en el cliente
+        $pdfBinary = null;
+        $filename = 'cotizacion_' . $cotizacion->id . '.pdf';
+
+        if ($request->hasFile('pdf')) {
+            $file = $request->file('pdf');
+            if (!$file->isValid()) {
+                return response()->json(['success' => false, 'message' => 'Archivo inválido'], 422);
+            }
+            $pdfBinary = file_get_contents($file->getRealPath());
+            $filename = $file->getClientOriginalName() ?: $filename;
+        } else {
+            $data = $request->input('pdf_base64');
+            if (!$data) {
+                return response()->json(['success' => false, 'message' => 'Falta el PDF'], 422);
+            }
+            // Soportar data URI o base64 puro
+            if (str_starts_with($data, 'data:')) {
+                $parts = explode(',', $data, 2);
+                $data = $parts[1] ?? '';
+            }
+            $decoded = base64_decode($data, true);
+            if ($decoded === false) {
+                return response()->json(['success' => false, 'message' => 'Base64 inválido'], 422);
+            }
+            $pdfBinary = $decoded;
+        }
+
+        try {
+            $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
+            $body = $request->input('message') ?: (
+                'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
+            );
+            //$to = 'cristofer.miranda@gmail.com'; // DEBUG
+            // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
+            $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
+            if (!($result['success'] ?? false)) {
+                $err = $result['error'] ?? 'Error desconocido en API de correo';
+                throw new \RuntimeException($err);
+            }
+
+            AuditLogger::log($request, 'send_email', 'cotizaciones', $cotizacion->id, 'Envió cotización por correo a ' . $to);
+
+            return response()->json(['success' => true]);
+        } catch (\Throwable $e) {
+            report($e);
+            $message = 'No se pudo enviar el correo';
+            $payload = [
+                'success' => false,
+                'message' => $message,
+            ];
+            if (config('app.debug')) {
+                // Incluir detalles útiles solo en modo debug
+                $payload['message'] = $message . ' (' . $e->getMessage() . ')';
+                $payload['error'] = $e->getMessage();
+                $payload['exception'] = get_class($e);
+                $payload['file'] = $e->getFile();
+                $payload['line'] = $e->getLine();
+            }
+            return response()->json($payload, 500);
+        }
+    }
+
+    // ==========================
+    // Envío de correo vía API (Mailgun) sin paquetes externos
+    // ==========================
+    private function sendEmailViaMailgunApi(string $to, string $subject, string $body, string $pdfBinary, string $filename): array
+    {
+        $domain = config('services.mailgun.domain');
+        $secret = config('services.mailgun.secret');
+        $endpoint = config('services.mailgun.endpoint', 'api.mailgun.net');
+
+        if (empty($domain) || empty($secret)) {
+            return ['success' => false, 'error' => 'Mailgun no está configurado (falta domain/secret)'];
+        }
+
+        $fromAddr = config('mail.from.address', 'no-reply@' . $domain);
+        // Asegurar dominio válido para Mailgun
+        if (strpos($fromAddr, '@') === false) {
+            $fromAddr = 'no-reply@' . $domain;
+        } elseif (!str_ends_with(strtolower($fromAddr), '@' . strtolower($domain))) {
+            // Si el from no pertenece al dominio de Mailgun, usar uno válido del dominio
+            $fromAddr = 'no-reply@' . $domain;
+        }
+        $fromName = config('mail.from.name', 'Sociedad Aceros Era Ltda.');
+        $from = sprintf('%s <%s>', $fromName, $fromAddr);
+
+        // Crear archivo temporal para adjunto
+        $tmpPath = tempnam(sys_get_temp_dir(), 'pdf_');
+        if ($tmpPath === false) {
+            return ['success' => false, 'error' => 'No se pudo crear archivo temporal'];
+        }
+        file_put_contents($tmpPath, $pdfBinary);
+
+        $url = sprintf('https://%s/v3/%s/messages', $endpoint, $domain);
+        $postFields = [
+            'from' => $from,
+            'to' => $to,
+            'subject' => $subject,
+            'text' => $body,
+            'attachment' => new \CURLFile($tmpPath, 'application/pdf', $filename),
+        ];
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_HTTPAUTH => CURLAUTH_BASIC,
+            CURLOPT_USERPWD => 'api:' . $secret,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postFields,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $response = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $err = curl_error($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        @unlink($tmpPath);
+
+        if ($errno) {
+            return ['success' => false, 'error' => 'cURL #' . $errno . ': ' . $err];
+        }
+
+        $decoded = json_decode((string)$response, true);
+        if ($status >= 200 && $status < 300) {
+            return ['success' => true, 'status' => $status, 'response' => $decoded ?: $response];
+        }
+
+        $msg = $decoded['message'] ?? (is_string($response) ? $response : 'Respuesta desconocida');
+        return ['success' => false, 'status' => $status, 'error' => $msg];
     }
 }

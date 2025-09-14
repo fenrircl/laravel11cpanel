@@ -109,6 +109,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/cotizaciones/{cotizacion}', [CotizacionesController::class, 'destroy'])->name('cotizaciones.destroy');
     Route::get('/cotizaciones/{cotizacion}/pdf', [CotizacionesController::class, 'pdf'])->name('cotizaciones.pdf');
     Route::get('/cotizaciones/{cotizacion}/export-upload', [CotizacionesController::class, 'exportPdfAndUpload'])->name('cotizaciones.export-upload');
+    Route::post('/cotizaciones/{cotizacion}/send-email', [CotizacionesController::class, 'sendEmail'])->name('cotizaciones.send-email');
 
     // Vista rápida y rutas por tipo para factura completa
     Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');

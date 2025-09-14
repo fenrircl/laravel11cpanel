@@ -11,7 +11,7 @@
         <select id="client_id" name="client_id" class="form-select" required>
           <option value="">Seleccione...</option>
           @foreach($clientes as $c)
-          <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->rut }})</option>
+          <option value="{{ $c->id }}" data-rut="{{ $c->rut }}" data-email="{{ $c->email }}">{{ $c->name }} ({{ $c->rut }})</option>
           @endforeach
         </select>
       </div>
@@ -23,6 +23,10 @@
       <div class="col-md-3">
         <label class="form-label">Agente</label>
         <input type="text" id="agent" name="agent" class="form-control" required>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Email (opcional)</label>
+        <input type="email" name="email" id="cotizacionEmail" class="form-control form-control-sm" placeholder="cliente@correo.com">
       </div>
       <div class="col-12">
         <label class="form-label">Trabajo</label>
@@ -104,5 +108,39 @@
   });
   recalc();
 })();
+
+// Inicializar Select2 para clientes con plantilla
+$(function(){
+  const $select = $('#client_id');
+  if ($select.length && $.fn.select2) {
+    $select.select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'Seleccione cliente...',
+      allowClear: true,
+      templateResult: function (item) {
+        if (!item.id) return item.text;
+        const $opt = $(item.element);
+        const rut = $opt.data('rut')||'';
+        const email = $opt.data('email')||'';
+        const name = item.text.replace(/\s*\(.+\)$/, '');
+        const html = `<div class="d-flex flex-column"><div class="fw-semibold">${name}</div><small class="text-muted">${rut}${email? ' • '+email: ''}</small></div>`;
+        return $(html);
+      },
+      templateSelection: function(item){ return item.text; }
+    });
+
+    // Al seleccionar, si el campo Email está vacío, prellenarlo con el email del cliente
+    $select.on('select2:select', function(e){
+      const email = $(e.params.data.element).data('email');
+      const $email = $('#cotizacionEmail');
+      if (email && $email.val().trim() === '') {
+        $email.val(email);
+      }
+    });
+
+    // Si se limpia el select, no tocar el email (el usuario podría haberlo editado)
+  }
+});
 </script>
 @endpush

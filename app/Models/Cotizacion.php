@@ -18,6 +18,7 @@ class Cotizacion extends Model
         'date',
         'client_id',
         'work',
+        'email', // opcional
     ];
 
     protected $casts = [

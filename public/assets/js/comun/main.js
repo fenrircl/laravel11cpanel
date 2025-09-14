@@ -2385,6 +2385,10 @@ if (typeof window.routeUrl !== 'function') {
           return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/edit');
         case 'cotizaciones.pdf':
           return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/pdf');
+        case 'cotizaciones.send-email':
+          return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/send-email');
+        case 'cotizaciones.export-upload':
+          return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/export-upload');
         default:
           // Fallback genérico: convertir puntos a slashes y anexar param si existe
           var base = String(name || '').replace(/\.+/g, '/');

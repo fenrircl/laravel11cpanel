@@ -32,6 +32,11 @@
             </div>
         </div>
     </div>
+
+    <!-- Host oculto para la plantilla PDF (no afecta el layout) -->
+    <div id="pdfHiddenHost" aria-hidden="true" style="position:fixed; left:-200vw; top:0; width:1000px; background:#fff; pointer-events:none; z-index:-1;">
+        @include('cotizacion.pdf')
+    </div>
 </div>
 
 <!-- Modal Detalles -->
@@ -50,3 +55,12 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<link rel="stylesheet" href="{{ asset('assets/css/cotizaciones/pdf.css') }}">
+<style>
+  /* Evita parpadeos en algunos navegadores cuando se genera el PDF */
+  #pdfHiddenHost { contain: content; }
+</style>
+@endpush
+

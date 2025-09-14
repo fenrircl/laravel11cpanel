@@ -17,16 +17,20 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label">Cliente</label>
-                <select name="client_id" class="form-select" required>
+                <select name="client_id" id="client_id" class="form-select" required>
                     <option value="">Seleccionar</option>
                     @foreach($clientes as $c)
-                        <option value="{{ $c->id }}" {{ (int) old('client_id', $cotizacion->client_id) === (int) $c->id ? 'selected' : '' }}>{{ $c->name }} ({{ $c->rut }})</option>
+                        <option value="{{ $c->id }}" data-rut="{{ $c->rut }}" data-email="{{ $c->email }}" {{ (int) old('client_id', $cotizacion->client_id) === (int) $c->id ? 'selected' : '' }}>{{ $c->name }} ({{ $c->rut }})</option>
                     @endforeach
                 </select>
             </div>
             <div class="col-12">
                 <label class="form-label">Trabajo</label>
                 <input type="text" name="work" class="form-control" value="{{ old('work', $cotizacion->work) }}">
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Email (opcional)</label>
+                <input type="email" name="email" id="cotizacionEmail" class="form-control" value="{{ old('email', $cotizacion->email) }}" placeholder="cliente@correo.com">
             </div>
         </div>
 
@@ -152,5 +156,35 @@
     });
   }
 })();
+
+$(function(){
+  const $select = $('#client_id');
+  if ($select.length && $.fn.select2) {
+    $select.select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'Seleccione cliente...',
+      allowClear: true,
+      templateResult: function (item) {
+        if (!item.id) return item.text;
+        const $opt = $(item.element);
+        const rut = $opt.data('rut')||'';
+        const email = $opt.data('email')||'';
+        const name = item.text.replace(/\s*\(.+\)$/, '');
+        const html = `<div class="d-flex flex-column"><div class="fw-semibold">${name}</div><small class="text-muted">${rut}${email? ' • '+email: ''}</small></div>`;
+        return $(html);
+      },
+      templateSelection: function(item){ return item.text; }
+    });
+
+    $select.on('select2:select', function(e){
+      const email = $(e.params.data.element).data('email');
+      const $email = $('#cotizacionEmail');
+      if (email && $email.val().trim() === '') {
+        $email.val(email);
+      }
+    });
+  }
+});
 </script>
 @endpush
