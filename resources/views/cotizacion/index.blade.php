@@ -41,7 +41,7 @@
 
 <!-- Modal Detalles -->
 <div class="modal fade" id="cotizacionDetailsModal" tabindex="-1" aria-labelledby="cotizacionDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered modal-fullscreen-md-down">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="cotizacionDetailsModalLabel">Detalles de Cotización</h5>
@@ -61,6 +61,19 @@
 <style>
   /* Evita parpadeos en algunos navegadores cuando se genera el PDF */
   #pdfHiddenHost { contain: content; }
+
+  /* Mejorar visualización del modal de detalles */
+  #cotizacionDetailsModal .modal-dialog { max-width: min(95vw, 1200px); }
+  #cotizacionDetailsModal .modal-body { max-height: calc(100vh - 180px); overflow: auto; }
+  #cotizacionDetailsContent img { max-width: 100%; height: auto; }
+  #cotizacionDetailsContent table { width: 100%; table-layout: fixed; }
+  #cotizacionDetailsContent .cot-items-table { table-layout: fixed; }
+  #cotizacionDetailsContent .desc-cell {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  #cotizacionDetailsContent th, #cotizacionDetailsContent td { vertical-align: top; }
 </style>
 @endpush
 

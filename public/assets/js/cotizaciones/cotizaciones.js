@@ -62,31 +62,69 @@ $(document).ready(function() {
         // Obtener siempre desde API para asegurar items actualizados
         fetchRecord(buildApiUrl(`cotizaciones/${id}`), function(res) {
             const c = res.cotizacion || res;
+            console.log('Cotización data:', c);
             let itemsHtml = '';
             let netSubtotal = 0;
             if (c.items && c.items.length) {
-                itemsHtml = `<table class="table table-sm"><thead><tr><th>Descripción</th><th class="text-end">Cant.</th><th class="text-end">Precio Neto</th><th class="text-end">Total Neto</th></tr></thead><tbody>` +
+                itemsHtml = `
+                <table class="table table-sm cot-items-table">
+                  <colgroup>
+                    <col style="width:62%">
+                    <col style="width:8%">
+                    <col style="width:15%">
+                    <col style="width:15%">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Descripción</th>
+                      <th class="text-end">Cant.</th>
+                      <th class="text-end">Precio Neto</th>
+                      <th class="text-end">Total Neto</th>
+                    </tr>
+                  </thead>
+                  <tbody>` +
                     c.items.map(it => {
                         const lineTotal = (parseInt(it.amount||0) * parseInt(it.price||0));
                         netSubtotal += lineTotal;
                         return `
                         <tr>
-                            <td>${it.description}</td>
+                            <td class="desc-cell text-break">${it.description}</td>
                             <td class="text-end">${it.amount}</td>
                             <td class="text-end">${formatCurrency(it.price, 'CLP')}</td>
                             <td class="text-end">${formatCurrency(lineTotal, 'CLP')}</td>
                         </tr>`;}).join('') +
-                    `</tbody></table>`;
+                  `</tbody>
+                </table>`;
             }
             const iva = Math.round(netSubtotal * 0.19);
             const total = netSubtotal + iva; // debería coincidir con c.total
             const summaryHtml = `
                 <div class="mt-2">
                     <div class="d-flex justify-content-end">
-                        <table class="table table-sm w-auto mb-0">
-                            <tr><th class="text-end pe-3">Subtotal (Neto)</th><td class="text-end">${formatCurrency(netSubtotal, 'CLP')}</td></tr>
-                            <tr><th class="text-end pe-3">IVA 19%</th><td class="text-end">${formatCurrency(iva, 'CLP')}</td></tr>
-                            <tr><th class="text-end pe-3">Total</th><td class="text-end fw-bold">${formatCurrency(total, 'CLP')}</td></tr>
+                        <table class="table table-sm cot-items-table mb-0">
+                          <colgroup>
+                            <col style="width:62%">
+                            <col style="width:8%">
+                            <col style="width:15%">
+                            <col style="width:15%">
+                          </colgroup>
+                          <tbody>
+                            <tr>
+                              <td colspan="2"></td>
+                              <th class="text-end pe-3">Subtotal (Neto)</th>
+                              <td class="text-end">${formatCurrency(netSubtotal, 'CLP')}</td>
+                            </tr>
+                            <tr>
+                              <td colspan="2"></td>
+                              <th class="text-end pe-3">IVA 19%</th>
+                              <td class="text-end">${formatCurrency(iva, 'CLP')}</td>
+                            </tr>
+                            <tr>
+                              <td colspan="2"></td>
+                              <th class="text-end pe-3">Total</th>
+                              <td class="text-end fw-bold">${formatCurrency(total, 'CLP')}</td>
+                            </tr>
+                          </tbody>
                         </table>
                     </div>
                 </div>`;
