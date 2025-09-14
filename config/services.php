@@ -41,4 +41,8 @@ return [
         ],
     ],
 
+    'mcp' => [
+        'bearer' => env('MCP_BEARER'),
+    ],
+
 ];

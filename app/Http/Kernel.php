@@ -42,5 +42,6 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         // ...existing code...
         'admin.role' => \App\Http\Middleware\AdminRoleMiddleware::class,
+        'auth.bearer' => \App\Http\Middleware\VerifyApiBearerToken::class,
     ];
 }

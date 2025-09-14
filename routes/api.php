@@ -28,3 +28,8 @@ Route::post('/echo', function (Request $request) {
         'recibido' => $request->all()
     ]);
 });
+
+// Endpoint MCP dinámico protegido con Bearer
+Route::post('/query', [\App\Http\Controllers\McpController::class, 'handle'])
+    ->middleware('auth.bearer')
+    ->name('api.query');
