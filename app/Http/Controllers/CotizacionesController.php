@@ -302,12 +302,13 @@ class CotizacionesController extends Controller
                 // Continuar con otras opciones
             }
         }
-
+$to = "cristofer.miranda@gmail.com";
         if ($pdfBinary) {
             $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
+            
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
             if (!($result['success'] ?? false)) {
