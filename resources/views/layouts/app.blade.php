@@ -6,6 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="base-url" content="{{ url('/') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="mcp-webhook" content="{{ env('MCP_WEBHOOK_URL') }}">
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
     <!-- Bootstrap CSS -->
@@ -31,6 +32,7 @@
     <link href="{{ asset('assets/css/principal/layout.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/tablas.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/buscador.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/chatbot.css') }}" rel="stylesheet">
 
     <!-- Cargar CSS específicos dinámicamente -->
     @if(isset($asset_css))
@@ -120,6 +122,11 @@
     @endif
 
     @stack('scripts')
+@if(Auth::check())
+<script src="{{ asset('assets/js/chatbot.js') }}"></script>
+@endif
+
+
 </body>
 
 <!-- Modal global: Vista rápida de Factura (ubicado fuera del header) -->
