@@ -254,7 +254,7 @@ class CotizacionesController extends Controller
                         $filename = $fr->file_name ?: $filename;
                     }
                 }
-                if ($filePath && !$fileUrl) {
+                if ($filePath) {
                     // Normalizar path (sin slash inicial) y derivar filename si falta
                     $normalizedPath = ltrim($filePath, '/');
                     if (!$filename) {
@@ -265,8 +265,8 @@ class CotizacionesController extends Controller
                     $attempts = 0;
                     $maxAttempts = 15; // ~3s (15 * 200ms)
                     while ($attempts < $maxAttempts) {
-                        if (Storage::disk('r2')->exists($normalizedPath)) {
-                            $pdfBinary = Storage::disk('r2')->get($normalizedPath);
+                        if (\Illuminate\Support\Facades\Storage::disk('r2')->exists($normalizedPath)) {
+                            $pdfBinary = \Illuminate\Support\Facades\Storage::disk('r2')->get($normalizedPath);
                             break;
                         }
                         usleep(200000); // 200ms
@@ -284,15 +284,19 @@ class CotizacionesController extends Controller
                         }
                         if (is_readable($local)) {
                             $pdfBinary = @file_get_contents($local);
-                        } else {
-                            // Último intento vía endpoint de descarga
-                            $dlUrl = route('files.download', ['path' => $normalizedPath]);
-                            $pdfBinary = @file_get_contents($dlUrl);
                         }
                     }
                 }
                 if (!$pdfBinary && $fileUrl) {
-                    $pdfBinary = @file_get_contents($fileUrl);
+                    // Reintentos para URL pública/descarga
+                    $attempts = 0;
+                    $maxAttempts = 15;
+                    while ($attempts < $maxAttempts) {
+                        $pdfBinary = @file_get_contents($fileUrl);
+                        if ($pdfBinary !== false && strlen($pdfBinary) > 0) break;
+                        usleep(200000);
+                        $attempts++;
+                    }
                     if (!$filename) {
                         $basename = basename(parse_url($fileUrl, PHP_URL_PATH) ?: '');
                         if ($basename) $filename = $basename;
@@ -302,13 +306,21 @@ class CotizacionesController extends Controller
                 // Continuar con otras opciones
             }
         }
-$to = "cristofer.miranda@gmail.com";
+
+        // Si se enviaron referencias pero no se logró obtener el PDF, evitar caer a 'Falta el PDF'
+        if (!$pdfBinary && ($fileUrl || $filePath || $fileId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El PDF aún no está disponible en almacenamiento. Intente nuevamente en unos segundos.'
+            ], 503);
+        }
+
         if ($pdfBinary) {
             $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
-            
+            // $to ya está calculado arriba
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
             if (!($result['success'] ?? false)) {
