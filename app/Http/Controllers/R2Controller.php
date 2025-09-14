@@ -185,10 +185,10 @@ class R2Controller extends Controller
                 $facturaPath = "cotizaciones/{$cotizacion->id}";
             } elseif ($modelType === 'App\\Cliente') {
                 // Adjuntos por cliente
-                $facturaPath = "clientes/{$modelId}/adjuntos";
+                $facturaPath = "cliente/{$modelId}";
             } elseif ($modelType === 'App\\Proveedor') {
                 // Adjuntos por proveedor
-                $facturaPath = "proveedores/{$modelId}/adjuntos";
+                $facturaPath = "proveedor/{$modelId}";
             } else {
                 // Para otros tipos de modelos, usar estructura original
                 $facturaPath = "facturas/{$modelId}";

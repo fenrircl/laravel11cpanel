@@ -2389,6 +2389,14 @@ if (typeof window.routeUrl !== 'function') {
           return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/send-email');
         case 'cotizaciones.export-upload':
           return buildApiUrl('cotizaciones/' + encodeURIComponent(param) + '/export-upload');
+        // Rutas anidadas de clientes
+        case 'clientes.files':
+          return buildApiUrl('clientes/' + encodeURIComponent(param) + '/files');
+        case 'clientes.cotizaciones.files':
+          return buildApiUrl('clientes/' + encodeURIComponent(param) + '/cotizaciones/files');
+        // Rutas de archivos
+        case 'files.delete':
+          return buildApiUrl('files/' + encodeURIComponent(param));
         default:
           // Fallback genérico: convertir puntos a slashes y anexar param si existe
           var base = String(name || '').replace(/\.+/g, '/');

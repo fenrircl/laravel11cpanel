@@ -11,7 +11,6 @@
         </div>
     </div>
 
-    @include('clientes.partials.adjuntos')
 
     <div class="card shadow-sm mb-3">
         <div class="card-body">
@@ -37,30 +36,11 @@
                 Mostrar/Ocultar
             </button>
         </div>
+        
         <div id="filesCollapse" class="collapse">
             <div class="card-body">
-                @if(isset($files) && count($files))
-                    <ul class="list-group">
-                        @foreach($files as $f)
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="fas fa-file"></i>
-                                    <div>
-                                        <div class="fw-semibold">{{ $f->file_name ?? basename($f->path) }}</div>
-                                        <small class="text-muted">{{ $f->mime_type }} · {{ number_format(($f->size ?? 0)/1024, 0, ',', '.') }} KB · {{ $f->created_at }}</small>
-                                    </div>
-                                </div>
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary" data-download-path="{{ $f->path }}">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                </div>
-                            </li>
-                        @endforeach
-                    </ul>
-                @else
-                    <div class="text-muted">Sin archivos asociados.</div>
-                @endif
+                @include('clientes.partials.adjuntos')
+
             </div>
         </div>
     </div>

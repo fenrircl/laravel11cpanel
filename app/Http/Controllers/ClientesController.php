@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Cliente; 
 use App\Models\FilesRegistry;
 use App\Services\AuditLogger;
+use App\Models\Cotizacion;
 
 class ClientesController extends Controller
 {
@@ -88,11 +89,25 @@ class ClientesController extends Controller
             return response()->json(['cliente' => $cliente]);
         }
 
-        // Archivos asociados en files_registry con model_type 'App\\Client'
-        $files = FilesRegistry::where('model_type', 'App\\Client')
+        // Archivos asociados en files_registry:
+        // - Adjuntos directos del cliente (model_type 'App\\Cliente')
+        // - PDFs de cotizaciones del cliente (model_type 'App\\Cotizacion')
+        $clienteFiles = FilesRegistry::where('model_type', 'App\\Cliente')
             ->where('model_id', $cliente->id)
             ->orderByDesc('created_at')
             ->get();
+
+        $cotizacionIds = Cotizacion::where('client_id', $cliente->id)->pluck('id');
+        $cotizacionFiles = collect();
+        if ($cotizacionIds->isNotEmpty()) {
+            $cotizacionFiles = FilesRegistry::where('model_type', 'App\\Cotizacion')
+                ->whereIn('model_id', $cotizacionIds)
+                ->orderByDesc('created_at')
+                ->get();
+        }
+
+        // Combinar y ordenar por fecha de creación descendente
+        $files = $clienteFiles->concat($cotizacionFiles)->sortByDesc('created_at')->values();
 
         $data = [
             'cliente' => $cliente,
