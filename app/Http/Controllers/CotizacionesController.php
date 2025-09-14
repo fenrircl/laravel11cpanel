@@ -269,7 +269,7 @@ class CotizacionesController extends Controller
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
-            //$to = 'cristofer.miranda@gmail.com'; // DEBUG
+            $to = 'cristofer.miranda@gmail.com'; // DEBUG
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
             if (!($result['success'] ?? false)) {
