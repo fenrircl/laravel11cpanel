@@ -569,7 +569,8 @@ class McpController extends Controller
     {
         $query = $this->buildFacturaBaseQuery($filtros);
         // Orden
-        $sortBy = in_array(($filtros['sort_by'] ?? 'date'), ['date','amount','invoice','id']) ? $filtros['sort_by'] : 'date';
+        $sortByInput = $filtros['sort_by'] ?? 'date';
+        $sortBy = in_array($sortByInput, ['date','amount','invoice','id'], true) ? $sortByInput : 'date';
         $sortDir = strtolower(($filtros['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDir);
 
@@ -592,14 +593,16 @@ class McpController extends Controller
                         ->orWhere('work', 'like', "%{$q}%");
                     });
                 }
-                $sortBy = in_array(($filtros['sort_by'] ?? 'date'), ['date','total','id']) ? $filtros['sort_by'] : 'date';
+                $sortByInput = $filtros['sort_by'] ?? 'date';
+                $sortBy = in_array($sortByInput, ['date','total','id'], true) ? $sortByInput : 'date';
                 $sortDir = strtolower(($filtros['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy($sortBy, $sortDir);
                 return $this->paginateAndTransform($query, $filtros, fn($c) => $this->transformCotizacion($c));
 
             case 'listar':
                 $query = $this->buildCotizacionBaseQuery($filtros);
-                $sortBy = in_array(($filtros['sort_by'] ?? 'date'), ['date','total','id']) ? $filtros['sort_by'] : 'date';
+                $sortByInput = $filtros['sort_by'] ?? 'date';
+                $sortBy = in_array($sortByInput, ['date','total','id'], true) ? $sortByInput : 'date';
                 $sortDir = strtolower(($filtros['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
                 $query->orderBy($sortBy, $sortDir);
                 return $this->paginateAndTransform($query, $filtros, fn($c) => $this->transformCotizacion($c));
@@ -638,7 +641,8 @@ class McpController extends Controller
     private function listCotizaciones(array $filtros)
     {
         $query = $this->buildCotizacionBaseQuery($filtros);
-        $sortBy = in_array(($filtros['sort_by'] ?? 'date'), ['date','total','id']) ? $filtros['sort_by'] : 'date';
+        $sortByInput = $filtros['sort_by'] ?? 'date';
+        $sortBy = in_array($sortByInput, ['date','total','id'], true) ? $sortByInput : 'date';
         $sortDir = strtolower(($filtros['sort_dir'] ?? 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortDir);
         return $this->paginateAndTransform($query, $filtros, fn($c) => $this->transformCotizacion($c));
