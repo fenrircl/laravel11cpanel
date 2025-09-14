@@ -183,6 +183,7 @@ class R2Controller extends Controller
                 }
                 // Por cliente (preferencia del usuario)
                 $storageBasePath = "cotizaciones/clientes/{$cotizacion->client_id}/{$cotizacion->id}";
+                $facturaPath = $storageBasePath;
             } else {
                 // Para otros tipos de modelos, usar estructura original
                 $facturaPath = "facturas/{$modelId}";

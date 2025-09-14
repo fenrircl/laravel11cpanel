@@ -283,12 +283,18 @@ $(document).ready(function() {
             };
 
             // Subir el PDF como archivo temporal en vez de enviarlo en base64
-            const blob = await html2pdf().from(printable).set(opt).output('blob');
+            // Obtener Blob de forma compatible
+            const pdfWorker = html2pdf().from(printable).set(opt).toPdf();
+            const jsPdfInstance = await pdfWorker.get('pdf');
+            const blob = jsPdfInstance.output('blob');
+
             const tmpForm = new FormData();
             tmpForm.append('file', blob, `cotizacion_${id}.pdf`);
-            // Puedes adjuntar metadatos opcionales
-            tmpForm.append('entity', 'cotizaciones');
-            tmpForm.append('entity_id', String(id));
+            // Campos requeridos por /files/upload
+            tmpForm.append('model_type', 'App\\Cotizacion');
+            tmpForm.append('model_id', String(id));
+            // Opcional: id real o metadata
+            // tmpForm.append('real_id', String(id));
 
             // Subir al endpoint existente de archivos
             const uploadResp = await fetch(buildApiUrl('files/upload'), {
@@ -301,9 +307,10 @@ $(document).ready(function() {
             });
             if (!uploadResp.ok) throw new Error('Fallo subiendo PDF temporal');
             const uploadJson = await uploadResp.json();
-            if (uploadJson.status !== 'success') throw new Error(uploadJson.message || 'Fallo al subir PDF');
+            const ok = (uploadJson.status === 'success') || (uploadJson.success === true);
+            if (!ok) throw new Error(uploadJson.message || 'Fallo al subir PDF');
 
-            const fileUrl = uploadJson.url || (uploadJson.file && (uploadJson.file.url || uploadJson.file.path));
+            const fileUrl = uploadJson.url || (uploadJson.file && (uploadJson.file.download_url || uploadJson.file.url || uploadJson.file.path));
             const filePath = uploadJson.file && uploadJson.file.path;
             const fileId = uploadJson.file && uploadJson.file.id;
             if (!fileUrl && !filePath && !fileId) throw new Error('Respuesta de subida sin URL/Path');
