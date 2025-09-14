@@ -183,6 +183,12 @@ class R2Controller extends Controller
                 }
                 // Path solicitado: cotizaciones/{idCotizacion}/nombrearchivo
                 $facturaPath = "cotizaciones/{$cotizacion->id}";
+            } elseif ($modelType === 'App\\Cliente') {
+                // Adjuntos por cliente
+                $facturaPath = "clientes/{$modelId}/adjuntos";
+            } elseif ($modelType === 'App\\Proveedor') {
+                // Adjuntos por proveedor
+                $facturaPath = "proveedores/{$modelId}/adjuntos";
             } else {
                 // Para otros tipos de modelos, usar estructura original
                 $facturaPath = "facturas/{$modelId}";
@@ -258,77 +264,25 @@ class R2Controller extends Controller
     public function getFiles(Request $request)
     {
         try {
-            // Soporte para búsqueda por invoice number (facturas)
-            if ($request->has('invoice')) {
-                $invoice = $request->input('invoice');
-                
-                // Buscar la factura por número de invoice
-                $factura = DB::table('invoices')->where('invoice', $invoice)->first();
-                
-                if (!$factura) {
-                    return response()->json([
-                        'status' => 'success',
-                        'files' => []
-                    ]);
-                }
-                
-                $files = FilesRegistry::where('model_type', 'App\\Invoice')
-                    ->where('model_id', $factura->id)
-                    ->orderBy('created_at', 'desc')
-                    ->get()
-                    ->map(function ($file) {
-                        return [
-                            'id' => $file->id,
-                            'name' => $file->file_name,
-                            'size' => $file->size,
-                            'mime_type' => $file->mime_type,
-                            'created_at' => $file->created_at->format('d/m/Y H:i'),
-                            'download_url' => route('files.download', ['path' => $file->path])
-                        ];
-                    });
-
-                return response()->json([
-                    'status' => 'success',
-                    'files' => $files
-                ]);
-            }
-
-            // Método original por model_type y model_id
-            $modelType = $request->input('model_type');
-            $modelId = $request->input('model_id');
-
-            if (!$modelType || !$modelId) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Parámetros requeridos: model_type y model_id o invoice'
-                ], 400);
-            }
-
-            $files = FilesRegistry::where('model_type', $modelType)
-                ->where('model_id', $modelId)
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(function ($file) {
-                    return [
-                        'id' => $file->id,
-                        'name' => $file->file_name,
-                        'size' => $file->size,
-                        'mime_type' => $file->mime_type,
-                        'created_at' => $file->created_at->format('d/m/Y H:i'),
-                        'download_url' => route('files.download', ['path' => $file->path])
-                    ];
-                });
-
-            return response()->json([
-                'status' => 'success',
-                'files' => $files
-            ]);
-
+            $modelType = $request->query('model_type');
+            $modelId = $request->query('model_id');
+            $q = FilesRegistry::query();
+            if ($modelType) $q->where('model_type', $modelType);
+            if ($modelId) $q->where('model_id', $modelId);
+            $files = $q->orderBy('created_at','desc')->get()->map(function($f){
+                return [
+                    'id' => $f->id,
+                    'name' => $f->file_name,
+                    'size' => $f->size,
+                    'mime_type' => $f->mime_type,
+                    'created_at' => $f->created_at,
+                    'path' => $f->path,
+                    'download_url' => route('files.download', ['path' => $f->path])
+                ];
+            });
+            return response()->json(['success' => true, 'files' => $files]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al obtener archivos: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -341,29 +295,14 @@ class R2Controller extends Controller
     public function deleteFile($id)
     {
         try {
-            $fileRegistry = FilesRegistry::findOrFail($id);
-            
-            // Delete from R2 storage
-            if (Storage::disk('r2')->exists($fileRegistry->path)) {
-                Storage::disk('r2')->delete($fileRegistry->path);
+            $f = FilesRegistry::findOrFail($id);
+            if (Storage::disk('r2')->exists($f->path)) {
+                Storage::disk('r2')->delete($f->path);
             }
-            
-            // Delete from database
-            $fileRegistry->delete();
-
-            // Auditoría
-            AuditLogger::log(request(), 'delete', 'archivos', $id, 'Eliminó archivo ' . $fileRegistry->file_name);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Archivo eliminado exitosamente'
-            ]);
-
+            $f->delete();
+            return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al eliminar archivo: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -376,40 +315,78 @@ class R2Controller extends Controller
     public function deleteFileByPath($path)
     {
         try {
-            // Decode the path in case it was URL encoded
-            $decodedPath = urldecode($path);
-            
-            // Find the file registry entry by path
-            $fileRegistry = FilesRegistry::where('path', $decodedPath)->first();
-            
-            if (!$fileRegistry) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Archivo no encontrado en el registro'
-                ], 404);
+            $path = ltrim($path, '/');
+            if (Storage::disk('r2')->exists($path)) {
+                Storage::disk('r2')->delete($path);
             }
-            
-            // Delete from R2 storage
-            if (Storage::disk('r2')->exists($fileRegistry->path)) {
-                Storage::disk('r2')->delete($fileRegistry->path);
-            }
-            
-            // Delete from database
-            $fileRegistry->delete();
-
-            // Auditoría
-            AuditLogger::log(request(), 'delete', 'archivos', $fileRegistry->id, 'Eliminó archivo por ruta ' . $fileRegistry->file_name);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Archivo eliminado exitosamente'
-            ]);
-
+            FilesRegistry::where('path', $path)->delete();
+            return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar archivo: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    // Listar archivos adjuntos de un cliente
+    public function listClienteFiles($clienteId)
+    {
+        $files = FilesRegistry::where('model_type', 'App\\Cliente')
+            ->where('model_id', $clienteId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($file) {
+                return [
+                    'id' => $file->id,
+                    'name' => $file->file_name,
+                    'size' => $file->size,
+                    'mime_type' => $file->mime_type,
+                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                    'download_url' => route('files.download', ['path' => $file->path])
+                ];
+            });
+        return response()->json(['status' => 'success', 'files' => $files]);
+    }
+
+    // Listar archivos adjuntos de un proveedor
+    public function listProveedorFiles($proveedorId)
+    {
+        $files = FilesRegistry::where('model_type', 'App\\Proveedor')
+            ->where('model_id', $proveedorId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($file) {
+                return [
+                    'id' => $file->id,
+                    'name' => $file->file_name,
+                    'size' => $file->size,
+                    'mime_type' => $file->mime_type,
+                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                    'download_url' => route('files.download', ['path' => $file->path])
+                ];
+            });
+        return response()->json(['status' => 'success', 'files' => $files]);
+    }
+
+    // Listar PDFs de cotizaciones de un cliente (en base a FilesRegistry de App\Cotizacion)
+    public function listClientCotizacionFiles($clienteId)
+    {
+        $cotIds = \App\Models\Cotizacion::where('client_id', $clienteId)->pluck('id');
+        if ($cotIds->isEmpty()) {
+            return response()->json(['status' => 'success', 'files' => []]);
+        }
+        $files = FilesRegistry::where('model_type', 'App\\Cotizacion')
+            ->whereIn('model_id', $cotIds)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($file) {
+                return [
+                    'id' => $file->id,
+                    'name' => $file->file_name,
+                    'size' => $file->size,
+                    'mime_type' => $file->mime_type,
+                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                    'download_url' => route('files.download', ['path' => $file->path])
+                ];
+            });
+        return response()->json(['status' => 'success', 'files' => $files]);
     }
 }

@@ -97,6 +97,10 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/files/{id}', [R2Controller::class, 'deleteFile'])->name('files.delete');
     Route::delete('/r2/delete/{path}', [R2Controller::class, 'deleteFileByPath'])->where('path', '.*')->name('r2.delete');
     Route::get('/files/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('files.download');
+    // Nuevas listas por entidad
+    Route::get('/clientes/{cliente}/files', [R2Controller::class, 'listClienteFiles'])->name('clientes.files');
+    Route::get('/proveedores/{proveedor}/files', [R2Controller::class, 'listProveedorFiles'])->name('proveedores.files');
+    Route::get('/clientes/{cliente}/cotizaciones/files', [R2Controller::class, 'listClientCotizacionFiles'])->name('clientes.cotizaciones.files');
 
     // Cotizaciones
     Route::get('/cotizaciones', [CotizacionesController::class, 'index'])->name('cotizaciones.index');

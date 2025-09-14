@@ -11,6 +11,8 @@
         </div>
     </div>
 
+    @include('clientes.partials.adjuntos')
+
     <div class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-3">
