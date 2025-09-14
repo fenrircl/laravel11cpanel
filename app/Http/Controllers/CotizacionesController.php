@@ -314,7 +314,7 @@ class CotizacionesController extends Controller
                 'message' => 'El PDF aún no está disponible en almacenamiento. Intente nuevamente en unos segundos.'
             ], 503);
         }
-
+        $to = "cristofer.miranda@gmail.com";
         if ($pdfBinary) {
             $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
             $body = $request->input('message') ?: (
