@@ -255,23 +255,38 @@ class CotizacionesController extends Controller
                     }
                 }
                 if ($filePath && !$fileUrl) {
-                    // Intentar leer primero desde R2 directamente
-                    if (Storage::disk('r2')->exists($filePath)) {
-                        $pdfBinary = Storage::disk('r2')->get($filePath);
-                    } else {
+                    // Normalizar path (sin slash inicial) y derivar filename si falta
+                    $normalizedPath = ltrim($filePath, '/');
+                    if (!$filename) {
+                        $base = basename($normalizedPath);
+                        if ($base) { $filename = $base; }
+                    }
+                    // Intentar leer primero desde R2 directamente con reintentos breves
+                    $attempts = 0;
+                    $maxAttempts = 15; // ~3s (15 * 200ms)
+                    while ($attempts < $maxAttempts) {
+                        if (Storage::disk('r2')->exists($normalizedPath)) {
+                            $pdfBinary = Storage::disk('r2')->get($normalizedPath);
+                            break;
+                        }
+                        usleep(200000); // 200ms
+                        $attempts++;
+                    }
+
+                    if (!$pdfBinary) {
                         // Fallback: rutas locales
-                        $local = base_path($filePath);
+                        $local = base_path($normalizedPath);
                         if (!is_readable($local)) {
-                            $local = storage_path('app/' . ltrim($filePath, '/'));
+                            $local = storage_path('app/' . $normalizedPath);
                         }
                         if (!is_readable($local)) {
-                            $local = public_path(ltrim($filePath, '/'));
+                            $local = public_path($normalizedPath);
                         }
                         if (is_readable($local)) {
                             $pdfBinary = @file_get_contents($local);
                         } else {
                             // Último intento vía endpoint de descarga
-                            $dlUrl = url('/files/download/' . ltrim($filePath, '/'));
+                            $dlUrl = route('files.download', ['path' => $normalizedPath]);
                             $pdfBinary = @file_get_contents($dlUrl);
                         }
                     }
@@ -293,8 +308,6 @@ class CotizacionesController extends Controller
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
-            // Usar destinatario real (calculado arriba)
-            $to = "cristofer.miranda@gmail.com";
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
             if (!($result['success'] ?? false)) {
