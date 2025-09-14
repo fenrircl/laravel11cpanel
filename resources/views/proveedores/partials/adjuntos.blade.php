@@ -63,7 +63,7 @@
       if (!file) return;
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('model_type', 'App\\Proveedor');
+      fd.append('model_type', 'App\\Provider');
       fd.append('model_id', String(proveedorId));
       Swal.fire({title:'Subiendo...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
       fetch(routeUrl('files.upload'), { method:'POST', body: fd, headers:{ 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }})

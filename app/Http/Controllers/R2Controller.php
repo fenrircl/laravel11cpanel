@@ -186,7 +186,7 @@ class R2Controller extends Controller
             } elseif ($modelType === 'App\\Client') {
                 // Adjuntos por cliente
                 $facturaPath = "cliente/{$modelId}";
-            } elseif ($modelType === 'App\\Proveedor') {
+            } elseif ($modelType === 'App\\Provider') {
                 // Adjuntos por proveedor
                 $facturaPath = "proveedor/{$modelId}";
             } else {
@@ -349,7 +349,7 @@ class R2Controller extends Controller
     // Listar archivos adjuntos de un proveedor
     public function listProveedorFiles($proveedorId)
     {
-        $files = FilesRegistry::where('model_type', 'App\\Proveedor')
+        $files = FilesRegistry::where('model_type', 'App\\Provider')
             ->where('model_id', $proveedorId)
             ->orderBy('created_at', 'desc')
             ->get()
