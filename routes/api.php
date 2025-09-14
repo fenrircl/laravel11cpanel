@@ -34,6 +34,11 @@ Route::post('/query', [\App\Http\Controllers\McpController::class, 'handle'])
     ->middleware(\App\Http\Middleware\VerifyApiBearerToken::class)
     ->name('api.query');
 
+// Endpoint MCP dinámico (GET) protegido con Bearer para debug / compatibilidad
+Route::get('/query', [\App\Http\Controllers\McpController::class, 'handle'])
+    ->middleware(\App\Http\Middleware\VerifyApiBearerToken::class)
+    ->name('api.query.get');
+
 // Endpoints MCP (resources, tools, query)
 Route::get('/mcp/resources', [\App\Http\Controllers\McpController::class, 'resources'])
     ->middleware(\App\Http\Middleware\VerifyApiBearerToken::class);
