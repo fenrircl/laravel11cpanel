@@ -2,34 +2,30 @@
   <div class="card-header d-flex justify-content-between align-items-center">
     <span>Archivos adjuntos</span>
     <div>
-      <input type="file" id="fileClienteAdjunto" class="d-none" />
-      <button class="btn btn-sm btn-primary" id="btnSubirAdjuntoCliente">Subir archivo</button>
+      <input type="file" id="fileProveedorAdjunto" class="d-none" />
+      <button class="btn btn-sm btn-primary" id="btnSubirAdjuntoProveedor">Subir archivo</button>
     </div>
   </div>
   <div class="card-body">
-    <div id="listaAdjuntosCliente"></div>
-    <hr/>
-    <h6>PDFs de cotizaciones</h6>
-    <div id="listaAdjuntosCotizaciones"></div>
+    <div id="listaAdjuntosProveedor"></div>
   </div>
 </div>
 
 @push('scripts')
 <script>
 (function(){
-  function initAdjuntosCliente(){
+  function initAdjuntosProveedor(){
     var $ = window.jQuery;
-    if (!$) { return; }
+    if (!$) return;
 
-    const clienteId = {{ $cliente->id ?? 'null' }};
-    if (!clienteId) return;
-    const $list = $('#listaAdjuntosCliente');
-    const $listCot = $('#listaAdjuntosCotizaciones');
-  
-    const renderList = (el, files) => {
-      if (!files || !files.length) { el.html('<p class="text-muted">Sin archivos</p>'); return; }
-      el.html('<ul class="list-group"></ul>');
-      const ul = el.find('ul');
+    const proveedorId = {{ $proveedor->id ?? 'null' }};
+    if (!proveedorId) return;
+    const $list = $('#listaAdjuntosProveedor');
+
+    const renderList = (files) => {
+      if (!files || !files.length) { $list.html('<p class="text-muted">Sin archivos</p>'); return; }
+      $list.html('<ul class="list-group"></ul>');
+      const ul = $list.find('ul');
       files.forEach(f => {
         const sizeKB = f.size ? Math.round(f.size/1024) + ' KB' : '';
         const li = $(
@@ -52,24 +48,23 @@
         ul.append(li);
       });
     };
-  
+
     function load(){
-      fetch(routeUrl('clientes.files', clienteId), { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
-        .then(r=>r.json()).then(j=>renderList($list, j.files||[]));
-      fetch(routeUrl('clientes.cotizaciones.files', clienteId), { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
-        .then(r=>r.json()).then(j=>renderList($listCot, j.files||[]));
+      fetch(routeUrl('proveedores.files', proveedorId), { headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+        .then(r=>r.json()).then(j=>renderList(j.files||[]))
+        .catch(()=> $list.html('<p class="text-muted">No se pudieron cargar los archivos</p>'));
     }
-  
+
     load();
-  
-    $('#btnSubirAdjuntoCliente').on('click', ()=> $('#fileClienteAdjunto').trigger('click'));
-    $('#fileClienteAdjunto').on('change', function(){
+
+    $('#btnSubirAdjuntoProveedor').on('click', ()=> $('#fileProveedorAdjunto').trigger('click'));
+    $('#fileProveedorAdjunto').on('change', function(){
       const file = this.files[0];
       if (!file) return;
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('model_type', 'App\\Cliente');
-      fd.append('model_id', String(clienteId));
+      fd.append('model_type', 'App\\Proveedor');
+      fd.append('model_id', String(proveedorId));
       Swal.fire({title:'Subiendo...', didOpen:()=>Swal.showLoading(), allowOutsideClick:false});
       fetch(routeUrl('files.upload'), { method:'POST', body: fd, headers:{ 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }})
         .then(r=>r.json()).then(j=>{ Swal.close(); if (!j.success) throw new Error(j.message||'Error'); load(); })
@@ -77,13 +72,8 @@
     });
   }
 
-  function onReady(cb){
-    if (document.readyState !== 'loading') cb(); else document.addEventListener('DOMContentLoaded', cb);
-  }
-  function waitForjQuery(){
-    if (!window.jQuery) return setTimeout(waitForjQuery, 50);
-    initAdjuntosCliente();
-  }
+  function onReady(cb){ if (document.readyState !== 'loading') cb(); else document.addEventListener('DOMContentLoaded', cb); }
+  function waitForjQuery(){ if (!window.jQuery) return setTimeout(waitForjQuery, 50); initAdjuntosProveedor(); }
   onReady(waitForjQuery);
 })();
 </script>

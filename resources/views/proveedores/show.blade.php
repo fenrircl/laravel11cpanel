@@ -11,6 +11,7 @@
         </div>
     </div>
 
+
     <div class="card shadow-sm mb-3">
         <div class="card-body">
             <div class="row g-3">
@@ -37,29 +38,7 @@
         </div>
         <div id="filesCollapseProv" class="collapse">
             <div class="card-body">
-                @php($files = \App\Models\FilesRegistry::where('model_type','App\\Provider')->where('model_id',$proveedor->id)->orderByDesc('created_at')->get())
-                @if($files->count())
-                    <ul class="list-group">
-                        @foreach($files as $f)
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="fas fa-file"></i>
-                                    <div>
-                                        <div class="fw-semibold">{{ $f->file_name ?? basename($f->path) }}</div>
-                                        <small class="text-muted">{{ $f->mime_type }} · {{ number_format(($f->size ?? 0)/1024, 0, ',', '.') }} KB · {{ $f->created_at }}</small>
-                                    </div>
-                                </div>
-                                <div class="btn-group">
-                                    <button class="btn btn-sm btn-outline-primary" data-download-path="{{ $f->path }}">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                </div>
-                            </li>
-                        @endforeach
-                    </ul>
-                @else
-                    <div class="text-muted">Sin archivos asociados.</div>
-                @endif
+                @include('proveedores.partials.adjuntos')
             </div>
         </div>
     </div>

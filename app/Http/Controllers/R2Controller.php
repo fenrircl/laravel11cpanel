@@ -173,7 +173,7 @@ class R2Controller extends Controller
                 $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
                 $numeroFactura = $factura->invoice; // Usar número de factura
                 $facturaPath = "facturas/{$tipoFactura}/{$numeroFactura}";
-            } elseif ($modelType === 'App\\Cotizacion') {
+            } elseif ($modelType === 'App\\Quotation') {
                 $cotizacion = Cotizacion::find($modelId);
                 if (!$cotizacion) {
                     return response()->json([
@@ -183,7 +183,7 @@ class R2Controller extends Controller
                 }
                 // Path solicitado: cotizaciones/{idCotizacion}/nombrearchivo
                 $facturaPath = "cotizaciones/{$cotizacion->id}";
-            } elseif ($modelType === 'App\\Cliente') {
+            } elseif ($modelType === 'App\\Client') {
                 // Adjuntos por cliente
                 $facturaPath = "cliente/{$modelId}";
             } elseif ($modelType === 'App\\Proveedor') {
@@ -329,7 +329,7 @@ class R2Controller extends Controller
     // Listar archivos adjuntos de un cliente
     public function listClienteFiles($clienteId)
     {
-        $files = FilesRegistry::where('model_type', 'App\\Cliente')
+        $files = FilesRegistry::where('model_type', 'App\\Client')
             ->where('model_id', $clienteId)
             ->orderBy('created_at', 'desc')
             ->get()
@@ -373,7 +373,7 @@ class R2Controller extends Controller
         if ($cotIds->isEmpty()) {
             return response()->json(['status' => 'success', 'files' => []]);
         }
-        $files = FilesRegistry::where('model_type', 'App\\Cotizacion')
+        $files = FilesRegistry::where('model_type', 'App\\Quotation')
             ->whereIn('model_id', $cotIds)
             ->orderBy('created_at', 'desc')
             ->get()

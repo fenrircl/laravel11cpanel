@@ -291,7 +291,7 @@ $(document).ready(function() {
             const tmpForm = new FormData();
             tmpForm.append('file', blob, `cotizacion_${id}.pdf`);
             // Campos requeridos por /files/upload
-            tmpForm.append('model_type', 'App\\Cotizacion');
+            tmpForm.append('model_type', 'App\\Quotation');
             tmpForm.append('model_id', String(id));
             // Opcional: id real o metadata
             // tmpForm.append('real_id', String(id));

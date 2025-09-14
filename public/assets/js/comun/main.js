@@ -2394,6 +2394,8 @@ if (typeof window.routeUrl !== 'function') {
           return buildApiUrl('clientes/' + encodeURIComponent(param) + '/files');
         case 'clientes.cotizaciones.files':
           return buildApiUrl('clientes/' + encodeURIComponent(param) + '/cotizaciones/files');
+        case 'proveedores.files':
+          return buildApiUrl('proveedores/' + encodeURIComponent(param) + '/files');
         // Rutas de archivos
         case 'files.delete':
           return buildApiUrl('files/' + encodeURIComponent(param));

@@ -90,9 +90,9 @@ class ClientesController extends Controller
         }
 
         // Archivos asociados en files_registry:
-        // - Adjuntos directos del cliente (model_type 'App\\Cliente')
-        // - PDFs de cotizaciones del cliente (model_type 'App\\Cotizacion')
-        $clienteFiles = FilesRegistry::where('model_type', 'App\\Cliente')
+        // - Adjuntos directos del cliente (model_type 'App\\Client')
+        // - PDFs de cotizaciones del cliente (model_type 'App\\Quotation')
+        $clienteFiles = FilesRegistry::where('model_type', 'App\\Client')
             ->where('model_id', $cliente->id)
             ->orderByDesc('created_at')
             ->get();
@@ -100,7 +100,7 @@ class ClientesController extends Controller
         $cotizacionIds = Cotizacion::where('client_id', $cliente->id)->pluck('id');
         $cotizacionFiles = collect();
         if ($cotizacionIds->isNotEmpty()) {
-            $cotizacionFiles = FilesRegistry::where('model_type', 'App\\Cotizacion')
+            $cotizacionFiles = FilesRegistry::where('model_type', 'App\\Quotation')
                 ->whereIn('model_id', $cotizacionIds)
                 ->orderByDesc('created_at')
                 ->get();
@@ -108,7 +108,6 @@ class ClientesController extends Controller
 
         // Combinar y ordenar por fecha de creación descendente
         $files = $clienteFiles->concat($cotizacionFiles)->sortByDesc('created_at')->values();
-
         $data = [
             'cliente' => $cliente,
             'files' => $files,
