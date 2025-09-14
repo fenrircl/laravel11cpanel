@@ -314,13 +314,11 @@ class CotizacionesController extends Controller
                 'message' => 'El PDF aún no está disponible en almacenamiento. Intente nuevamente en unos segundos.'
             ], 503);
         }
-        $to = "cristofer.miranda@gmail.com";
         if ($pdfBinary) {
             $subject = 'Cotización #' . $cotizacion->id . ' - Sociedad Aceros Era Ltda.';
             $body = $request->input('message') ?: (
                 'Adjuntamos la cotización #' . $cotizacion->id . ' correspondiente.'
             );
-            // $to ya está calculado arriba
             // Enviar vía API (Mailgun HTTP) sin dependencias adicionales
             $result = $this->sendEmailViaMailgunApi($to, $subject, $body, $pdfBinary, $filename);
             if (!($result['success'] ?? false)) {
