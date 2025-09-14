@@ -240,28 +240,75 @@ class CotizacionesController extends Controller
         $pdfBinary = null;
         $filename = 'cotizacion_' . $cotizacion->id . '.pdf';
 
-        if ($request->hasFile('pdf')) {
-            $file = $request->file('pdf');
-            if (!$file->isValid()) {
-                return response()->json(['success' => false, 'message' => 'Archivo inválido'], 422);
+        // 1) Preferir referencia a archivo previamente subido para evitar payloads grandes
+        $fileUrl = trim((string) $request->input('file_url', ''));
+        $filePath = trim((string) $request->input('file_path', ''));
+        $fileId = $request->input('file_id');
+        if (!$pdfBinary && ($fileUrl || $filePath || $fileId)) {
+            try {
+                if ($fileId && class_exists(\App\Models\FilesRegistry::class)) {
+                    $fr = \App\Models\FilesRegistry::find($fileId);
+                    if ($fr && $fr->path) {
+                        $filePath = $fr->path;
+                        $filename = $fr->name ?: $filename;
+                    }
+                }
+                if ($filePath && !$fileUrl) {
+                    // Intentar leer desde storage o public
+                    $local = base_path($filePath);
+                    if (!is_readable($local)) {
+                        $local = storage_path('app/' . ltrim($filePath, '/'));
+                    }
+                    if (!is_readable($local)) {
+                        $local = public_path(ltrim($filePath, '/'));
+                    }
+                    if (is_readable($local)) {
+                        $pdfBinary = @file_get_contents($local);
+                    } else {
+                        // Intentar vía endpoint de descarga si existe
+                        $dlUrl = url('/files/download/' . ltrim($filePath, '/'));
+                        $pdfBinary = @file_get_contents($dlUrl);
+                    }
+                }
+                if (!$pdfBinary && $fileUrl) {
+                    $pdfBinary = @file_get_contents($fileUrl);
+                    if (!$filename) {
+                        $basename = basename(parse_url($fileUrl, PHP_URL_PATH) ?: '');
+                        if ($basename) $filename = $basename;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Continuar con otras opciones
             }
-            $pdfBinary = file_get_contents($file->getRealPath());
-            $filename = $file->getClientOriginalName() ?: $filename;
+        }
+
+        if ($pdfBinary) {
+            // ...existing code continues...
         } else {
-            $data = $request->input('pdf_base64');
-            if (!$data) {
-                return response()->json(['success' => false, 'message' => 'Falta el PDF'], 422);
+            // 2) Si no hay archivo referenciado, aceptar subida directa (archivo o base64)
+            if ($request->hasFile('pdf')) {
+                $file = $request->file('pdf');
+                if (!$file->isValid()) {
+                    return response()->json(['success' => false, 'message' => 'Archivo inválido'], 422);
+                }
+                $pdfBinary = file_get_contents($file->getRealPath());
+                $filename = $file->getClientOriginalName() ?: $filename;
+            } else {
+                $data = $request->input('pdf_base64');
+                if (!$data) {
+                    return response()->json(['success' => false, 'message' => 'Falta el PDF'], 422);
+                }
+                // Soportar data URI o base64 puro
+                if (str_starts_with($data, 'data:')) {
+                    $parts = explode(',', $data, 2);
+                    $data = $parts[1] ?? '';
+                }
+                $decoded = base64_decode($data, true);
+                if ($decoded === false) {
+                    return response()->json(['success' => false, 'message' => 'Base64 inválido'], 422);
+                }
+                $pdfBinary = $decoded;
             }
-            // Soportar data URI o base64 puro
-            if (str_starts_with($data, 'data:')) {
-                $parts = explode(',', $data, 2);
-                $data = $parts[1] ?? '';
-            }
-            $decoded = base64_decode($data, true);
-            if ($decoded === false) {
-                return response()->json(['success' => false, 'message' => 'Base64 inválido'], 422);
-            }
-            $pdfBinary = $decoded;
         }
 
         try {

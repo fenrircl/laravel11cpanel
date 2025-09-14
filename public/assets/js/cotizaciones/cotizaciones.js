@@ -282,25 +282,42 @@ $(document).ready(function() {
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress:true }
             };
 
-            // Generar PDF desde el contenido offscreen ya poblado
-            const worker = html2pdf().from(printable).set(opt).toPdf();
-            const pdfInstance = await worker.get('pdf');
-            const pdf = pdfInstance.output('datauristring');
-                // // Descarga el PDF generado localmente para debug
-                // const link = document.createElement('a');
-                // link.href = pdf;
-                // link.download = `cotizacion_${id}_debug.pdf`;
-                // document.body.appendChild(link);
-                // link.click();
-                // document.body.removeChild(link);
-            
+            // Subir el PDF como archivo temporal en vez de enviarlo en base64
+            const blob = await html2pdf().from(printable).set(opt).output('blob');
+            const tmpForm = new FormData();
+            tmpForm.append('file', blob, `cotizacion_${id}.pdf`);
+            // Puedes adjuntar metadatos opcionales
+            tmpForm.append('entity', 'cotizaciones');
+            tmpForm.append('entity_id', String(id));
+
+            // Subir al endpoint existente de archivos
+            const uploadResp = await fetch(buildApiUrl('files/upload'), {
+                method: 'POST',
+                body: tmpForm,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+            if (!uploadResp.ok) throw new Error('Fallo subiendo PDF temporal');
+            const uploadJson = await uploadResp.json();
+            if (uploadJson.status !== 'success') throw new Error(uploadJson.message || 'Fallo al subir PDF');
+
+            const fileUrl = uploadJson.url || (uploadJson.file && (uploadJson.file.url || uploadJson.file.path));
+            const filePath = uploadJson.file && uploadJson.file.path;
+            const fileId = uploadJson.file && uploadJson.file.id;
+            if (!fileUrl && !filePath && !fileId) throw new Error('Respuesta de subida sin URL/Path');
+
             Swal.close();
             Swal.fire({ title:'Enviando...', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
 
             const payload = new FormData();
             payload.append('to', to);
             if (msg) payload.append('message', msg);
-            payload.append('pdf_base64', pdf);
+            // Enviar referencia al archivo en lugar del base64
+            if (fileId) payload.append('file_id', String(fileId));
+            if (filePath) payload.append('file_path', String(filePath));
+            if (fileUrl) payload.append('file_url', String(fileUrl));
             payload.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
 
             const sendUrl = routeUrl('cotizaciones.send-email', id);
