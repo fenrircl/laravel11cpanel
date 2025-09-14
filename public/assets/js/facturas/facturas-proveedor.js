@@ -80,6 +80,11 @@ $(document).ready(function() {
     // Inicializar DataTable usando la función reutilizable
     initDataTable('facturas-proveedores-table', null, columns, tableOptions);
 
+    // Adjuntar filtros para proveedores
+    if (typeof window.attachInvoiceFilters === 'function') {
+        window.attachInvoiceFilters({ tableId: 'facturas-proveedores-table', mode: 'proveedor' });
+    }
+
     // Manejo de eliminación usando la función reutilizable
     $(document).on('click', '.delete-factura', function() {
         const id = $(this).data('id');

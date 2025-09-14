@@ -87,6 +87,11 @@ $(document).ready(function() {
     // Inicializar DataTable usando la función reutilizable
     initDataTable('facturas-clientes-table', null, columns, tableOptions);
 
+    // Adjuntar filtros para clientes
+    if (typeof window.attachInvoiceFilters === 'function') {
+        window.attachInvoiceFilters({ tableId: 'facturas-clientes-table', mode: 'cliente' });
+    }
+
     // Manejo de eliminación usando la función reutilizable
     $(document).on('click', '.delete-factura', function() {
         const id = $(this).data('id');

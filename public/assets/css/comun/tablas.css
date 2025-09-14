@@ -365,6 +365,83 @@
     background: var(--dt-light);
 }
 
+/* =============================
+   Select2 en panel de filtros
+   Alinear con .form-select-sm
+   ============================= */
+.dt-filters .select2-container { width: 100% !important; }
+.dt-filters .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.5rem + 2px);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem; /* equivalente a .form-select-sm */
+    border: 1px solid var(--dt-gray-300);
+    border-radius: 0.2rem; /* igual que .form-select-sm */
+}
+.dt-filters .select2-container .select2-selection__rendered {
+    line-height: calc(1.5em + 0.5rem);
+}
+.dt-filters .select2-container .select2-selection__arrow {
+    height: calc(1.5em + 0.5rem + 2px);
+    right: 0.5rem;
+}
+.dt-filters .select2-container--default .select2-selection--single {
+  height: 36px !important; /* igualar a select-sm */
+  min-height: 36px !important;
+  border: 1px solid var(--dt-gray-300) !important;
+  border-radius: 0.2rem !important;
+}
+.dt-filters .select2-container--default .select2-selection--single .select2-selection__rendered {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 0.5rem !important;
+  padding-right: 2rem !important; /* espacio para flecha */
+  line-height: normal !important;
+  font-size: 0.875rem !important;
+}
+.dt-filters .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 36px !important;
+  right: 0.5rem !important;
+}
+
+/* Ajuste fino: Select2 alineado con .form-select-sm (31px aprox en Bootstrap 5) */
+.dt-filters select.form-select-sm + .select2 .select2-selection--single {
+  height: 31px;
+  min-height: 31px;
+  padding: 0 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--dt-gray-300);
+  border-radius: 0.2rem;
+  box-sizing: border-box;
+}
+.dt-filters select.form-select-sm + .select2 .select2-selection__rendered {
+  line-height: 31px;
+  padding-left: 0;
+}
+.dt-filters select.form-select-sm + .select2 .select2-selection__arrow {
+  height: 31px;
+}
+
+/* Fix definitivo: igualar altura Select2 a selects Bootstrap (≈38px) */
+.dt-filters .select2-container--default .select2-selection--single {
+  height: 38px !important;
+  min-height: 38px !important;
+}
+.dt-filters .select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 100% !important;
+  top: 0 !important;
+  right: 0.75rem !important;
+}
+.dt-filters .select2-container--default .select2-selection--single .select2-selection__rendered {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-left: 0.5rem !important;
+  padding-right: 2rem !important;
+  font-size: 0.875rem !important; /* consistente con sm */
+  line-height: 1 !important;
+}
+
 /* ============================================
    BOTONES DE ACCIÓN CORPORATIVOS
    ============================================ */

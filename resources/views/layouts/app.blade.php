@@ -109,6 +109,8 @@
     <script src="{{ asset('assets/js/comun/cache-local.js') }}"></script>
     <script src="{{ asset('assets/js/comun/buscador-global.js') }}"></script>
 
+    <script src="{{ asset('assets/js/facturas/filtros.js') }}"></script>
+
     <!-- Cargar JS específicos dinámicamente -->
     @if(isset($asset_js))
         @foreach($asset_js as $js)

@@ -2428,4 +2428,8 @@ function reloadInvoiceTables() {
     };
     refreshLocal('#home-clientes-vencidas', window.__HOME_CLIENTES_VENCIDAS__);
     refreshLocal('#home-proveedores-vencidas', window.__HOME_PROVEEDORES_VENCIDAS__);
+    // Recargar filtros si existe la función attachInvoiceFilters
+    if (typeof attachInvoiceFilters === 'function') {
+        attachInvoiceFilters();
+    }
 }

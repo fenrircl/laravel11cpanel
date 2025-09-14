@@ -99,6 +99,11 @@ $(document).ready(function() {
     // Inicializar DataTable usando la función reutilizable
     initDataTable('facturas-table', null, columns, tableOptions);
 
+    // Adjuntar filtros (modo mixto: clientes y proveedores)
+    if (typeof window.attachInvoiceFilters === 'function') {
+        window.attachInvoiceFilters({ tableId: 'facturas-table', mode: 'mixed' });
+    }
+
     // Los eventos de eliminación ahora se manejan automáticamente 
     // a través de initActionButtonEvents() en main.js
     
