@@ -122,9 +122,9 @@
     @endif
 
     @stack('scripts')
-@if(Auth::check())
+{{-- @if(Auth::check())
 <script src="{{ asset('assets/js/chatbot.js') }}"></script>
-@endif
+@endif --}}
 
 
 </body>
