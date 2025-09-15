@@ -33,13 +33,12 @@ class Kernel extends HttpKernel
     ];
 
     /**
-     * The application's route middleware.
-     *
-     * These middleware may be assigned to groups or used individually.
+     * The application's route middleware aliases.
+     * In Laravel 11 se usa $middlewareAliases en lugar de $routeMiddleware.
      *
      * @var array
      */
-    protected $routeMiddleware = [
+    protected $middlewareAliases = [
         // ...existing code...
         'admin.role' => \App\Http\Middleware\AdminRoleMiddleware::class,
         'auth.bearer' => \App\Http\Middleware\VerifyApiBearerToken::class,
