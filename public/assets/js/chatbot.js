@@ -40,6 +40,12 @@
   // Proxy local que usa N8N_WEBHOOK_URL del .env en el servidor
   const LOCAL_PROXY = BASE + '/api/mcp/webhook';
 
+  // Ajustes para esperar más la respuesta y reintentar si falla
+  const MAX_RETRIES = 2; // número de reintentos adicionales
+  const RETRY_DELAY_MS = 3000; // espera entre reintentos
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
   function addMessage(text, from='bot'){
     const wrap = document.createElement('div');
     wrap.className = `msg ${from}`;
@@ -82,19 +88,70 @@
     addMessage(text, 'user');
     input.value = '';
     setTyping(true);
+
+    // Mantener al usuario informado si la respuesta tarda
+    const start = Date.now();
+    const typingMsgBase = 'Escribiendo…';
+    typing.textContent = typingMsgBase;
+    const typingUpdater = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      if(elapsed >= 10){
+        typing.textContent = `Procesando (${elapsed}s)…`;
+      }
+    }, 1000);
+
     try{
-      const res = await fetch(LOCAL_PROXY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text }) // El servidor usará N8N_WEBHOOK_URL del .env
-      });
-      const data = await res.json().catch(() => ({}));
-      const reply = data.respuesta || data.message || data.error || 'Sin respuesta del servidor';
-      addMessage(reply, 'bot');
+      let lastError;
+      for(let attempt = 0; attempt <= MAX_RETRIES; attempt++){
+        try{
+          const res = await fetch(LOCAL_PROXY, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: text }) // El servidor usará N8N_WEBHOOK_URL del .env
+          });
+
+          // Leer contenido con tolerancia (JSON o texto plano)
+          const contentType = res.headers.get('content-type') || '';
+          let data;
+          if(contentType.includes('application/json')){
+            data = await res.json().catch(() => ({}));
+          } else {
+            const raw = await res.text().catch(() => '');
+            data = { message: raw };
+          }
+
+          if(!res.ok){
+            // Para errores 5xx/429 reintentamos, otros se muestran directo
+            const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
+            if([429].includes(res.status) || (res.status >= 500 && res.status <= 599)){
+              throw new Error(msg || 'Error temporal del servidor');
+            } else {
+              addMessage(msg || 'Error en la respuesta del servidor', 'bot');
+              return;
+            }
+          }
+
+          const reply = (data && (data.respuesta || data.message || data.error)) || 'Sin respuesta del servidor';
+          addMessage(reply, 'bot');
+          return; // éxito, salir de la función
+        }catch(err){
+          lastError = err;
+          if(attempt < MAX_RETRIES){
+            // Informar que seguimos esperando y reintentaremos
+            typing.textContent = `El servidor tarda, reintentando… (${attempt + 1}/${MAX_RETRIES})`;
+            await sleep(RETRY_DELAY_MS * (attempt + 1));
+            continue;
+          }
+        }
+      }
+      // Si agotamos reintentos
+      addMessage('El servidor está tardando más de lo esperado o no responde. Inténtalo nuevamente.', 'bot');
+      if(lastError) console.error(lastError);
     }catch(err){
       addMessage('Error al conectar con el servidor', 'bot');
       console.error(err);
     }finally{
+      clearInterval(typingUpdater);
       setTyping(false);
     }
   }
