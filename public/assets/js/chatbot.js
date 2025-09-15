@@ -35,8 +35,10 @@
   const minBtn = widget.querySelector('#cb-min');
   const closeBtn = widget.querySelector('#cb-close');
 
-  const WEBHOOK = document.querySelector('meta[name="mcp-webhook"]')?.content || '';
-  const LOCAL_PROXY = document.querySelector('meta[name="base-url"]').content.replace(/\/$/, '') + '/api/mcp/webhook';
+  // Base URL desde meta o fallback al origen actual
+  const BASE = (document.querySelector('meta[name="base-url"]')?.content || window.location.origin || '').replace(/\/$/, '');
+  // Proxy local que usa N8N_WEBHOOK_URL del .env en el servidor
+  const LOCAL_PROXY = BASE + '/api/mcp/webhook';
 
   function addMessage(text, from='bot'){
     const wrap = document.createElement('div');
@@ -84,10 +86,11 @@
       const res = await fetch(LOCAL_PROXY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: text, webhook: WEBHOOK })
+        body: JSON.stringify({ query: text }) // El servidor usará N8N_WEBHOOK_URL del .env
       });
       const data = await res.json().catch(() => ({}));
-      addMessage(data.respuesta || data.message || 'Sin respuesta del servidor', 'bot');
+      const reply = data.respuesta || data.message || data.error || 'Sin respuesta del servidor';
+      addMessage(reply, 'bot');
     }catch(err){
       addMessage('Error al conectar con el servidor', 'bot');
       console.error(err);

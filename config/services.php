@@ -45,4 +45,9 @@ return [
         'bearer' => env('MCP_BEARER'),
     ],
 
+    // n8n webhook endpoint
+    'n8n' => [
+        'webhook_url' => env('N8N_WEBHOOK_URL'),
+    ],
+
 ];

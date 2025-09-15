@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="base-url" content="{{ url('/') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="mcp-webhook" content="{{ env('MCP_WEBHOOK_URL') }}">
+    <meta name="mcp-webhook" content="{{ env('N8N_WEBHOOK_URL') }}">
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
     <!-- Bootstrap CSS -->
