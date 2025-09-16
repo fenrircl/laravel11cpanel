@@ -1217,9 +1217,29 @@ function toggleElement(elementId, show) {
  */
 function saveFactura() {
     const form = $('#facturaForm');
-    const facturaId = $('#factura_id').val();
-    const isEdit = facturaId && facturaId !== '';
-    
+    // Determinar modo del formulario y resolver ID de forma robusta
+    const modeAttr = (form.attr('data-mode') || '').toLowerCase();
+    let facturaId = (String($('#factura_id').val() || '').trim());
+    let isEdit = modeAttr === 'edit' || (facturaId !== '');
+
+    // Si estamos en edición pero falta el ID oculto, intentar resolver por número de factura desde caché
+    if (!facturaId && isEdit) {
+        const invoiceVal = String($('#invoice').val() || '').trim();
+        if (invoiceVal) {
+            try {
+                const list = (window.EntityDataManager && typeof window.EntityDataManager.getEntityData === 'function')
+                    ? window.EntityDataManager.getEntityData('facturas')
+                    : (typeof window.FACTURAS === 'function' ? window.FACTURAS() : []);
+                const match = (list || []).find(f => String(f && f.invoice) === invoiceVal);
+                if (match && match.id != null) {
+                    facturaId = String(match.id);
+                    $('#factura_id').val(facturaId);
+                }
+            } catch(e) { /* noop */ }
+        }
+    }
+    isEdit = !!facturaId;
+
     // Validar campos requeridos
     if (!validateRequiredFields('facturaForm')) {
         Swal.fire({
@@ -1237,8 +1257,7 @@ function saveFactura() {
     let method = 'POST';
     
     if (isEdit) {
-        // Usar ruta normal de facturas
-        url = buildApiUrl(`facturas/${facturaId}`);
+        url = buildApiUrl(`facturas/${encodeURIComponent(facturaId)}`);
         formData.append('_method', 'PUT');
     } else {
         url = buildApiUrl('facturas');
@@ -1287,6 +1306,7 @@ function saveFactura() {
                     // Limpiar formulario
                     form[0].reset();
                     $('#factura_id').val('');
+                    form.removeAttr('data-mode');
                 });
             } else {
                 Swal.fire({
@@ -1367,6 +1387,8 @@ function openEditFacturaModal(entity, id) {
             Swal.fire({ icon: 'error', title: 'Error', text: 'No se encontró la factura.' });
             return;
         }
+        // Marcar formulario en modo edición
+        try { $('#facturaForm').attr('data-mode', 'edit'); } catch(e) { /* noop */ }
         // Normalizar fechas para asegurar 'date'
         let fNorm = normalizeFacturaDates(factura);
         if (!fNorm.date) {
@@ -1593,6 +1615,8 @@ function openCreateFacturaModal(entity) {
     // Limpiar formulario
     $('#facturaForm')[0].reset();
     $('#factura_id').val('');
+    // Marcar modo creación
+    try { $('#facturaForm').attr('data-mode', 'create'); } catch(e) { /* noop */ }
     // Asegurar que el campo invoice esté editable en creación
     $('#invoice').prop('readonly', false).prop('disabled', false);
 
