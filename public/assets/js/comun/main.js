@@ -250,13 +250,14 @@ window.EntityHelpers = {
                 },
                 onClpInput: function(el) {
                     // Solo números durante input
-                    const cleaned = String(el.value || '').replace(/[^\d]/g, '');
-                    el.value = cleaned;
+                    //const cleaned = String(el.value || '').replace(/[^\d]/g, '');
+                    //el.value = cleaned;
                     //this.updateHint(el);
                 },
                 onClpBlur: function(el) {
-                    // Formatear al salir del campo con formato visual
-                    const num = parseInt(el.value || '0', 10);
+                    // Quitar puntos antes de parsear
+                    const cleaned = String(el.value || '').replace(/\./g, '');
+                    const num = parseInt(cleaned || '0', 10);
                     if (num > 0) {
                         // Mostrar formato visual con puntos y peso
                         el.value = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
