@@ -227,6 +227,382 @@ window.EntityHelpers = {
 } // Fin de la verificación de inicialización
 
 /**
+ * Polyfill CLFormat (CLP y fechas) si no existe
+ */
+(function(){
+    try {
+        // Crear CLFormat si no existe
+        if (!window.CLFormat) window.CLFormat = {};
+        const CF = window.CLFormat;
+        
+        // Crear CLInputFormatter si no existe
+        if (!window.CLInputFormatter) {
+            window.CLInputFormatter = {
+                bind: function(el) {
+                    if (el.__clBound) return;
+                    const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+                    if (fmt === 'clp') {
+                        el.addEventListener('input', () => this.onClpInput(el));
+                        el.addEventListener('blur', () => this.onClpBlur(el));
+                        //this.updateHint(el);
+                    }
+                    el.__clBound = true;
+                },
+                onClpInput: function(el) {
+                    // Solo números durante input
+                    const cleaned = String(el.value || '').replace(/[^\d]/g, '');
+                    el.value = cleaned;
+                    //this.updateHint(el);
+                },
+                onClpBlur: function(el) {
+                    // Formatear al salir del campo con formato visual
+                    const num = parseInt(el.value || '0', 10);
+                    if (num > 0) {
+                        // Mostrar formato visual con puntos y peso
+                        el.value = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                    } else {
+                        el.value = '';
+                    }
+                    //this.updateHint(el);
+                },
+                updateHint: function(el) {
+                    return
+                    let hint = el.nextElementSibling;
+                    if (!hint || !hint.classList.contains('format-hint')) {
+                        hint = document.createElement('small');
+                        hint.className = 'format-hint text-muted d-block';
+                        el.parentNode.insertBefore(hint, el.nextSibling);
+                    }
+                    
+                    const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+                    if (fmt === 'clp') {
+                        const num = parseInt(el.value.replace(/[^\d]/g, '') || '0', 10);
+                        if (num > 0) {
+                            hint.textContent = 'Formato: $ ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                        } else {
+                            hint.textContent = 'Ingrese solo números';
+                        }
+                    }
+                },
+                ensureHint: function(el) {
+                    return
+                    let hint = el.nextElementSibling;
+                    if (!hint || !hint.classList.contains('format-hint')) {
+                        hint = document.createElement('small');
+                        hint.className = 'format-hint text-muted d-block';
+                        el.parentNode.insertBefore(hint, el.nextSibling);
+                    }
+                    return hint;
+                },
+                normalizeOnSubmit: function(e) {
+                    const form = e.target;
+                    form.querySelectorAll('input[data-format="clp"]').forEach(el => {
+                        // Limpiar formato para envío - extraer solo números
+                        const num = parseInt((el.value || '').replace(/[^\d]/g, ''), 10);
+                        el.value = num > 0 ? String(num) : '';
+                    });
+                }
+            };
+        }
+        
+        // Definir funciones básicas si no existen
+        if (typeof CF.formatCLPInput !== 'function') {
+            CF.formatCLPInput = function(value){
+                if (value === null || value === undefined || value === '') return '';
+                const num = parseInt(String(value).replace(/[^\d]/g, ''), 10);
+                if (!isFinite(num) || num <= 0) return '';
+                return '$ ' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            };
+        }
+        if (typeof CF.parseCLP !== 'function') {
+            CF.parseCLP = function(value){
+                const n = parseInt(String(value || '').replace(/[^\d]/g, ''), 10);
+                return isNaN(n) ? 0 : n;
+            };
+        }
+        if (typeof CF.formatDateCL !== 'function') {
+            CF.formatDateCL = function(input){
+                try {
+                    if (!input) return '';
+                    if (input instanceof Date) {
+                        const y = input.getFullYear();
+                        const m = String(input.getMonth() + 1).padStart(2, '0');
+                        const d = String(input.getDate()).padStart(2, '0');
+                        return `${d}-${m}-${y}`;
+                    }
+                    const s = String(input);
+                    const base = s.includes('T') ? s.split('T')[0] : s.split(' ')[0];
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(base)) {
+                        const [y, m, d] = base.split('-');
+                        return `${d}-${m}-${y}`;
+                    }
+                    if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+                    const d2 = new Date(s);
+                    if (!isNaN(d2)) {
+                        const y = d2.getFullYear();
+                        const m = String(d2.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d2.getDate()).padStart(2, '0');
+                        return `${dd}-${m}-${y}`;
+                    }
+                    return s;
+                } catch(e){ return String(input || ''); }
+            };
+        }
+    } catch(e) { /* noop */ }
+})();
+
+/**
+ * ============================================
+ * HELPER DE FORMATO/VALIDACIÓN CHILENO (CLP/FECHA)
+ * ============================================
+ *\
+ * Uso rápido en inputs:
+ *  - data-format="clp"       => Mantiene valor numérico en el input y muestra pista formateada ($ 1.234.567)
+ *  - data-format="date-cl"   => Acepta y valida DD-MM-AAAA en inputs de texto; muestra pista desde type=date
+ *
+ * Opcional: data-formatted-target="#selector" para indicar dónde pintar la pista.
+ */
+(function(){
+    // Evitar redefinir si ya existe
+    if (!window.CLFormat || !window.CLInputFormatter) return;
+
+    // =====================
+    // Extensiones a CLFormat
+    // =====================
+    const CLFormat = window.CLFormat;
+    Object.assign(CLFormat, {
+        // Email
+        stripDiacritics(str) {
+            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        },
+        normalizeEmail(str) {
+            const s = CLFormat.stripDiacritics(String(str || '').trim().toLowerCase());
+            return s.replace(/\s+/g, '');
+        },
+        isValidEmail(str) {
+            const s = CLFormat.normalizeEmail(str);
+            // Regex simple, suficiente para UI
+            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+        },
+        isValidEmailTLD(str, tld = 'cl') {
+            const s = CLFormat.normalizeEmail(str);
+            return CLFormat.isValidEmail(s) && s.endsWith(`.${tld.toLowerCase()}`);
+        },
+        // RUT
+        cleanRut(str) {
+            const s = String(str || '').replace(/[^0-9kK]/g, '').toUpperCase();
+            return s;
+        },
+        calcRutDV(numStr) {
+            let suma = 0, mul = 2;
+            for (let i = numStr.length - 1; i >= 0; i--) {
+                suma += parseInt(numStr.charAt(i), 10) * mul;
+                mul = (mul === 7) ? 2 : mul + 1;
+            }
+            const res = 11 - (suma % 11);
+            if (res === 11) return '0';
+            if (res === 10) return 'K';
+            return String(res);
+        },
+        formatRut(str) {
+            const clean = CLFormat.cleanRut(str);
+            if (clean.length < 2) return clean;
+            const body = clean.slice(0, -1);
+            const dv = clean.slice(-1);
+            let rev = body.split('').reverse().join('');
+            let chunks = rev.match(/.{1,3}/g) || [];
+            let withDots = chunks.map(c => c.split('').reverse().join('')).reverse().join('.');
+            return `${withDots}-${dv}`;
+        },
+        isValidRut(str) {
+            const clean = CLFormat.cleanRut(str);
+            if (clean.length < 2) return false;
+            const body = clean.slice(0, -1);
+            const dv = clean.slice(-1).toUpperCase();
+            return CLFormat.calcRutDV(body) === dv;
+        },
+        // Teléfono Chile (9 dígitos móviles). Acepta 8-9 dígitos para hint.
+        cleanPhoneCL(str) {
+            return String(str || '').replace(/[^0-9]/g, '');
+        },
+        isValidPhoneCL(str) {
+            const d = CLFormat.cleanPhoneCL(str);
+            return d.length === 9; // validación simple
+        },
+        formatPhoneCL(str) {
+            const d = CLFormat.cleanPhoneCL(str);
+            if (d.length < 4) return `+56 ${d}`;
+            if (d.length <= 5) return `+56 ${d[0]} ${d.slice(1)}`;
+            if (d.length <= 9) return `+56 ${d[0]} ${d.slice(1,5)} ${d.slice(5)}`;
+            return `+56 ${d}`;
+        },
+        // CLP helpers
+        formatCLPInput(value){
+            if (value === null || value === undefined || value === '') return '';
+            const num = parseInt(String(value).replace(/[^\d]/g, ''), 10);
+            if (!isFinite(num) || num <= 0) return '';
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        },
+        parseCLP(value){
+            const n = parseInt(String(value || '').replace(/[^\d]/g, ''), 10);
+            return isNaN(n) ? 0 : n;
+        },
+        formatDateCL(input){
+            try {
+            if (!input) return '';
+            if (input instanceof Date) {
+                const y = input.getFullYear();
+                const m = String(input.getMonth() + 1).padStart(2, '0');
+                const d = String(input.getDate()).padStart(2, '0');
+                return `${d}-${m}-${y}`;
+            }
+            const s = String(input);
+            const base = s.includes('T') ? s.split('T')[0] : s.split(' ')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(base)) {
+                const [y, m, d] = base.split('-');
+                return `${d}-${m}-${y}`;
+            }
+            if (/^\d{2}-\d{2}-\d{4}$/.test(s)) return s;
+            const d2 = new Date(s);
+            if (!isNaN(d2)) {
+                const y = d2.getFullYear();
+                const m = String(d2.getMonth() + 1).padStart(2, '0');
+                const dd = String(d2.getDate()).padStart(2, '0');
+                return `${dd}-${m}-${y}`;
+            }
+            return s;
+            } catch(e){ return String(input || ''); }
+        }
+    });
+
+    // =====================
+    // Extensiones a CLInputFormatter
+    // =====================
+    const F = window.CLInputFormatter;
+    const _bindOrig = F.bind.bind(F);
+    F.bind = function(el){
+        if (el.__clBound) return;
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        if (fmt === 'clp') {
+            el.addEventListener('input', () => F.onClpInput(el));
+            el.addEventListener('blur', () => F.onClpBlur(el));
+            F.updateHint(el);
+        } else if (fmt === 'email' || fmt === 'email-cl') {
+            el.addEventListener('input', () => F.onEmailInput(el));
+            el.addEventListener('blur', () => F.onEmailBlur(el));
+            F.updateHint(el);
+        } else if (fmt === 'rut') {
+            el.addEventListener('input', () => F.onRutInput(el));
+            el.addEventListener('blur', () => F.onRutBlur(el));
+            F.updateHint(el);
+        } else if (fmt === 'phone-cl') {
+            el.addEventListener('input', () => F.onPhoneInput(el));
+            el.addEventListener('blur', () => F.onPhoneBlur(el));
+            F.updateHint(el);
+        } else {
+            // Para otros formatos, llamar al bind original
+            _bindOrig(el);
+            return; // el.__clBound lo setea _bindOrig
+        }
+        el.__clBound = true;
+    };
+
+    const _normalizeOrig = F.normalizeOnSubmit.bind(F);
+    F.normalizeOnSubmit = function(e){
+        const form = e.target;
+        let blocked = false;
+        form.querySelectorAll('input[data-format], textarea[data-format], select[data-format]').forEach(el => {
+            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+            if (fmt === 'email' || fmt === 'email-cl') {
+                el.value = CLFormat.normalizeEmail(el.value);
+                const tld = el.getAttribute('data-email-tld') || 'cl';
+                const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+                if (!valid && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            } else if (fmt === 'rut') {
+                // enviar limpio (sin puntos, con dv)
+                const clean = CLFormat.cleanRut(el.value);
+                el.value = clean;
+                if (!CLFormat.isValidRut(clean) && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            } else if (fmt === 'phone-cl') {
+                el.value = CLFormat.cleanPhoneCL(el.value);
+                if (!CLFormat.isValidPhoneCL(el.value) && el.required) { el.classList.add('is-invalid'); blocked = true; }
+            }
+        });
+        if (blocked) {
+            e.preventDefault();
+        }
+        // Delegar normalizaciones existentes (clp, date-cl)
+        _normalizeOrig(e);
+    };
+
+    // Handlers Email
+    F.onEmailInput = function(el){
+        el.value = CLFormat.normalizeEmail(el.value);
+        F.updateHint(el);
+    };
+    F.onEmailBlur = function(el){
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        const tld = el.getAttribute('data-email-tld') || 'cl';
+        const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Handlers RUT
+    F.onRutInput = function(el){
+        const clean = CLFormat.cleanRut(el.value);
+        el.value = clean;
+        F.updateHint(el);
+    };
+    F.onRutBlur = function(el){
+        const clean = CLFormat.cleanRut(el.value);
+        const valid = CLFormat.isValidRut(clean);
+        // Formatear el valor visible al estilo chileno (12.345.678-9)
+        el.value = CLFormat.formatRut(clean);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Handlers Teléfono
+    F.onPhoneInput = function(el){
+        const clean = CLFormat.cleanPhoneCL(el.value);
+        el.value = clean;
+        F.updateHint(el);
+    };
+    F.onPhoneBlur = function(el){
+        const clean = CLFormat.cleanPhoneCL(el.value);
+        const valid = CLFormat.isValidPhoneCL(clean);
+        el.classList.toggle('is-invalid', !!el.value && !valid);
+        F.updateHint(el);
+    };
+
+    // Extender updateHint para nuevos formatos
+    const _updateHintOrig = F.updateHint.bind(F);
+    F.updateHint = function(el){
+        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
+        if (fmt === 'email' || fmt === 'email-cl') {
+            const hint = F.ensureHint(el);
+            const tld = el.getAttribute('data-email-tld') || 'cl';
+            const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
+            hint && (hint.textContent = (!valid && el.value) ? (fmt === 'email' ? 'Email no válido' : `Email debe terminar en .${tld}`) : '');
+            return;
+        }
+        if (fmt === 'rut') {
+            const hint = F.ensureHint(el);
+            hint && (hint.textContent = el.value ? CLFormat.formatRut(el.value) : '');
+            return;
+        }
+        if (fmt === 'phone-cl') {
+            const hint = F.ensureHint(el);
+            hint && (hint.textContent = el.value ? CLFormat.formatPhoneCL(el.value) : '');
+            return;
+        }
+        _updateHintOrig(el);
+    };
+})();
+
+
+/**
  * Obtener la URL base de la aplicación
  * @returns {string} Base URL
  */
@@ -1096,9 +1472,17 @@ function populateForm(data, prefix = '') {
                 element.value = value;
             }
 
-             if (element.type == 'text' && element.getAttribute('data-format') == 'clp') {
-                    element.value  = window.CLFormat.formatCLPInput(value);
-                } 
+            // Manejar campos con formato CLP especialmente
+            if (element.type == 'text' && element.getAttribute('data-format') == 'clp') {
+                // Extraer valor numérico y formatear para mostrar al usuario
+                const numericValue = window.CLFormat ? window.CLFormat.parseCLP(value) : parseInt(String(value).replace(/[^\d]/g, ''), 10) || 0;
+                if (numericValue > 0) {
+                    // Mostrar valor formateado al usuario ($ 1.234.567)
+                    element.value = numericValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                } else {
+                    element.value = '';
+                }
+            } 
             
             // Manejar formateo especial para campos con data-format
             const format = element.getAttribute('data-format');
@@ -1106,7 +1490,7 @@ function populateForm(data, prefix = '') {
                 setTimeout(() => {
                     if (window.CLInputFormatter) {
                         window.CLInputFormatter.bind(element);
-                        window.CLInputFormatter.updateHint(element);
+                        //window.CLInputFormatter.updateHint(element);
                     }
                 }, 50);
             }
@@ -1666,213 +2050,6 @@ function openCreateFacturaModal(entity) {
     $('#facturaModal').modal('show');
 }
 
-/**
- * ============================================
- * HELPER DE FORMATO/VALIDACIÓN CHILENO (CLP/FECHA)
- * ============================================
- *\
- * Uso rápido en inputs:
- *  - data-format="clp"       => Mantiene valor numérico en el input y muestra pista formateada ($ 1.234.567)
- *  - data-format="date-cl"   => Acepta y valida DD-MM-AAAA en inputs de texto; muestra pista desde type=date
- *
- * Opcional: data-formatted-target="#selector" para indicar dónde pintar la pista.
- */
-(function(){
-    // Evitar redefinir si ya existe
-    if (!window.CLFormat || !window.CLInputFormatter) return;
-
-    // =====================
-    // Extensiones a CLFormat
-    // =====================
-    const CLFormat = window.CLFormat;
-    Object.assign(CLFormat, {
-        // Email
-        stripDiacritics(str) {
-            return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        },
-        normalizeEmail(str) {
-            const s = CLFormat.stripDiacritics(String(str || '').trim().toLowerCase());
-            return s.replace(/\s+/g, '');
-        },
-        isValidEmail(str) {
-            const s = CLFormat.normalizeEmail(str);
-            // Regex simple, suficiente para UI
-            return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
-        },
-        isValidEmailTLD(str, tld = 'cl') {
-            const s = CLFormat.normalizeEmail(str);
-            return CLFormat.isValidEmail(s) && s.endsWith(`.${tld.toLowerCase()}`);
-        },
-        // RUT
-        cleanRut(str) {
-            const s = String(str || '').replace(/[^0-9kK]/g, '').toUpperCase();
-            return s;
-        },
-        calcRutDV(numStr) {
-            let suma = 0, mul = 2;
-            for (let i = numStr.length - 1; i >= 0; i--) {
-                suma += parseInt(numStr.charAt(i), 10) * mul;
-                mul = (mul === 7) ? 2 : mul + 1;
-            }
-            const res = 11 - (suma % 11);
-            if (res === 11) return '0';
-            if (res === 10) return 'K';
-            return String(res);
-        },
-        formatRut(str) {
-            const clean = CLFormat.cleanRut(str);
-            if (clean.length < 2) return clean;
-            const body = clean.slice(0, -1);
-            const dv = clean.slice(-1);
-            let rev = body.split('').reverse().join('');
-            let chunks = rev.match(/.{1,3}/g) || [];
-            let withDots = chunks.map(c => c.split('').reverse().join('')).reverse().join('.');
-            return `${withDots}-${dv}`;
-        },
-        isValidRut(str) {
-            const clean = CLFormat.cleanRut(str);
-            if (clean.length < 2) return false;
-            const body = clean.slice(0, -1);
-            const dv = clean.slice(-1).toUpperCase();
-            return CLFormat.calcRutDV(body) === dv;
-        },
-        // Teléfono Chile (9 dígitos móviles). Acepta 8-9 dígitos para hint.
-        cleanPhoneCL(str) {
-            return String(str || '').replace(/[^0-9]/g, '');
-        },
-        isValidPhoneCL(str) {
-            const d = CLFormat.cleanPhoneCL(str);
-            return d.length === 9; // validación simple
-        },
-        formatPhoneCL(str) {
-            const d = CLFormat.cleanPhoneCL(str);
-            if (d.length < 4) return `+56 ${d}`;
-            if (d.length <= 5) return `+56 ${d[0]} ${d.slice(1)}`;
-            if (d.length <= 9) return `+56 ${d[0]} ${d.slice(1,5)} ${d.slice(5)}`;
-            return `+56 ${d}`;
-        }
-    });
-
-    // =====================
-    // Extensiones a CLInputFormatter
-    // =====================
-    const F = window.CLInputFormatter;
-    const _bindOrig = F.bind.bind(F);
-    F.bind = function(el){
-        if (el.__clBound) return;
-        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-        if (fmt === 'email' || fmt === 'email-cl') {
-            el.addEventListener('input', () => F.onEmailInput(el));
-            el.addEventListener('blur', () => F.onEmailBlur(el));
-            F.updateHint(el);
-        } else if (fmt === 'rut') {
-            el.addEventListener('input', () => F.onRutInput(el));
-            el.addEventListener('blur', () => F.onRutBlur(el));
-            F.updateHint(el);
-        } else if (fmt === 'phone-cl') {
-            el.addEventListener('input', () => F.onPhoneInput(el));
-            el.addEventListener('blur', () => F.onPhoneBlur(el));
-            F.updateHint(el);
-        } else {
-            _bindOrig(el);
-            return; // el.__clBound lo setea _bindOrig
-        }
-        el.__clBound = true;
-    };
-
-    const _normalizeOrig = F.normalizeOnSubmit.bind(F);
-    F.normalizeOnSubmit = function(e){
-        const form = e.target;
-        let blocked = false;
-        form.querySelectorAll('input[data-format], textarea[data-format], select[data-format]').forEach(el => {
-            const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-            if (fmt === 'email' || fmt === 'email-cl') {
-                el.value = CLFormat.normalizeEmail(el.value);
-                const tld = el.getAttribute('data-email-tld') || 'cl';
-                const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
-                if (!valid && el.required) { el.classList.add('is-invalid'); blocked = true; }
-            } else if (fmt === 'rut') {
-                // enviar limpio (sin puntos, con dv)
-                const clean = CLFormat.cleanRut(el.value);
-                el.value = clean;
-                if (!CLFormat.isValidRut(clean) && el.required) { el.classList.add('is-invalid'); blocked = true; }
-            } else if (fmt === 'phone-cl') {
-                el.value = CLFormat.cleanPhoneCL(el.value);
-                if (!CLFormat.isValidPhoneCL(el.value) && el.required) { el.classList.add('is-invalid'); blocked = true; }
-            }
-        });
-        if (blocked) {
-            e.preventDefault();
-        }
-        // Delegar normalizaciones existentes (clp, date-cl)
-        _normalizeOrig(e);
-    };
-
-    // Handlers Email
-    F.onEmailInput = function(el){
-        el.value = CLFormat.normalizeEmail(el.value);
-        F.updateHint(el);
-    };
-    F.onEmailBlur = function(el){
-        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-        const tld = el.getAttribute('data-email-tld') || 'cl';
-        const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
-        el.classList.toggle('is-invalid', !!el.value && !valid);
-        F.updateHint(el);
-    };
-
-    // Handlers RUT
-    F.onRutInput = function(el){
-        const clean = CLFormat.cleanRut(el.value);
-        el.value = clean;
-        F.updateHint(el);
-    };
-    F.onRutBlur = function(el){
-        const clean = CLFormat.cleanRut(el.value);
-        const valid = CLFormat.isValidRut(clean);
-        // Formatear el valor visible al estilo chileno (12.345.678-9)
-        el.value = CLFormat.formatRut(clean);
-        el.classList.toggle('is-invalid', !!el.value && !valid);
-        F.updateHint(el);
-    };
-
-    // Handlers Teléfono
-    F.onPhoneInput = function(el){
-        const clean = CLFormat.cleanPhoneCL(el.value);
-        el.value = clean;
-        F.updateHint(el);
-    };
-    F.onPhoneBlur = function(el){
-        const clean = CLFormat.cleanPhoneCL(el.value);
-        const valid = CLFormat.isValidPhoneCL(clean);
-        el.classList.toggle('is-invalid', !!el.value && !valid);
-        F.updateHint(el);
-    };
-
-    // Extender updateHint para nuevos formatos
-    const _updateHintOrig = F.updateHint.bind(F);
-    F.updateHint = function(el){
-        const fmt = (el.getAttribute('data-format') || '').toLowerCase();
-        if (fmt === 'email' || fmt === 'email-cl') {
-            const hint = F.ensureHint(el);
-            const tld = el.getAttribute('data-email-tld') || 'cl';
-            const valid = (fmt === 'email') ? CLFormat.isValidEmail(el.value) : CLFormat.isValidEmailTLD(el.value, tld);
-            hint && (hint.textContent = (!valid && el.value) ? (fmt === 'email' ? 'Email no válido' : `Email debe terminar en .${tld}`) : '');
-            return;
-        }
-        if (fmt === 'rut') {
-            const hint = F.ensureHint(el);
-            hint && (hint.textContent = el.value ? CLFormat.formatRut(el.value) : '');
-            return;
-        }
-        if (fmt === 'phone-cl') {
-            const hint = F.ensureHint(el);
-            hint && (hint.textContent = el.value ? CLFormat.formatPhoneCL(el.value) : '');
-            return;
-        }
-        _updateHintOrig(el);
-    };
-})();
 
 // ===== FUNCIONES DE GESTIÓN DE ARCHIVOS PARA FACTURAS =====
 
@@ -2471,3 +2648,48 @@ function reloadInvoiceTables() {
         attachInvoiceFilters();
     }
 }
+
+// Agregar event listeners globales para el manejo de formularios
+$(document).ready(function() {
+    // Event listener para normalizar campos CLP antes de envío
+    $(document).on('submit', 'form', function(e) {
+        if (window.CLInputFormatter && typeof window.CLInputFormatter.normalizeOnSubmit === 'function') {
+            window.CLInputFormatter.normalizeOnSubmit(e);
+        }
+    });
+    
+    // Auto-bind elementos con data-format al cargar la página
+    $('[data-format]').each(function() {
+        if (window.CLInputFormatter) {
+            window.CLInputFormatter.bind(this);
+        }
+    });
+    
+    // Auto-bind elementos nuevos cuando se agregan al DOM
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) { // Element node
+                    // Bind elementos con data-format en el nuevo contenido
+                    if (node.hasAttribute && node.hasAttribute('data-format')) {
+                        if (window.CLInputFormatter) {
+                            window.CLInputFormatter.bind(node);
+                        }
+                    }
+                    // También buscar dentro del elemento agregado
+                    const formatElements = node.querySelectorAll ? node.querySelectorAll('[data-format]') : [];
+                    formatElements.forEach(function(el) {
+                        if (window.CLInputFormatter) {
+                            window.CLInputFormatter.bind(el);
+                        }
+                    });
+                }
+            });
+        });
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+});
