@@ -155,11 +155,13 @@ class FacturasController extends Controller
         $invoiceUniqueRule = Rule::unique('invoices', 'invoice');
         
         if ($request->input('client_id')) {
-            // Para facturas de cliente: debe ser único entre facturas de cliente
+            // Para facturas de cliente: único entre facturas de cliente (incremental en clientes)
             $invoiceUniqueRule->whereNotNull('client_id');
         } else {
-            // Para facturas de proveedor: debe ser único entre facturas de proveedor
-            $invoiceUniqueRule->whereNotNull('provider_id');
+            // Para facturas de proveedor: único por proveedor (permitido repetir entre distintos proveedores)
+            $invoiceUniqueRule->where(function($q) use ($request) {
+                $q->where('provider_id', $request->input('provider_id'));
+            });
         }
 
         $validatedData = $request->validate([
@@ -264,11 +266,13 @@ class FacturasController extends Controller
         $invoiceUniqueRule = Rule::unique('invoices', 'invoice')->ignore($factura->id);
         
         if ($request->input('client_id')) {
-            // Para facturas de cliente: debe ser único entre facturas de cliente
+            // Para facturas de cliente: único entre facturas de cliente (incremental en clientes)
             $invoiceUniqueRule->whereNotNull('client_id');
         } else {
-            // Para facturas de proveedor: debe ser único entre facturas de proveedor
-            $invoiceUniqueRule->whereNotNull('provider_id');
+            // Para facturas de proveedor: único por proveedor (permitido repetir entre distintos proveedores)
+            $invoiceUniqueRule->where(function($q) use ($request) {
+                $q->where('provider_id', $request->input('provider_id'));
+            });
         }
         
         $validatedData = $request->validate([
