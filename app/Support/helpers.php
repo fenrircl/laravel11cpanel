@@ -72,3 +72,21 @@ if (! function_exists('bool_badge')) {
             : '<span class="badge bg-secondary">' . e($falseText) . '</span>';
     }
 }
+
+if (! function_exists('assets_version')) {
+    /**
+     * Retorna la versión de assets para cache busting de JS/CSS.
+     * Prioriza la variable de entorno ASSETS_VERSION.
+     * Fallback: si es producción usa '1', en otros entornos usa timestamp corto.
+     */
+    function assets_version(): string
+    {
+        $envVersion = env('ASSETS_VERSION');
+        if (!empty($envVersion)) {
+            return (string) $envVersion;
+        }
+        // Fallback por entorno
+        $isProd = config('app.env') === 'production';
+        return $isProd ? '1' : Carbon::now()->format('YmdHi');
+    }
+}

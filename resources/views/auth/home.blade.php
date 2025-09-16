@@ -28,6 +28,27 @@
     </div>
   </div> --}}
 
+  <div class="row g-3 mt-2">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-end">
+          <div class="me-2">
+            <label class="form-label mb-0 small" for="home-filter-from">Desde</label>
+            <input type="date" id="home-filter-from" class="form-control form-control-sm" />
+          </div>
+          <div class="me-2">
+            <label class="form-label mb-0 small" for="home-filter-to">Hasta</label>
+            <input type="date" id="home-filter-to" class="form-control form-control-sm" />
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button id="home-filter-apply" class="btn btn-primary btn-sm"><i class="fas fa-filter me-1"></i>Filtrar</button>
+            <button id="home-filter-clear" class="btn btn-outline-secondary btn-sm"><i class="fas fa-eraser me-1"></i>Borrar filtro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-4 mt-3">
     <div class="col-12 mb-4">
       <div class="card h-100">

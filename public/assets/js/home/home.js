@@ -1,6 +1,6 @@
 $(function(){
   // ====================
-  // Filtros de fecha
+  // Filtros de fecha (gráfico)
   // ====================
   const $from = $('#chart-from');
   const $to = $('#chart-to');
@@ -56,10 +56,11 @@ $(function(){
   }
 
   // ====================
-  // Utilidades Home
+  // Utilidades Home (helpers comunes)
   // ====================
-  const cData = window.__HOME_CLIENTES_VENCIDAS__ || [];
-  const pData = window.__HOME_PROVEEDORES_VENCIDAS__ || [];
+  // Mantener datasets locales como respaldo para la vista rápida
+  window.__HOME_CLIENTES_VENCIDAS__ = window.__HOME_CLIENTES_VENCIDAS__ || [];
+  window.__HOME_PROVEEDORES_VENCIDAS__ = window.__HOME_PROVEEDORES_VENCIDAS__ || [];
 
   function getTipoFromRow(r){
     if (r == null) return 'cliente';
@@ -67,7 +68,7 @@ $(function(){
     if (r.client_id || r.cliente) return 'cliente';
     if (r.provider_id || r.proveedor) return 'proveedor';
     // Heurística: si viene del dataset de proveedores
-    return (pData.find(x=> x.id===r.id)) ? 'proveedor' : 'cliente';
+    return (window.__HOME_PROVEEDORES_VENCIDAS__.find(x=> x.id===r.id)) ? 'proveedor' : 'cliente';
   }
 
   function getEntidadName(r){
@@ -79,7 +80,7 @@ $(function(){
     );
   }
 
-  // Vista rápida local (fallback) usando los datasets embebidos
+  // Vista rápida local (fallback) usando datasets filtrados
   window.openInvoiceQuickViewHome = function(id){
     const modalEl = document.getElementById('invoiceQuickViewModal');
     const bodyEl = document.getElementById('invoiceQuickViewBody');
@@ -89,9 +90,8 @@ $(function(){
     if (!modal) modal = new bootstrap.Modal(modalEl);
 
     const findIn = (arr)=> arr.find(x=> String(x.id) === String(id) || String(x.invoice) === String(id));
-    const r = findIn(cData) || findIn(pData);
+    const r = findIn(window.__HOME_CLIENTES_VENCIDAS__) || findIn(window.__HOME_PROVEEDORES_VENCIDAS__);
     if (!r) {
-      // Si no encontramos local y existe la global, usarla
       if (typeof window.openInvoiceQuickView === 'function') return window.openInvoiceQuickView(id);
       bodyEl.innerHTML = '<div class="text-danger">No se encontraron datos de la factura.</div>';
       modal.show();
@@ -122,16 +122,42 @@ $(function(){
         </div>
       </div>`;
     bodyEl.innerHTML = html;
-    // Link a vista completa (si existiera)
     linkEl.href = buildApiUrl('facturas/' + (tipo==='cliente'?'clientes':'proveedores') + '/' + (r.id || r.invoice));
     modal.show();
   };
 
   // ====================
-  // Tablas Home
+  // Tablas Home (AJAX + filtros en cliente)
   // ====================
   try {
     if (typeof initDataTable !== 'function') return;
+
+    // Controles de filtro
+    const $fromTbl = $('#home-filter-from');
+    const $toTbl = $('#home-filter-to');
+    const todayTbl = new Date();
+    const toStrTbl = todayTbl.toISOString().slice(0,10);
+    const fromDateTbl = new Date(todayTbl); fromDateTbl.setFullYear(fromDateTbl.getFullYear() - 1);
+    const fromStrTbl = fromDateTbl.toISOString().slice(0,10);
+    if (!$fromTbl.val()) $fromTbl.val(fromStrTbl);
+    if (!$toTbl.val()) $toTbl.val(toStrTbl);
+
+    function inRange(dateStr, from, to){
+      if (!dateStr) return false;
+      try {
+        const d = new Date(dateStr);
+        const f = new Date(from);
+        const t = new Date(to);
+        d.setHours(0,0,0,0); f.setHours(0,0,0,0); t.setHours(0,0,0,0);
+        return d >= f && d <= t;
+      } catch { return false; }
+    }
+
+    function getRange(){
+      const f = $fromTbl.val() || '1900-01-01';
+      const t = $toTbl.val() || '2999-12-31';
+      return { from: f, to: t };
+    }
 
     const cols = [
       { data: null, title: 'Entidad', className: 'text-start', render: (d, t, r) => {
@@ -141,7 +167,12 @@ $(function(){
         }
       },
       { data: 'invoice', title: 'Factura', width: '120px', className: 'text-center' },
-      { data: 'expiry', title: 'Vencimiento', width: '130px', className: 'text-center', render: (d)=> d ? formatTableDate(d, false) : '—' },
+      { data: 'expiry', title: 'Vencimiento', width: '130px', className: 'text-center', render: (data, type, row)=> {
+          const raw = row?.expiry || row?.date || '';
+          if (type === 'sort' || type === 'type') return raw; // usar ISO para ordenar
+          return raw ? formatTableDate(raw, false) : '—';
+        }
+      },
       { data: 'amount', title: 'Monto', width: '140px', className: 'text-end', render: (d)=> typeof formatCurrency === 'function' ? formatCurrency(d) : d },
       { data: null, title: 'Estado', width: '110px', className: 'text-center', render: (d,t,r)=>{
           return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry) : '';
@@ -160,23 +191,67 @@ $(function(){
       }
     ];
 
-    const commonOptions = {
-      searching:false,
-      paging:false,
-      info:false,
-      order:[[2,'asc']], // ordenar por Vencimiento (nuevo índice)
-      columnDefs: [
-        { targets: 0, responsivePriority: 3 }, // Entidad
-        { targets: 1, responsivePriority: 5 }, // Factura
-        { targets: 2, responsivePriority: 4 }, // Vencimiento
-        { targets: 3, responsivePriority: 6 }, // Monto
-        { targets: 4, responsivePriority: 1 }, // Estado
-        { targets: 5, responsivePriority: 1 }  // Acciones
-      ]
-    };
+    function makeOptions(mode){
+      const url = mode === 'cliente' ? 'facturas/clientes/data' : 'facturas/proveedores/data';
+      return {
+        ajax: {
+          url: buildApiUrl(url),
+          type: 'GET',
+          dataSrc: function(json){
+            const { from, to } = getRange();
+            const today = new Date(); today.setHours(0,0,0,0);
+            const data = (json && json.data) ? json.data : [];
+            const filtered = data.filter(r => {
+              const status = parseInt(r.status, 10) || 0;
+              if (status !== 0) return false;
+              const dStr = r.expiry || r.date;
+              if (!dStr) return false;
+              const d = new Date(dStr); d.setHours(0,0,0,0);
+              return d < today && inRange(dStr, from, to);
+            }).map(r => {
+              r.amount = (typeof r.amount === 'number') ? Math.round(r.amount) : parseInt(r.amount||0,10);
+              return r;
+            });
 
-    initDataTable('home-clientes-vencidas', cData, cols, commonOptions);
-    initDataTable('home-proveedores-vencidas', pData, cols, commonOptions);
+            if (mode === 'cliente') window.__HOME_CLIENTES_VENCIDAS__ = filtered;
+            else window.__HOME_PROVEEDORES_VENCIDAS__ = filtered;
+            return filtered;
+          },
+          error: function(){
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar las facturas vencidas.' });
+          }
+        },
+        searching:false,
+        paging:false,
+        info:false,
+        order:[[2,'desc']], // más reciente arriba
+        columnDefs: [
+          { targets: 0, responsivePriority: 3 },
+          { targets: 1, responsivePriority: 5 },
+          { targets: 2, responsivePriority: 4 },
+          { targets: 3, responsivePriority: 6 },
+          { targets: 4, responsivePriority: 1 },
+          { targets: 5, responsivePriority: 1 }
+        ]
+      };
+    }
+
+    // Inicializar una sola vez vía AJAX (evita re-init warnings)
+    initDataTable('home-clientes-vencidas', null, cols, makeOptions('cliente'));
+    initDataTable('home-proveedores-vencidas', null, cols, makeOptions('proveedor'));
+
+    function reloadHomeTables(){
+      if ($.fn.DataTable.isDataTable('#home-clientes-vencidas')) $('#home-clientes-vencidas').DataTable().ajax.reload(null, false);
+      if ($.fn.DataTable.isDataTable('#home-proveedores-vencidas')) $('#home-proveedores-vencidas').DataTable().ajax.reload(null, false);
+    }
+
+    // Botones de filtro
+    $('#home-filter-apply').on('click', function(){ reloadHomeTables(); });
+    $('#home-filter-clear').on('click', function(){
+      $fromTbl.val('');
+      $toTbl.val('');
+      reloadHomeTables();
+    });
   } catch(e) {
     console.error('Error inicializando tablas de Home:', e);
   }

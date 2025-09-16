@@ -17,6 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'mcp',           // For streamable transport (default)
             'mcp/*',   // For legacy transport (if enabled)
         ]);
+
+        // Aliases personalizados
+        $middleware->alias([
+            'admin.role' => \App\Http\Middleware\AdminRoleMiddleware::class,
+            'auth.bearer' => \App\Http\Middleware\VerifyApiBearerToken::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

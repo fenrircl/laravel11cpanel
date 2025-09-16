@@ -107,24 +107,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <!-- JavaScript principal y común -->
-    <script src="{{ asset('assets/js/principal/layout.js') }}"></script>
-    <script src="{{ asset('assets/js/comun/main.js') }}"></script>
-    <script src="{{ asset('assets/js/comun/cache-local.js') }}"></script>
-    <script src="{{ asset('assets/js/comun/buscador-global.js') }}"></script>
+    <script src="{{ asset('assets/js/principal/layout.js') }}?v={{ assets_version() }}"></script>
+    <script src="{{ asset('assets/js/comun/main.js') }}?v={{ assets_version() }}"></script>
+    <script src="{{ asset('assets/js/comun/cache-local.js') }}?v={{ assets_version() }}"></script>
+    <script src="{{ asset('assets/js/comun/buscador-global.js') }}?v={{ assets_version() }}"></script>
 
-    <script src="{{ asset('assets/js/facturas/filtros.js') }}"></script>
+    <script src="{{ asset('assets/js/facturas/filtros.js') }}?v={{ assets_version() }}"></script>
 
     <!-- Cargar JS específicos dinámicamente -->
     @if(isset($asset_js))
         @foreach($asset_js as $js)
-            <script src="{{ asset('assets/js/' . $js . '.js') }}"></script>
+            <script src="{{ asset('assets/js/' . $js . '.js') }}?v={{ assets_version() }}"></script>
         @endforeach
     @endif
 
     @stack('scripts')
-@if(Auth::check())
+{{-- @if(Auth::check())
 <script src="{{ asset('assets/js/chatbot.js') }}"></script>
-@endif
+@endif --}}
 
 
 </body>
