@@ -42,7 +42,9 @@ class BackupController extends Controller
             $normalized = preg_replace('/COLLATE=([a-zA-Z0-9_]+)/i', 'COLLATE=' . $collation, $normalized);
             $normalized = preg_replace('/COLLATE\\s+([a-zA-Z0-9_]+)/i', 'COLLATE ' . $collation, $normalized);
 
-            $sqlScript .= "\n\n{$normalized};\n\n";
+            // Agregar DROP TABLE para sobreescribir si existe
+            $sqlScript .= "\n\nDROP TABLE IF EXISTS `{$table}`;\n";
+            $sqlScript .= "\n{$normalized};\n\n";
 
             // Datos
             $rows = DB::table($table)->get();
