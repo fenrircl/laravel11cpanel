@@ -2659,6 +2659,83 @@ $(document).ready(function() {
         }
     });
     
+    // Event listeners para botones de acción globales
+    $(document).on('click', '.btn-action.btn-delete', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const id = $btn.data('id');
+        const entity = $btn.data('entity');
+        
+        if (!id || !entity) {
+            console.warn('Missing data-id or data-entity on delete button');
+            return;
+        }
+        
+        // Construir la URL de eliminación según la entidad
+        let deleteUrl = '';
+        switch(entity) {
+            case 'factura':
+                deleteUrl = buildApiUrl(`facturas/${id}`);
+                break;
+            case 'cliente':
+                deleteUrl = buildApiUrl(`clientes/${id}`);
+                break;
+            case 'proveedor':
+                deleteUrl = buildApiUrl(`proveedores/${id}`);
+                break;
+            default:
+                deleteUrl = buildApiUrl(`${entity}s/${id}`);
+        }
+        
+        // Callback de éxito para recargar la tabla correspondiente
+        const successCallback = function() {
+            // Intentar recargar la tabla correspondiente
+            const tableSelectors = [
+                '#cliente-facturas-table',
+                '#proveedor-facturas-table',
+                '#facturas-table',
+                '#clientes-table',
+                '#proveedores-table'
+            ];
+            
+            for (let selector of tableSelectors) {
+                const $table = $(selector);
+                if ($table.length && $.fn.DataTable.isDataTable(selector)) {
+                    $table.DataTable().ajax.reload(null, false);
+                    break;
+                }
+            }
+        };
+        
+        // Llamar a la función de eliminación con SweetAlert2
+        handleDelete(entity, id, deleteUrl, successCallback);
+    });
+    
+    // Event listeners para otros botones de acción si es necesario
+    $(document).on('click', '.btn-action.btn-view', function(e) {
+        e.preventDefault();
+        const onclick = $(this).attr('onclick');
+        if (onclick) {
+            eval(onclick);
+        }
+    });
+    
+    $(document).on('click', '.btn-action.btn-edit', function(e) {
+        e.preventDefault();
+        const onclick = $(this).attr('onclick');
+        if (onclick) {
+            eval(onclick);
+        }
+    });
+    
+    $(document).on('click', '.btn-action.btn-download', function(e) {
+        e.preventDefault();
+        const onclick = $(this).attr('onclick');
+        if (onclick) {
+            eval(onclick);
+        }
+    });
+    
     // Auto-bind elementos con data-format al cargar la página
     $('[data-format]').each(function() {
         if (window.CLInputFormatter) {
