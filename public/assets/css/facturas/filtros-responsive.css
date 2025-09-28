@@ -1,0 +1,325 @@
+/* Estilos responsivos mejorados para filtros de facturas */
+
+/* Variables CSS para consistencia */
+:root {
+  --filter-field-height: 32px;
+  --filter-label-size: 0.875rem;
+  --filter-border-radius: 0.375rem;
+  --filter-spacing: 0.75rem;
+  --filter-bg: #f8f9fa;
+  --filter-border: #dee2e6;
+  --filter-focus: rgba(13, 110, 253, 0.25);
+}
+
+/* Contenedor principal de filtros */
+.dt-filters .card-body {
+  padding: 1rem !important;
+  background-color: var(--filter-bg);
+  border-radius: var(--filter-border-radius);
+}
+
+/* Fila de filtros - mejoras responsive */
+.filtros-form-row {
+  --bs-gutter-x: 0.75rem;
+  --bs-gutter-y: 0.75rem;
+}
+
+/* Campos de filtro - alturas estandarizadas */
+.filter-field {
+  margin-bottom: var(--filter-spacing);
+}
+
+.filter-field .form-label {
+  font-size: var(--filter-label-size);
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
+}
+
+/* Estandarización de alturas para todos los campos */
+.filter-field .form-control,
+.filter-field .form-select {
+  height: var(--filter-field-height);
+  min-height: var(--filter-field-height);
+  font-size: 0.875rem;
+  border: 1px solid var(--filter-border);
+  border-radius: var(--filter-border-radius);
+  padding: 0.375rem 0.75rem;
+  line-height: 1.2;
+}
+
+.filter-field .form-control:focus,
+.filter-field .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.25rem var(--filter-focus);
+}
+
+/* Select2 específico - estandarización de altura */
+.filter-field .select2-container {
+  height: var(--filter-field-height) !important;
+}
+
+.filter-field .select2-container .select2-selection {
+  height: var(--filter-field-height) !important;
+  min-height: var(--filter-field-height) !important;
+  border: 1px solid var(--filter-border) !important;
+  border-radius: var(--filter-border-radius) !important;
+  font-size: 0.875rem !important;
+}
+
+.filter-field .select2-container .select2-selection__rendered {
+  line-height: calc(var(--filter-field-height) - 2px) !important;
+  padding: 0 0.75rem !important;
+  color: #495057 !important;
+}
+
+.filter-field .select2-container .select2-selection__arrow {
+  height: calc(var(--filter-field-height) - 2px) !important;
+  right: 5px !important;
+}
+
+/* Botones de acción */
+.filter-actions {
+  margin-bottom: var(--filter-spacing);
+}
+
+.filter-actions .btn {
+  height: var(--filter-field-height);
+  font-size: 0.875rem;
+  border-radius: var(--filter-border-radius);
+  padding: 0.375rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+/* Filtros activos - mejoras responsive */
+.alert.py-2 {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  border-radius: var(--filter-border-radius);
+}
+
+.filter-summary-wrapper {
+  flex: 1;
+  min-width: 0;
+  margin-right: 0.5rem;
+}
+
+/* Responsive breakpoints */
+
+/* Pantallas pequeñas (576px y abajo) */
+@media (max-width: 575.98px) {
+  .dt-filters .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  .filtros-form-row {
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.5rem;
+  }
+  
+  .filter-field {
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Todos los campos ocupan el ancho completo en móvil */
+  .filtros-form-row > .col-sm-6,
+  .filtros-form-row > .col-md-2,
+  .filtros-form-row > .col-md-3,
+  .filtros-form-row > .col-lg-1 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Botones en fila en móvil */
+  .filter-actions {
+    margin-bottom: 0.25rem;
+  }
+  
+  .filtros-form-row .filter-actions:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Ajustar botones para mostrar texto e icono */
+  .filter-actions .btn span.d-inline {
+    display: inline !important;
+  }
+  
+  .filter-actions .btn span.d-lg-none {
+    display: none !important;
+  }
+  
+  /* Filtros activos - stack en móvil */
+  .alert .d-flex {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: stretch !important;
+  }
+  
+  .filter-summary-wrapper {
+    margin-right: 0;
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Pantallas medianas (768px a 991.98px) */
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .dt-filters .card-body {
+    padding: 0.875rem !important;
+  }
+  
+  /* Ajuste de campos de fecha para mejor distribución */
+  .filter-field.date-field {
+    flex: 0 0 calc(50% - 0.375rem) !important;
+    max-width: calc(50% - 0.375rem) !important;
+  }
+  
+  /* Botones de acción en la misma fila */
+  .filtros-form-row .filter-actions {
+    flex: 0 0 calc(50% - 0.375rem) !important;
+    max-width: calc(50% - 0.375rem) !important;
+  }
+}
+
+/* Pantallas grandes (992px y arriba) */
+@media (min-width: 992px) {
+  /* Los campos de fecha mantienen su tamaño pequeño */
+  .filter-field.date-field,
+  .filtros-form-row .filter-actions {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  
+  /* Mostrar texto completo en botones */
+  .filter-actions .btn .d-lg-inline {
+    display: inline !important;
+  }
+  
+  .filter-actions .btn .d-lg-none {
+    display: none !important;
+  }
+}
+
+/* Zoom adaptativo - para niveles de zoom altos */
+@media (min-resolution: 1.25dppx) and (max-width: 1200px) {
+  :root {
+    --filter-field-height: 36px;
+    --filter-label-size: 0.9rem;
+    --filter-spacing: 0.875rem;
+  }
+  
+  .filter-field .form-control,
+  .filter-field .form-select {
+    font-size: 0.9rem;
+    padding: 0.4375rem 0.875rem;
+  }
+  
+  .filter-actions .btn {
+    font-size: 0.9rem;
+    padding: 0.4375rem 0.875rem;
+  }
+}
+
+/* Zoom muy alto - campos más grandes */
+@media (min-resolution: 1.5dppx) and (max-width: 1400px) {
+  :root {
+    --filter-field-height: 40px;
+    --filter-label-size: 1rem;
+    --filter-spacing: 1rem;
+  }
+  
+  .dt-filters .card-body {
+    padding: 1.25rem !important;
+  }
+  
+  .filter-field .form-control,
+  .filter-field .form-select {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+  }
+  
+  .filter-actions .btn {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Mejoras específicas para Select2 en diferentes resoluciones */
+@media (min-resolution: 1.25dppx) {
+  .filter-field .select2-container .select2-selection {
+    font-size: 0.9rem !important;
+  }
+  
+  .filter-field .select2-container .select2-selection__rendered {
+    padding: 0 0.875rem !important;
+  }
+}
+
+@media (min-resolution: 1.5dppx) {
+  .filter-field .select2-container .select2-selection {
+    font-size: 1rem !important;
+  }
+  
+  .filter-field .select2-container .select2-selection__rendered {
+    padding: 0 1rem !important;
+  }
+}
+
+/* Corrección para casos específicos de altura */
+.filter-field .select2-container--default .select2-selection--single {
+  height: var(--filter-field-height) !important;
+  line-height: var(--filter-field-height) !important;
+}
+
+.filter-field .select2-container--default .select2-selection--single .select2-selection__rendered {
+  line-height: calc(var(--filter-field-height) - 2px) !important;
+}
+
+/* Mejoras de accesibilidad */
+.filter-field .form-control:focus,
+.filter-field .form-select:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+/* Estados de error */
+.filter-field .is-invalid {
+  border-color: #dc3545;
+}
+
+.filter-field .is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+/* Loading state para Select2 */
+.filter-field .select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #6c757d;
+}
+
+.filter-field .select2-container--default.select2-container--disabled .select2-selection--single {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* Animaciones suaves */
+.filter-field .form-control,
+.filter-field .form-select,
+.filter-field .select2-selection {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.filter-actions .btn {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Sombra suave para el contenedor de filtros */
+.dt-filters {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid rgba(0, 0, 0, 0.125);
+}

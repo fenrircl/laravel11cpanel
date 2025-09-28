@@ -14,46 +14,46 @@ $(function(){
   // ====================
   // Inicializar ECharts
   // ====================
-  const chartDom = document.getElementById('home-invoices-chart');
-  if (chartDom) {
-    const chart = echarts.init(chartDom);
+  // const chartDom = document.getElementById('home-invoices-chart');
+  // if (chartDom) {
+  //   const chart = echarts.init(chartDom);
 
-    function fetchAndRender(){
-      const params = $.param({ from: $from.val(), to: $to.val() });
-      $.get(buildApiUrl('charts/facturas/pendientes') + '?' + params)
-        .done((resp)=>{
-          const clientes = resp.clientes || [];
-          const proveedores = resp.proveedores || [];
-          const namesC = clientes.map(x=> x.name);
-          const dataC = clientes.map(x=> (x.total||0)/100);
-          const namesP = proveedores.map(x=> x.name);
-          const dataP = proveedores.map(x=> (x.total||0)/100);
+  //   function fetchAndRender(){
+  //     const params = $.param({ from: $from.val(), to: $to.val() });
+  //     $.get(buildApiUrl('charts/facturas/pendientes') + '?' + params)
+  //       .done((resp)=>{
+  //         const clientes = resp.clientes || [];
+  //         const proveedores = resp.proveedores || [];
+  //         const namesC = clientes.map(x=> x.name);
+  //         const dataC = clientes.map(x=> (x.total||0)/100);
+  //         const namesP = proveedores.map(x=> x.name);
+  //         const dataP = proveedores.map(x=> (x.total||0)/100);
 
-          chart.setOption({
-            tooltip: { trigger: 'axis' },
-            legend: { data: ['Clientes', 'Proveedores'] },
-            grid: { left: '3%', right: '3%', bottom: '8%', containLabel: true },
-            xAxis: [
-              { type: 'category', data: namesC, axisLabel: { interval: 0, rotate: 25, overflow: 'truncate' } },
-              { type: 'category', data: namesP, axisLabel: { show: false } }
-            ],
-            yAxis: { type: 'value', name: 'Monto (CLP)' },
-            series: [
-              { name: 'Clientes', type: 'bar', xAxisIndex: 0, data: dataC },
-              { name: 'Proveedores', type: 'bar', xAxisIndex: 1, data: dataP }
-            ]
-          });
-        })
-        .fail(()=>{
-          Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los datos del gráfico.' });
-        });
-    }
+  //         chart.setOption({
+  //           tooltip: { trigger: 'axis' },
+  //           legend: { data: ['Clientes', 'Proveedores'] },
+  //           grid: { left: '3%', right: '3%', bottom: '8%', containLabel: true },
+  //           xAxis: [
+  //             { type: 'category', data: namesC, axisLabel: { interval: 0, rotate: 25, overflow: 'truncate' } },
+  //             { type: 'category', data: namesP, axisLabel: { show: false } }
+  //           ],
+  //           yAxis: { type: 'value', name: 'Monto (CLP)' },
+  //           series: [
+  //             { name: 'Clientes', type: 'bar', xAxisIndex: 0, data: dataC },
+  //             { name: 'Proveedores', type: 'bar', xAxisIndex: 1, data: dataP }
+  //           ]
+  //         });
+  //       })
+  //       .fail(()=>{
+  //         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los datos del gráfico.' });
+  //       });
+  //   }
 
-    fetchAndRender();
+  //   fetchAndRender();
 
-    $('#chart-apply').on('click', function(){ fetchAndRender(); });
-    $(window).on('resize', function(){ chart.resize(); });
-  }
+  //   $('#chart-apply').on('click', function(){ fetchAndRender(); });
+  //   $(window).on('resize', function(){ chart.resize(); });
+  // }
 
   // ====================
   // Utilidades Home (helpers comunes)
@@ -139,8 +139,12 @@ $(function(){
     const toStrTbl = todayTbl.toISOString().slice(0,10);
     const fromDateTbl = new Date(todayTbl); fromDateTbl.setFullYear(fromDateTbl.getFullYear() - 1);
     const fromStrTbl = fromDateTbl.toISOString().slice(0,10);
+    // Establecer fecha "hasta" por defecto con 30 días en el futuro para incluir facturas próximas a vencer
+    const futureDate = new Date(todayTbl); futureDate.setDate(futureDate.getDate() + 30);
+    const futureStr = futureDate.toISOString().slice(0,10);
+    
     if (!$fromTbl.val()) $fromTbl.val(fromStrTbl);
-    if (!$toTbl.val()) $toTbl.val(toStrTbl);
+    if (!$toTbl.val()) $toTbl.val(futureStr); // Usar fecha futura por defecto
 
     function inRange(dateStr, from, to){
       if (!dateStr) return false;
@@ -159,11 +163,51 @@ $(function(){
       return { from: f, to: t };
     }
 
+    // Función para calcular días hasta/desde vencimiento
+    function calculateDaysToExpiry(expiryDate) {
+      if (!expiryDate) return null;
+      const today = new Date();
+      const expiry = new Date(expiryDate);
+      today.setHours(0, 0, 0, 0);
+      expiry.setHours(0, 0, 0, 0);
+      const diffTime = expiry - today;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    // Función para renderizar el contador de días
+    function renderDaysCounter(expiryDate, status) {
+      // Solo mostrar días si la factura está pendiente (status = 0)
+      // En Home ya se filtran solo pendientes, pero mantener consistencia
+      if (status !== undefined && status !== 0 && status !== '0') {
+        return '—'; // Factura pagada, no mostrar días
+      }
+      
+      const days = calculateDaysToExpiry(expiryDate);
+      if (days === null) return '—';
+      
+      if (days > 0) {
+        // Próximo a vencer
+        if (days <= 7) {
+          return `<span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>${days} días para vencer</span>`;
+        } else if (days <= 30) {
+          return `<span class="badge bg-info"><i class="fas fa-clock me-1"></i>${days} días para vencer</span>`;
+        } else {
+          return `<span class="badge bg-secondary"><i class="fas fa-clock me-1"></i>${days} días para vencer</span>`;
+        }
+      } else if (days === 0) {
+        return `<span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Hoy</span>`;
+      } else {
+        // Vencida
+        const daysOverdue = Math.abs(days);
+        return `<span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i>${daysOverdue} días vencida</span>`;
+      }
+    }
+
     const cols = [
       { data: null, title: 'Entidad', className: 'text-start', render: (d, t, r) => {
           const name = getEntidadName(r);
           const rut = r.rut ? `<small class="text-muted d-block">${r.rut}</small>` : '';
-          return `<span class="text-truncate d-inline-block" style="max-width:220px" title="${name}">${name}</span>${rut}`;
+          return `<span class="text-truncate d-inline-block" style="max-width:250px" title="${name}">${name}</span>${rut}`;
         }
       },
       { data: 'invoice', title: 'Factura', width: '120px', className: 'text-center' },
@@ -171,6 +215,18 @@ $(function(){
           const raw = row?.expiry || row?.date || '';
           if (type === 'sort' || type === 'type') return raw; // usar ISO para ordenar
           return raw ? formatTableDate(raw, false) : '—';
+        }
+      },
+      { data: null, title: 'Días', width: '140px', className: 'text-center', render: (d, t, r) => {
+          const expiryDate = r?.expiry || r?.date || '';
+          if (t === 'sort' || t === 'type') {
+            // Para ordenamiento, retornar los días calculados solo si está pendiente
+            if (r.status !== 0 && r.status !== '0') {
+              return 999999; // Facturas pagadas van al final
+            }
+            return calculateDaysToExpiry(expiryDate) || 999999;
+          }
+          return renderDaysCounter(expiryDate, r.status);
         }
       },
       { data: 'amount', title: 'Monto', width: '140px', className: 'text-end', render: (d)=> typeof formatCurrency === 'function' ? formatCurrency(d) : d },
@@ -200,14 +256,26 @@ $(function(){
           dataSrc: function(json){
             const { from, to } = getRange();
             const today = new Date(); today.setHours(0,0,0,0);
+            const thirtyDaysFromNow = new Date(today);
+            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30); // Próximas a vencer en 30 días
+            
             const data = (json && json.data) ? json.data : [];
+            
             const filtered = data.filter(r => {
               const status = parseInt(r.status, 10) || 0;
-              if (status !== 0) return false;
+              if (status !== 0) return false; // Solo facturas pendientes
+              
               const dStr = r.expiry || r.date;
               if (!dStr) return false;
+              
               const d = new Date(dStr); d.setHours(0,0,0,0);
-              return d < today && inRange(dStr, from, to);
+              
+              // Incluir facturas vencidas O próximas a vencer (dentro de 30 días)
+              const isOverdue = d < today;
+              const isDueSoon = d >= today && d <= thirtyDaysFromNow;
+              const inDateRange = inRange(dStr, from, to);
+              
+              return (isOverdue || isDueSoon) && inDateRange;
             }).map(r => {
               r.amount = (typeof r.amount === 'number') ? Math.round(r.amount) : parseInt(r.amount||0,10);
               return r;
@@ -224,14 +292,15 @@ $(function(){
         searching:false,
         paging:false,
         info:false,
-        order:[[2,'desc']], // más reciente arriba
+        order:[[3,'asc']], // ordenar por días: vencidas (negativos) y próximas a vencer primero 
         columnDefs: [
-          { targets: 0, responsivePriority: 3 },
-          { targets: 1, responsivePriority: 5 },
-          { targets: 2, responsivePriority: 4 },
-          { targets: 3, responsivePriority: 6 },
-          { targets: 4, responsivePriority: 1 },
-          { targets: 5, responsivePriority: 1 }
+          { targets: 0, responsivePriority: 4 }, // Entidad
+          { targets: 1, responsivePriority: 6 }, // Factura
+          { targets: 2, responsivePriority: 5 }, // Vencimiento
+          { targets: 3, responsivePriority: 2 }, // Días (importante)
+          { targets: 4, responsivePriority: 7 }, // Monto
+          { targets: 5, responsivePriority: 3 }, // Estado
+          { targets: 6, responsivePriority: 1 }  // Acciones
         ]
       };
     }

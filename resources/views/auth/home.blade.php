@@ -54,7 +54,7 @@
       <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0"><i class="fas fa-users me-2"></i>Facturas vencidas - Clientes</h5>
-          <a href="{{ route('facturas.clientes.index') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+          <a href="{{ route('facturas.clientes.index', ['filter' => 'pending']) }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
         </div>
         <div class="card-body">
           <div class="table-responsive">
@@ -68,7 +68,7 @@
       <div class="card h-100">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h5 class="mb-0"><i class="fas fa-truck me-2"></i>Facturas vencidas - Proveedores</h5>
-          <a href="{{ route('facturas.proveedores.index') }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+          <a href="{{ route('facturas.proveedores.index', ['filter' => 'pending']) }}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
         </div>
         <div class="card-body">
           <div class="table-responsive">

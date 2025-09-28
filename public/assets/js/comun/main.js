@@ -1248,10 +1248,10 @@ function renderInvoiceStatusBadge(status, expiryDate) {
             // Aún no vence
             return '<span class="badge bg-warning">Pendiente</span>';
         }
-        if (days <= 7) {
-            // Vencida hace <=7 días => naranja
-            return '<span class="badge bg-warning">Vencida</span>';
-        }
+        // if (days <= 7) {
+        //     // Vencida hace <=7 días => naranja
+        //     return '<span class="badge bg-warning">Vencida</span>';
+        // }
         // Vencida hace >7 días => rojo
         return '<span class="badge bg-danger">Vencida</span>';
     } catch (e) {

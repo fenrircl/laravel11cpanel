@@ -1,5 +1,9 @@
 @extends('layouts.app')
 
+@push('styles')
+<link href="{{ asset('assets/css/facturas/filtros-responsive.css') }}" rel="stylesheet">
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -7,8 +11,13 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">Facturas de Proveedores</h4>
-                        <div class="btn-group" role="group">
+                        <div>
+                            <h4 class="mb-0">Facturas de Proveedores</h4>
+                            @if(request()->get('filter') === 'pending')
+                                <small class="text-primary"><i class="fas fa-filter me-1"></i>Mostrando solo facturas pendientes (vencidas y próximas a vencer)</small>
+                            @endif
+                        </div>
+                        {{-- <div class="btn-group" role="group">
                             <a href="{{ route('facturas.index') }}" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i> Todas las Facturas
                             </a>
@@ -18,7 +27,7 @@
                             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateFacturaModal('proveedor')">
                                 <i class="fas fa-plus me-1"></i> Nueva Factura Proveedor
                             </button>
-                        </div>
+                        </div> --}}
                     </div>
                 </div>
                 <div class="card-body">
@@ -31,9 +40,10 @@
                                     <th>Proveedor</th>
                                     <th>Fecha</th>
                                     <th>Vencimiento</th>
+                                    <th>Días</th>
+                                    <th>Fecha Pago</th>
                                     <th>Monto</th>
                                     <th>Estado</th>
-                                    <th>Método Pago</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
