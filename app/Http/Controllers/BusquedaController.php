@@ -161,6 +161,7 @@ class BusquedaController extends Controller
                 'invoices.amount as total', 
                 'invoices.date as fecha_emision', 
                 'invoices.expiry as fecha_vencimiento',
+                'invoices.status as status',
                 'clients.name as cliente_name',
                 'providers.name as proveedor_name'
             ])
@@ -252,9 +253,14 @@ class BusquedaController extends Controller
                             'invoices.provider_id', 
                             'invoices.amount as total', 
                             'invoices.date as fecha_emision', 
-                            'invoices.expiry as fecha_vencimiento'
+                            'invoices.expiry as fecha_vencimiento',
+                            'invoices.status as status',
+                            'clients.name as cliente_name',
+                            'providers.name as proveedor_name'
                         ])
-                        ->orderBy('date', 'desc')
+                        ->leftJoin('clients', 'invoices.client_id', '=', 'clients.id')
+                        ->leftJoin('providers', 'invoices.provider_id', '=', 'providers.id')
+                        ->orderBy('invoices.date', 'desc')
                         ->limit(100)
                         ->get();
                         

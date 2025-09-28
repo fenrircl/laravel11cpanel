@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba Iconos Buscador</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/css/comun/buscador.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .icon-test {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .icon-test:hover {
+            background: #f8f9fa;
+            transform: translateX(5px);
+        }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        h3 { color: #495057; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Prueba de Iconos del Buscador Global</h1>
+        
+        <h3>Clientes</h3>
+        <div class="icon-test">
+            <div class="search-result-icon cliente">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div>
+                <strong>Cliente Test</strong><br>
+                <small>Debe aparecer con fondo azul turquesa</small>
+            </div>
+        </div>
+
+        <h3>Proveedores</h3>
+        <div class="icon-test">
+            <div class="search-result-icon proveedor">
+                <i class="fas fa-industry"></i>
+            </div>
+            <div>
+                <strong>Proveedor Test</strong><br>
+                <small>Debe aparecer con fondo naranja-rojo</small>
+            </div>
+        </div>
+
+        <h3>Facturas de Cliente</h3>
+        <div class="icon-test">
+            <div class="search-result-icon factura-cliente">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <strong>Factura Cliente #123456</strong><br>
+                <small>Debe aparecer con fondo azul</small>
+            </div>
+        </div>
+
+        <h3>Facturas de Proveedor</h3>
+        <div class="icon-test">
+            <div class="search-result-icon factura-proveedor">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div>
+                <strong>Factura Proveedor #789012</strong><br>
+                <small>Debe aparecer con fondo verde</small>
+            </div>
+        </div>
+
+        <h3>Factura Genérica</h3>
+        <div class="icon-test">
+            <div class="search-result-icon factura">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div>
+                <strong>Factura Genérica #345678</strong><br>
+                <small>Debe aparecer con fondo gris</small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simular efectos hover adicionales
+        document.querySelectorAll('.icon-test').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                const icon = item.querySelector('.search-result-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1.1)';
+                }
+            });
+            
+            item.addEventListener('mouseleave', () => {
+                const icon = item.querySelector('.search-result-icon');
+                if (icon) {
+                    icon.style.transform = 'scale(1)';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -358,7 +358,21 @@ class GlobalSearchManager {
      * Renderizar item de resultado
      */
     renderResultItem(result) {
-        const iconClass = this.getEntityIcon(result.entity);
+        // Determinar el tipo de entidad para el icono
+        let entityType = result.entity;
+        let iconClass = this.getEntityIcon(result.entity);
+        
+        // Para facturas, determinar si es de cliente o proveedor
+        if (result.entity === 'facturas' && result.data) {
+            if (result.data.client_id || result.data.cliente_id || result.data.cliente_name) {
+                entityType = 'factura-cliente';
+                iconClass = 'fas fa-file-invoice';
+            } else if (result.data.provider_id || result.data.proveedor_id || result.data.proveedor_name) {
+                entityType = 'factura-proveedor';
+                iconClass = 'fas fa-file-invoice-dollar';
+            }
+        }
+        
         const dataJson = encodeURIComponent(JSON.stringify(result.data || {}));
         const html = `
             <div class="search-result-item" 
@@ -366,7 +380,7 @@ class GlobalSearchManager {
                  data-id="${result.id}" 
                  data-action="view"
                  data-json="${dataJson}">
-                <div class="search-result-icon ${result.entity}">
+                <div class="search-result-icon ${entityType}">
                     <i class="${iconClass}"></i>
                 </div>
                 <div class="search-result-content">
@@ -384,9 +398,11 @@ class GlobalSearchManager {
      */
     getEntityIcon(entity) {
         const icons = {
-            clientes: 'fas fa-user',
-            proveedores: 'fas fa-truck',
-            facturas: 'fas fa-file-invoice'
+            clientes: 'fas fa-user-tie',           // Icono profesional para clientes
+            proveedores: 'fas fa-industry',        // Icono industrial para proveedores
+            facturas: 'fas fa-file-invoice',       // Icono de factura genérica
+            'factura-cliente': 'fas fa-file-invoice',      // Factura de cliente
+            'factura-proveedor': 'fas fa-file-invoice-dollar'  // Factura de proveedor con símbolo de dinero
         };
         
         return icons[entity] || 'fas fa-circle';
@@ -401,7 +417,12 @@ class GlobalSearchManager {
             case 'proveedores':
                 return item.name || `${entity.slice(0, -1)} #${item.id}`;
             case 'facturas':
-                return `Factura #${item.numero || item.id}`;
+                const tipoFactura = item.client_id || item.cliente_id || item.cliente_name ? 'Cliente' : 
+                                  (item.provider_id || item.proveedor_id || item.proveedor_name ? 'Proveedor' : '');
+                const numeroFactura = item.invoice || item.numero || item.id;
+                return tipoFactura ? 
+                    `Factura ${tipoFactura} #${numeroFactura}` : 
+                    `Factura #${numeroFactura}`;
             default:
                 return `Registro #${item.id}`;
         }
@@ -415,18 +436,27 @@ class GlobalSearchManager {
             case 'clientes':
             case 'proveedores':
                 const contactInfo = [];
+                if (item.rut) contactInfo.push(`RUT: ${item.rut}`);
                 if (item.email) contactInfo.push(`📧 ${item.email}`);
                 if (item.phone) contactInfo.push(`📞 ${item.phone}`);
                 return contactInfo.length > 0 ? contactInfo.join(' • ') : 'Sin información de contacto';
             case 'facturas':
                 const infoItems = [];
-                if (item.cliente_name) infoItems.push(`👤 ${item.cliente_name}`);
-                if (item.proveedor_name) infoItems.push(`🏢 ${item.proveedor_name}`);
-                if (item.fecha_emision) {
-                    const fecha = new Date(item.fecha_emision).toLocaleDateString('es-ES');
+                
+                // Información de la entidad (cliente o proveedor)
+                if (item.cliente_name || item.client_name) {
+                    infoItems.push(`👤 ${item.cliente_name || item.client_name}`);
+                } else if (item.proveedor_name || item.provider_name) {
+                    infoItems.push(`🏢 ${item.proveedor_name || item.provider_name}`);
+                }
+                
+                // Fecha de emisión
+                if (item.fecha_emision || item.date || item.created_at) {
+                    const fecha = new Date(item.fecha_emision || item.date || item.created_at).toLocaleDateString('es-ES');
                     infoItems.push(`📅 ${fecha}`);
                 }
-                return infoItems.length > 0 ? infoItems.join(' • ') : 'Sin información adicional';
+                
+                return infoItems.length > 0 ? infoItems.join(' • ') : 'Información no disponible';
             default:
                 return '';
         }
@@ -438,7 +468,52 @@ class GlobalSearchManager {
     getItemMeta(item, entity) {
         switch (entity) {
             case 'facturas':
-                return item.total ? formatCurrency(item.total) : '';
+                const metaItems = [];
+                
+                // Mostrar monto si está disponible
+                const monto = item.amount || item.total || item.monto;
+                if (monto) {
+                    const montoFormateado = typeof formatCurrency === 'function' ? 
+                        formatCurrency(monto) : 
+                        `$${Number(monto).toLocaleString('es-ES')}`;
+                    metaItems.push(`<span class="text-primary fw-bold">${montoFormateado}</span>`);
+                }
+                
+                // Estado de la factura con colores
+                if (item.status !== undefined) {
+                    const isPagada = Number(item.status) === 1;
+                    let estadoHtml = '';
+                    
+                    if (isPagada) {
+                        estadoHtml = '<span class="badge bg-success text-white">✅ Pagada</span>';
+                    } else {
+                        // Verificar si está vencida
+                        const fechaVencimiento = item.expiry || item.fecha_vencimiento;
+                        const hoy = new Date();
+                        hoy.setHours(0, 0, 0, 0); // Reiniciar horas para comparar solo fechas
+                        
+                        let estaVencida = false;
+                        if (fechaVencimiento) {
+                            const fechaVenc = new Date(fechaVencimiento);
+                            fechaVenc.setHours(0, 0, 0, 0);
+                            estaVencida = fechaVenc < hoy;
+                        }
+                        
+                        if (estaVencida) {
+                            estadoHtml = '<span class="badge bg-danger text-white">⚠️ Vencida</span>';
+                        } else {
+                            estadoHtml = '<span class="badge bg-warning text-dark">⏳ Pendiente</span>';
+                        }
+                    }
+                    
+                    metaItems.push(estadoHtml);
+                }
+                
+                return metaItems.join(' ');
+            case 'clientes':
+            case 'proveedores':
+                // Mostrar RUT si está disponible
+                return item.rut ? `<span class="text-muted">RUT: ${item.rut}</span>` : '';
             default:
                 return '';
         }
