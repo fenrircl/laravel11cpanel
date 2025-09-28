@@ -26,12 +26,17 @@ class R2Controller extends Controller
             'hex' => bin2hex(substr($path, 0, 100)) // Solo primeros 100 caracteres para evitar logs muy largos
         ]);
         
-        // Limpiar caracteres nulos que pueden venir por problemas de codificación
-        $path = str_replace("\x00", '', $path);
+        // Primera limpieza: caracteres nulos y de control más problemáticos
+        $path = str_replace("\x00", '', $path); // Null bytes
+        $path = str_replace("\x01", '', $path); // SOH - Start of Heading  
+        $path = str_replace("\x03", '', $path); // ETX - End of Text
         
-        // Limpiar caracteres de control ASCII (0x01-0x1F excepto 0x09, 0x0A, 0x0D)
-        // Estos causan "Corrupted path detected" en Flysystem
-        $path = preg_replace('/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $path);
+        // Limpiar TODOS los caracteres de control ASCII (0x00-0x1F) y DEL (0x7F)
+        // Excluir solo: TAB (0x09), LF (0x0A), CR (0x0D)
+        $path = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $path);
+        
+        // Limpiar caracteres de control Unicode adicionales que pueden causar problemas
+        $path = preg_replace('/[\x{0080}-\x{009F}]/u', '', $path); // C1 control characters
         
         // Decodificar la ruta si viene codificada desde la URL
         $path = urldecode($path);
@@ -42,7 +47,8 @@ class R2Controller extends Controller
             $path = mb_convert_encoding($path, 'UTF-8', 'auto');
             \Log::info('Ruta recodificada', [
                 'original' => bin2hex($originalPath),
-                'converted' => $path
+                'converted' => $path,
+                'converted_hex' => bin2hex(substr($path, 0, 100))
             ]);
         }
         
@@ -58,13 +64,17 @@ class R2Controller extends Controller
         // Limpiar espacios múltiples
         $path = preg_replace('/\s+/', ' ', $path);
         
+        // Verificación final: asegurarse de que no queden caracteres problemáticos
+        $cleanPath = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/', '', $path);
+        
         \Log::info('Ruta normalizada', [
-            'result' => $path,
-            'final_length' => strlen($path),
-            'final_hex' => bin2hex(substr($path, 0, 100))
+            'result' => $cleanPath,
+            'final_length' => strlen($cleanPath),
+            'final_hex' => bin2hex(substr($cleanPath, 0, 100)),
+            'changes_made' => $path !== $cleanPath ? 'Caracteres adicionales removidos' : 'No se necesitaron cambios adicionales'
         ]);
         
-        return $path;
+        return $cleanPath;
     }
 
     /**
@@ -75,13 +85,26 @@ class R2Controller extends Controller
      */
     private function sanitizeFilename($filename)
     {
-        // Limpiar caracteres de control y nulos
+        \Log::info('Sanitizando nombre de archivo', [
+            'original' => $filename,
+            'original_hex' => bin2hex(substr($filename, 0, 100))
+        ]);
+        
+        // Primera limpieza: caracteres nulos y de control más problemáticos
+        $filename = str_replace("\x00", '', $filename); // Null bytes
+        $filename = str_replace("\x01", '', $filename); // SOH - Start of Heading  
+        $filename = str_replace("\x03", '', $filename); // ETX - End of Text
+        
+        // Limpiar TODOS los caracteres de control ASCII (0x00-0x1F) y DEL (0x7F)
         $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename);
         
-        // Caracteres problemáticos para nombres de archivo
-        $filename = preg_replace('/[<>:"|?*]/', '', $filename);
+        // Limpiar caracteres de control Unicode C1 (0x80-0x9F)
+        $filename = preg_replace('/[\x{0080}-\x{009F}]/u', '', $filename);
         
-        // Normalizar espacios
+        // Caracteres problemáticos para nombres de archivo en Windows/Linux
+        $filename = preg_replace('/[<>:"|?*\\\\\/]/', '', $filename);
+        
+        // Normalizar espacios múltiples
         $filename = preg_replace('/\s+/', ' ', trim($filename));
         
         // Limitar longitud (255 caracteres max para la mayoría de filesystems)
@@ -92,7 +115,16 @@ class R2Controller extends Controller
             $filename = substr($base, 0, $maxBase) . '.' . $ext;
         }
         
-        return $filename;
+        // Verificación final: asegurarse de que no queden caracteres problemáticos
+        $cleanFilename = preg_replace('/[\x00-\x1F\x7F-\x9F<>:"|?*\\\\\/]/', '', $filename);
+        
+        \Log::info('Nombre de archivo sanitizado', [
+            'result' => $cleanFilename,
+            'result_hex' => bin2hex(substr($cleanFilename, 0, 100)),
+            'changes_made' => $filename !== $cleanFilename ? 'Caracteres adicionales removidos' : 'No se necesitaron cambios adicionales'
+        ]);
+        
+        return $cleanFilename;
     }
 
     // Subir un archivo de prueba a R2

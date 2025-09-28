@@ -871,21 +871,8 @@ class ActionButtonFactory {
 
         // Priorizar archivo desde R2 si existe
         if (factura.has_file && factura.file_path) {
-            // Limpiar y normalizar la ruta del archivo
-            let filePath = factura.file_path;
-            
-            // Limpiar caracteres nulos si existen
-            filePath = filePath.replace(/\x00/g, '');
-            
-            // Asegurar codificación correcta
-            try {
-                // Si la ruta ya está codificada, decodificarla primero
-                if (filePath.includes('%')) {
-                    filePath = decodeURIComponent(filePath);
-                }
-            } catch (e) {
-                console.warn('Error al decodificar ruta:', e);
-            }
+            // Limpiar y normalizar la ruta del archivo con función mejorada
+            let filePath = cleanFilePathForDownload(factura.file_path);
             
             // Codificar correctamente la ruta para URL
             const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, '/');
@@ -951,8 +938,9 @@ class ActionButtonFactory {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Realizar la eliminación con codificación correcta de la ruta
-                const encodedPath = encodeURIComponent(factura.file_path).replace(/%2F/g, '/');
+                // Realizar la eliminación con limpieza y codificación correcta de la ruta
+                const cleanPath = cleanFilePathForDownload(factura.file_path);
+                const encodedPath = encodeURIComponent(cleanPath).replace(/%2F/g, '/');
                 
                 $.ajax({
                     url: buildApiUrl(`r2/delete/${encodedPath}`),
@@ -1013,6 +1001,60 @@ class ActionButtonFactory {
             }
         });
     };
+
+/**
+ * Limpiar ruta de archivo para descargas, removiendo caracteres de control problemáticos
+ * @param {string} filePath - Ruta del archivo a limpiar
+ * @returns {string} Ruta limpia
+ */
+function cleanFilePathForDownload(filePath) {
+    if (!filePath || typeof filePath !== 'string') {
+        return '';
+    }
+    
+    console.log('Limpiando ruta de archivo:', {
+        original: filePath,
+        length: filePath.length,
+        charCodes: Array.from(filePath.slice(0, 50)).map(c => c.charCodeAt(0)) // Primeros 50 caracteres para debug
+    });
+    
+    let cleanPath = filePath;
+    
+    // Limpiar caracteres nulos (problema principal identificado)
+    cleanPath = cleanPath.replace(/\x00/g, '');
+    
+    // Limpiar caracteres de control ASCII problemáticos
+    // \u0001 = SOH (Start of Heading), \u0003 = ETX (End of Text)
+    cleanPath = cleanPath.replace(/\u0001/g, ''); // SOH
+    cleanPath = cleanPath.replace(/\u0003/g, ''); // ETX
+    
+    // Limpiar todos los caracteres de control ASCII (0x00-0x1F) excepto TAB, LF, CR
+    cleanPath = cleanPath.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
+    // Limpiar caracteres de control Unicode C1 (0x80-0x9F)
+    cleanPath = cleanPath.replace(/[\u0080-\u009F]/g, '');
+    
+    // Asegurar codificación correcta
+    try {
+        // Si la ruta ya está codificada, decodificarla primero
+        if (cleanPath.includes('%')) {
+            cleanPath = decodeURIComponent(cleanPath);
+        }
+    } catch (e) {
+        console.warn('Error al decodificar ruta:', e);
+    }
+    
+    // Normalizar espacios múltiples
+    cleanPath = cleanPath.replace(/\s+/g, ' ').trim();
+    
+    console.log('Ruta de archivo limpia:', {
+        result: cleanPath,
+        removed_chars: filePath.length - cleanPath.length,
+        changes_made: filePath !== cleanPath
+    });
+    
+    return cleanPath;
+}
 
 /**
  * Builder para construir grupos de botones de acción
