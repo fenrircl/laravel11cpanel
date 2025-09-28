@@ -57,9 +57,9 @@ class FacturasController extends Controller
                               // Agregar tipo de factura según si tiene cliente o proveedor
                               $factura->tipo = $factura->client_id ? 'cliente' : 'proveedor';
                               $factura->entidad_nombre = $factura->client_id ? $factura->cliente?->name : $factura->proveedor?->name;
-                              // Agregar información del archivo
+                              // Agregar información del archivo con codificación UTF-8 correcta
                               $factura->has_file = $factura->archivo ? true : false;
-                              $factura->file_path = $factura->archivo->path ?? null;
+                              $factura->file_path = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               return $factura;
                           });
         
@@ -81,7 +81,8 @@ class FacturasController extends Controller
                           ->map(function ($factura) {
                               $arr = $factura->toArray();
                               $arr['has_file'] = $factura->archivo ? true : false;
-                              $arr['file_path'] = $factura->archivo->path ?? null;
+                              // Asegurar codificación UTF-8 correcta para la ruta del archivo
+                              $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               // Forzar amount entero en la respuesta
                               $arr['amount'] = (int) round($factura->amount);
                               return $arr;
@@ -105,7 +106,8 @@ class FacturasController extends Controller
                           ->map(function ($factura) {
                               $arr = $factura->toArray();
                               $arr['has_file'] = $factura->archivo ? true : false;
-                              $arr['file_path'] = $factura->archivo->path ?? null;
+                              // Asegurar codificación UTF-8 correcta para la ruta del archivo
+                              $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               // Forzar amount entero en la respuesta
                               $arr['amount'] = (int) round($factura->amount);
                               return $arr;

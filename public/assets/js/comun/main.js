@@ -871,9 +871,33 @@ class ActionButtonFactory {
 
         // Priorizar archivo desde R2 si existe
         if (factura.has_file && factura.file_path) {
+            // Limpiar y normalizar la ruta del archivo
+            let filePath = factura.file_path;
+            
+            // Limpiar caracteres nulos si existen
+            filePath = filePath.replace(/\x00/g, '');
+            
+            // Asegurar codificación correcta
+            try {
+                // Si la ruta ya está codificada, decodificarla primero
+                if (filePath.includes('%')) {
+                    filePath = decodeURIComponent(filePath);
+                }
+            } catch (e) {
+                console.warn('Error al decodificar ruta:', e);
+            }
+            
             // Codificar correctamente la ruta para URL
-            const encodedPath = encodeURIComponent(factura.file_path).replace(/%2F/g, '/');
+            const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, '/');
             const downloadUrl = buildApiUrl(`r2/download/${encodedPath}`);
+            
+            console.log('Descargando archivo:', {
+                original: factura.file_path,
+                cleaned: filePath,
+                encoded: encodedPath,
+                url: downloadUrl
+            });
+            
             window.open(downloadUrl, '_blank');
             
             Swal.fire({

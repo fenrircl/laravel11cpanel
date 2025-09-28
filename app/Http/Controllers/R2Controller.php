@@ -11,6 +11,54 @@ use App\Models\Cotizacion; // agregar import para cotizaciones
 
 class R2Controller extends Controller
 {
+    /**
+     * Normalize and clean file path to prevent encoding issues
+     *
+     * @param string $path
+     * @return string
+     */
+    private function normalizePath($path)
+    {
+        // Log inicial para debug
+        \Log::info('Normalizando ruta', [
+            'original' => $path,
+            'length' => strlen($path),
+            'hex' => bin2hex(substr($path, 0, 100)) // Solo primeros 100 caracteres para evitar logs muy largos
+        ]);
+        
+        // Limpiar caracteres nulos que pueden venir por problemas de codificación
+        $path = str_replace("\x00", '', $path);
+        
+        // Decodificar la ruta si viene codificada desde la URL
+        $path = urldecode($path);
+        
+        // Asegurar codificación UTF-8 correcta
+        if (!mb_check_encoding($path, 'UTF-8')) {
+            $originalPath = $path;
+            $path = mb_convert_encoding($path, 'UTF-8', 'auto');
+            \Log::info('Ruta recodificada', [
+                'original' => bin2hex($originalPath),
+                'converted' => $path
+            ]);
+        }
+        
+        // Limpiar espacios adicionales y normalizar
+        $path = trim($path);
+        
+        // Normalizar separadores de directorio
+        $path = str_replace('\\', '/', $path);
+        
+        // Eliminar dobles barras
+        $path = preg_replace('#/+#', '/', $path);
+        
+        \Log::info('Ruta normalizada', [
+            'result' => $path,
+            'final_length' => strlen($path)
+        ]);
+        
+        return $path;
+    }
+
     // Subir un archivo de prueba a R2
     public function upload()
     {
@@ -48,21 +96,34 @@ class R2Controller extends Controller
     public function downloadFile($path)
     {
         try {
-            // Decodificar la ruta si viene codificada desde la URL
-            $path = urldecode($path);
+            // Normalizar la ruta para evitar problemas de codificación
+            $path = $this->normalizePath($path);
             
             // Basic security check to prevent directory traversal
             if (str_contains($path, '..')) {
                 abort(400, 'Ruta inválida.');
             }
 
-            // Log para debug
-            \Log::info('Intentando descargar archivo desde R2', [
-                'path' => $path,
-                'exists' => Storage::disk('r2')->exists($path)
-            ]);
-
             if (!Storage::disk('r2')->exists($path)) {
+                // Intentar buscar archivos similares para debug
+                $parentDir = dirname($path);
+                $fileName = basename($path);
+                
+                $similarFiles = [];
+                if (Storage::disk('r2')->exists($parentDir)) {
+                    $filesInDir = Storage::disk('r2')->files($parentDir);
+                    $similarFiles = array_filter($filesInDir, function($file) use ($fileName) {
+                        return strpos(basename($file), pathinfo($fileName, PATHINFO_FILENAME)) !== false;
+                    });
+                }
+                
+                \Log::warning('Archivo no encontrado en R2', [
+                    'requested_path' => $path,
+                    'parent_directory' => $parentDir,
+                    'directory_exists' => Storage::disk('r2')->exists($parentDir),
+                    'files_in_directory' => array_slice($similarFiles, 0, 10) // Limitar para logs
+                ]);
+                
                 abort(404, 'Archivo no encontrado en R2: ' . $path);
             }
 
@@ -71,7 +132,7 @@ class R2Controller extends Controller
             
         } catch (\Exception $e) {
             \Log::error('Error al descargar archivo desde R2', [
-                'path' => $path,
+                'original_path' => $path ?? 'null',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -335,8 +396,8 @@ class R2Controller extends Controller
     public function deleteFileByPath($path)
     {
         try {
-            // Decodificar la ruta si viene codificada desde la URL
-            $path = urldecode($path);
+            // Normalizar la ruta para evitar problemas de codificación
+            $path = $this->normalizePath($path);
             $path = ltrim($path, '/');
             
             // Log para debug
@@ -347,17 +408,20 @@ class R2Controller extends Controller
             
             if (Storage::disk('r2')->exists($path)) {
                 Storage::disk('r2')->delete($path);
+                \Log::info('Archivo eliminado de R2', ['path' => $path]);
             }
-            FilesRegistry::where('path', $path)->delete();
+            
+            $deletedRecords = FilesRegistry::where('path', $path)->delete();
+            \Log::info('Registros eliminados de BD', ['path' => $path, 'count' => $deletedRecords]);
             
             return response()->json(['success' => true, 'message' => 'Archivo eliminado correctamente']);
         } catch (\Exception $e) {
             \Log::error('Error al eliminar archivo desde R2', [
-                'path' => $path,
-                'error' => $e->getMessage()
+                'path' => $path ?? 'null',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
-            
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Error al eliminar el archivo: ' . $e->getMessage()], 500);
         }
     }
 
