@@ -52,6 +52,17 @@ class R2Controller extends Controller
             ]);
         }
         
+        // Normalizar Unicode para resolver diferencias de acentos
+        // NFD (Normalization Form Decomposed) + quitar diacríticos si es necesario
+        $normalizedPath = \Normalizer::normalize($path, \Normalizer::FORM_D);
+        if ($normalizedPath !== $path) {
+            \Log::info('Unicode normalizado', [
+                'original' => $path,
+                'normalized' => $normalizedPath
+            ]);
+            $path = $normalizedPath;
+        }
+        
         // Limpiar espacios adicionales y normalizar
         $path = trim($path);
         
@@ -127,6 +138,121 @@ class R2Controller extends Controller
         return $cleanFilename;
     }
 
+    /**
+     * Find alternative file path by trying different Unicode normalizations
+     * Helps resolve accent differences between database and R2 storage
+     *
+     * @param string $path
+     * @return string|null
+     */
+    private function findAlternativeFilePath($path)
+    {
+        $parentDir = dirname($path);
+        $fileName = basename($path);
+        
+        // No buscar si el directorio padre no existe
+        if (!Storage::disk('r2')->exists($parentDir)) {
+            return null;
+        }
+        
+        // Obtener todos los archivos del directorio
+        $filesInDir = Storage::disk('r2')->files($parentDir);
+        
+        // Crear variaciones del nombre del archivo para comparar
+        $variations = [
+            $fileName, // Original
+            $this->removeAccents($fileName), // Sin acentos
+            $this->addCommonAccents($fileName), // Con acentos comunes
+            \Normalizer::normalize($fileName, \Normalizer::FORM_C), // NFC
+            \Normalizer::normalize($fileName, \Normalizer::FORM_D), // NFD
+        ];
+        
+        // Agregar variación sin espacios y con guiones bajos
+        foreach ($variations as $var) {
+            $variations[] = str_replace(' ', '_', $var);
+            $variations[] = str_replace('_', ' ', $var);
+        }
+        
+        // Eliminar duplicados
+        $variations = array_unique($variations);
+        
+        \Log::info('Buscando variaciones de archivo', [
+            'original_filename' => $fileName,
+            'variations' => $variations,
+            'files_in_directory' => array_map('basename', $filesInDir)
+        ]);
+        
+        // Buscar coincidencia exacta primero
+        foreach ($variations as $variation) {
+            $testPath = $parentDir . '/' . $variation;
+            if (in_array($testPath, $filesInDir)) {
+                return $testPath;
+            }
+        }
+        
+        // Buscar coincidencia fuzzy (comparar sin acentos ni espacios)
+        $baseComparison = $this->normalizeForComparison($fileName);
+        
+        foreach ($filesInDir as $filePath) {
+            $fileNameInDir = basename($filePath);
+            $normalizedFileInDir = $this->normalizeForComparison($fileNameInDir);
+            
+            if ($baseComparison === $normalizedFileInDir) {
+                \Log::info('Encontrada coincidencia fuzzy', [
+                    'requested' => $fileName,
+                    'found' => $fileNameInDir,
+                    'normalized_requested' => $baseComparison,
+                    'normalized_found' => $normalizedFileInDir
+                ]);
+                return $filePath;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Remove accents from string
+     * @param string $str
+     * @return string
+     */
+    private function removeAccents($str)
+    {
+        $str = \Normalizer::normalize($str, \Normalizer::FORM_D);
+        $str = preg_replace('/[\x{0300}-\x{036f}]/u', '', $str); // Remove combining diacritical marks
+        return \Normalizer::normalize($str, \Normalizer::FORM_C);
+    }
+    
+    /**
+     * Add common Spanish accents to vowels
+     * @param string $str
+     * @return string
+     */
+    private function addCommonAccents($str)
+    {
+        $replacements = [
+            'Electronico' => 'Electrónico',
+            'electronico' => 'electrónico',
+            'Recibido' => 'Recibido', // No cambia
+            'Documento' => 'Documento', // No cambia
+        ];
+        
+        return str_replace(array_keys($replacements), array_values($replacements), $str);
+    }
+    
+    /**
+     * Normalize string for comparison (remove accents, spaces, convert to lowercase)
+     * @param string $str
+     * @return string
+     */
+    private function normalizeForComparison($str)
+    {
+        $str = strtolower($str);
+        $str = $this->removeAccents($str);
+        $str = preg_replace('/[^a-z0-9._-]/', '', $str); // Keep only alphanumeric and common file chars
+        return $str;
+    }
+
     // Subir un archivo de prueba a R2
     public function upload()
     {
@@ -173,26 +299,38 @@ class R2Controller extends Controller
             }
 
             if (!Storage::disk('r2')->exists($path)) {
-                // Intentar buscar archivos similares para debug
-                $parentDir = dirname($path);
-                $fileName = basename($path);
+                // Intentar variaciones del nombre para resolver diferencias de acentos
+                $alternativePath = $this->findAlternativeFilePath($path);
                 
-                $similarFiles = [];
-                if (Storage::disk('r2')->exists($parentDir)) {
-                    $filesInDir = Storage::disk('r2')->files($parentDir);
-                    $similarFiles = array_filter($filesInDir, function($file) use ($fileName) {
-                        return strpos(basename($file), pathinfo($fileName, PATHINFO_FILENAME)) !== false;
-                    });
+                if ($alternativePath && Storage::disk('r2')->exists($alternativePath)) {
+                    \Log::info('Encontrado archivo alternativo', [
+                        'requested_path' => $path,
+                        'found_path' => $alternativePath
+                    ]);
+                    $path = $alternativePath;
+                } else {
+                    // Intentar buscar archivos similares para debug
+                    $parentDir = dirname($path);
+                    $fileName = basename($path);
+                    
+                    $similarFiles = [];
+                    if (Storage::disk('r2')->exists($parentDir)) {
+                        $filesInDir = Storage::disk('r2')->files($parentDir);
+                        $similarFiles = array_filter($filesInDir, function($file) use ($fileName) {
+                            return strpos(basename($file), pathinfo($fileName, PATHINFO_FILENAME)) !== false;
+                        });
+                    }
+                    
+                    \Log::warning('Archivo no encontrado en R2', [
+                        'requested_path' => $path,
+                        'alternative_attempted' => $alternativePath,
+                        'parent_directory' => $parentDir,
+                        'directory_exists' => Storage::disk('r2')->exists($parentDir),
+                        'files_in_directory' => array_slice($similarFiles, 0, 10) // Limitar para logs
+                    ]);
+                    
+                    abort(404, 'Archivo no encontrado en R2: ' . $path);
                 }
-                
-                \Log::warning('Archivo no encontrado en R2', [
-                    'requested_path' => $path,
-                    'parent_directory' => $parentDir,
-                    'directory_exists' => Storage::disk('r2')->exists($parentDir),
-                    'files_in_directory' => array_slice($similarFiles, 0, 10) // Limitar para logs
-                ]);
-                
-                abort(404, 'Archivo no encontrado en R2: ' . $path);
             }
 
             // Usar response() para que el navegador maneje el archivo (lo muestra en línea o lo descarga)
