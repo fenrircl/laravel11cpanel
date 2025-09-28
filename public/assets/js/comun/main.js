@@ -841,7 +841,7 @@ class ActionButtonFactory {
                 button['data-entity'] = entityInfo.singular;
                 break;
             case 'download':
-                button.onclick = `descargarPDF(${id})`;
+                button.onclick = `descargarPDF(${id}, event)`;
                 break;
             case 'duplicate':
                 button.onclick = `duplicar${entityInfo.display}(${id})`;
@@ -857,10 +857,31 @@ class ActionButtonFactory {
 }
 
     // Descargar PDF de factura
-    window.descargarPDF = function(id) {
+    window.descargarPDF = function(id, event) {
+        // Prevenir ejecución múltiple
+        if (window.descargarPDF.isExecuting) {
+            console.warn('descargarPDF ya está ejecutándose, ignorando llamada duplicada');
+            return;
+        }
+        
+        // Prevenir propagación de eventos si viene de un event
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        // Marcar como ejecutándose
+        window.descargarPDF.isExecuting = true;
+        
+        // Limpiar el flag después de un tiempo
+        setTimeout(() => {
+            window.descargarPDF.isExecuting = false;
+        }, 1000);
+        
         const factura = EntityHelpers.getFactura(id);
         
         if (!factura) {
+            window.descargarPDF.isExecuting = false;
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -885,8 +906,25 @@ class ActionButtonFactory {
                 url: downloadUrl
             });
             
-            window.open(downloadUrl, '_blank');
+            // Crear enlace temporal y hacer clic automáticamente (evita bloqueadores de popup)
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.style.display = 'none';
             
+            // Agregar al DOM temporalmente
+            document.body.appendChild(link);
+            
+            // Hacer clic automáticamente
+            link.click();
+            
+            // Remover del DOM
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
+            
+            // Mostrar mensaje de confirmación
             Swal.fire({
                 title: 'Abriendo archivo',
                 text: 'El archivo de la factura se está abriendo en una nueva pestaña.',
@@ -2177,7 +2215,7 @@ function uploadFile(formData, onSuccess = null) {
                                     <div class="archivo-acciones">
                                         <a href="javascript:void(0)" 
                                            class="btn btn-sm btn-outline-primary" 
-                                           onclick="descargarPDF(${facturaId})"
+                                           onclick="descargarPDF(${facturaId}, event)"
                                            title="Descargar archivo">
                                             <i class="fas fa-download"></i> Descargar
                                         </a>
@@ -2204,7 +2242,7 @@ function uploadFile(formData, onSuccess = null) {
                                         <div class="file-actions">
                                             <a href="javascript:void(0)" 
                                                class="btn btn-sm btn-outline-primary" 
-                                               onclick="descargarPDF(${facturaId})"
+                                               onclick="descargarPDF(${facturaId}, event)"
                                                title="Descargar">
                                                 <i class="fas fa-download"></i>
                                             </a>
