@@ -21,6 +21,11 @@ class FacturasController extends Controller
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas', 'facturas/filtros-responsive'];
         $data["asset_js"] = ['facturas/filtros', 'facturas/facturas'];
+        
+        // Obtener logs de auditoría de todas las facturas
+        $auditController = new AuditLogController();
+        $data['auditLogs'] = $auditController->getFacturasGeneralLogs();
+        
         return view('facturas.index', $data);
     }
 

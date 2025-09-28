@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AuditLogController extends Controller
 {
@@ -84,16 +85,9 @@ class AuditLogController extends Controller
 
     public function getFacturasClientesLogs(int $limit = 10)
     {
+        // Por ahora mostrar todos los logs de facturas
         $logs = AuditLog::with('user')
-            ->where(function($q) {
-                $q->where('module', 'facturas')
-                  ->where('description', 'like', '%cliente%');
-            })
-            ->orWhere(function($q) {
-                $q->where('module', 'archivos')
-                  ->where('description', 'like', '%factura%')
-                  ->where('description', 'like', '%cliente%');
-            })
+            ->where('module', 'facturas')
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get();
@@ -103,15 +97,23 @@ class AuditLogController extends Controller
 
     public function getFacturasProveedoresLogs(int $limit = 10)
     {
+        // Por ahora mostrar todos los logs de facturas
         $logs = AuditLog::with('user')
-            ->where(function($q) {
-                $q->where('module', 'facturas')
-                  ->where('description', 'like', '%proveedor%');
-            })
+            ->where('module', 'facturas')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+            
+        return $this->enrichLogsWithEntityInfo($logs);
+    }
+
+    public function getFacturasGeneralLogs(int $limit = 10)
+    {
+        $logs = AuditLog::with('user')
+            ->where('module', 'facturas')
             ->orWhere(function($q) {
                 $q->where('module', 'archivos')
-                  ->where('description', 'like', '%factura%')
-                  ->where('description', 'like', '%proveedor%');
+                  ->where('description', 'like', '%factura%');
             })
             ->orderByDesc('created_at')
             ->limit($limit)

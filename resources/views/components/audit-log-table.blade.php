@@ -1,7 +1,6 @@
 {{-- Componente de tabla de auditoría reutilizable --}}
 @props(['logs' => [], 'title' => 'Últimas actividades', 'module' => null, 'entity_id' => null])
 
-@if($logs->isNotEmpty())
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -9,9 +8,16 @@
                 <h5 class="mb-0">
                     <i class="fas fa-history me-2"></i>{{ $title }}
                 </h5>
-                <small class="text-muted">Últimos 10 registros</small>
+                <small class="text-muted">
+                    @if($logs && $logs->isNotEmpty())
+                        Últimos {{ $logs->count() }} registros
+                    @else
+                        Sin registros recientes
+                    @endif
+                </small>
             </div>
             <div class="card-body p-0">
+                @if($logs && $logs->isNotEmpty())
                 <div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
                         <thead class="table-light">
@@ -21,7 +27,7 @@
                                 <th width="80">Acción</th>
                                 <th width="120">Entidad</th>
                                 <th>Descripción</th>
-                                <th width="100">Detalles</th>
+                            
                             </tr>
                         </thead>
                         <tbody>
@@ -85,7 +91,7 @@
                                         —
                                     @endif
                                 </td>
-                                <td class="small" style="max-width: 300px;">
+                                <td class="small" style="">
                                     @php
                                         // Limpiar y mejorar la descripción
                                         $description = $log->description;
@@ -107,62 +113,26 @@
                                         // Limpiar otros caracteres problemáticos
                                         $description = html_entity_decode($description, ENT_QUOTES, 'UTF-8');
                                     @endphp
-                                    <span class="text-truncate d-block" title="{{ $description }}">
+                                    <span class="d-block" title="{{ $description }}">
                                         {{ $description }}
                                     </span>
                                 </td>
-                                <td class="small">
-                                    @php
-                                        $changes = is_array($log->changes) ? $log->changes : json_decode($log->changes ?? '[]', true);
-                                    @endphp
-                                    @if(!empty($changes))
-                                        @php
-                                            $tooltipContent = '<strong>Cambios realizados:</strong><br>';
-                                            foreach ($changes as $field => $change) {
-                                                $fieldLabel = match($field) {
-                                                    'name' => 'Nombre',
-                                                    'rut' => 'RUT',
-                                                    'email' => 'Email',
-                                                    'phone' => 'Teléfono',
-                                                    'address' => 'Dirección',
-                                                    'invoice' => 'N° Factura',
-                                                    'amount' => 'Monto',
-                                                    'due_date' => 'Vencimiento',
-                                                    'payment_date' => 'Fecha Pago',
-                                                    'status' => 'Estado',
-                                                    default => ucfirst($field)
-                                                };
-                                                
-                                                if (is_array($change) && isset($change['from'], $change['to'])) {
-                                                    $from = is_scalar($change['from']) ? $change['from'] : json_encode($change['from']);
-                                                    $to = is_scalar($change['to']) ? $change['to'] : json_encode($change['to']);
-                                                    $tooltipContent .= '<strong>' . $fieldLabel . ':</strong> ' . htmlspecialchars($from) . ' → ' . htmlspecialchars($to) . '<br>';
-                                                } else {
-                                                    $value = is_scalar($change) ? $change : json_encode($change);
-                                                    $tooltipContent .= '<strong>' . $fieldLabel . ':</strong> ' . htmlspecialchars($value) . '<br>';
-                                                }
-                                            }
-                                            $tooltipContent = rtrim($tooltipContent, '<br>');
-                                        @endphp
-                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
-                                                data-bs-toggle="tooltip" data-bs-html="true"
-                                                title="{!! $tooltipContent !!}">
-                                            <i class="fas fa-info-circle"></i>
-                                        </button>
-                                    @else
-                                        <span class="text-muted">—</span>
-                                    @endif
-                                </td>
+                            
                             </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                @else
+                <div class="card-body text-center text-muted py-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No hay registros de actividad recientes
+                </div>
+                @endif
             </div>
         </div>
     </div>
 </div>
-@endif
 
 @push('scripts')
 <script>

@@ -3,7 +3,7 @@
 ## Resumen de Modificaciones
 
 ### Problema Corregido
-- **DataTables Warning**: Eliminado el error "Requested unknown parameter 'action'" cambiando `data: 'action'` por `data: null`
+- **DataTables Warning**: Eliminado el error "Requested unknown parameter 'action'" cambiando `data: null` por `data: null`
 
 ### Cambios en Columnas
 
@@ -13,7 +13,7 @@
 {data: 'name', name: 'name'},
 {data: 'email', name: 'email'},
 {data: 'created_at', name: 'created_at', width: '150px', render: formatTableDate},
-{data: 'action', name: 'action', render: generateActionButtons}
+{data: null, name: 'action', render: generateActionButtons}
 ```
 
 #### Después:

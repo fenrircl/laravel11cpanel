@@ -191,6 +191,12 @@
     </div>
 </div>
 
+<!-- Componente de auditoría -->
+<x-audit-log-table 
+    :logs="$auditLogs ?? collect()" 
+    title="Actividad reciente en facturas"
+/>
+
 <!-- Modal de detalles -->
 <div class="modal fade" id="facturaDetailsModal" tabindex="-1" aria-labelledby="facturaDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">

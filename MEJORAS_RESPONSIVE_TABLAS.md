@@ -189,7 +189,7 @@ const columns = [
     },
     // ...otros campos...
     {
-        data: 'action',
+        data: null,
         className: 'all',
         responsivePriority: 0, // Máxima prioridad
         render: function(data, type, row) {

@@ -55,8 +55,8 @@
     
     <!-- Logs de auditoría -->
     <x-audit-log-table 
-        :logs="$auditLogs" 
-        title="Actividades Recientes - Facturas de Clientes" 
+        :logs="$auditLogs ?? collect()" 
+        title="Actividad reciente en facturas de clientes" 
         module="facturas" 
     />
 </div>

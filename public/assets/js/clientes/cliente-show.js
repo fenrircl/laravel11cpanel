@@ -10,7 +10,7 @@ $(function(){
         {data: 'pay_date', name: 'pay_date', title: 'Pagado', render: d => d ? formatTableDate(d, false) : 'N/A'},
         {data: 'amount', name: 'amount', title: 'Monto', render: d => formatCurrency(d)},
         {data: 'status', name: 'status', title: 'Estado', render: (s)=> `<span class="badge ${s===1?'bg-success':'bg-warning'}">${s===1?'Pagado':'Pendiente'}</span>`},
-        {data: 'action', name: 'action', orderable:false, searchable:false, title: 'Acciones', render: (data, type, row) => {
+        {data: null, name: 'action', orderable:false, searchable:false, title: 'Acciones', render: (data, type, row) => {
             const opts = { exclude: ['view'] };
             if (!row.has_file || !row.file_path) { (opts.exclude || (opts.exclude=[])).push('download'); }
             return generateActionButtons(row.id, 'facturas', opts);
