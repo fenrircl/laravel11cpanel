@@ -10,6 +10,9 @@ $(document).ready(function() {
     document.addEventListener('clientes:updated', () => ReferenceDataManager.refresh('clientes'));
     document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago'));
     
+    // Inicializar eventos del modal de detalles
+    initModalEvents();
+    
     // Detectar si viene desde Home con filtro de pendientes o desde URL
     const urlParams = new URLSearchParams(window.location.search);
     const filterParam = urlParams.get('filter');
@@ -70,7 +73,19 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de facturas de clientes
     const columns = [
-        {data: 'invoice', name: 'invoice', title: 'Número Factura'},
+        {
+            data: 'invoice', 
+            name: 'invoice', 
+            title: 'Número Factura',
+            render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, extraer el número de la factura y convertirlo a entero
+                    const match = String(data || '').match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 0;
+                }
+                return data || '';
+            }
+        },
         {
             data: 'cliente.name', 
             name: 'cliente.name',
@@ -80,8 +95,30 @@ $(document).ready(function() {
                 return `<span class="text-truncate d-inline-block" style="max-width:240px" title="${name}">${name}</span>`;
             }
         },
-        { data: 'date', name: 'date', title: 'Fecha', render: (d)=> formatTableDate(d, false) },
-        { data: 'expiry', name: 'expiry', title: 'Vencimiento', render: (d)=> d ? formatTableDate(d, false) : 'N/A' },
+        { 
+            data: 'date', 
+            name: 'date', 
+            title: 'Fecha', 
+            render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, retornar timestamp
+                    return data ? new Date(data).getTime() : 0;
+                }
+                return formatTableDate(data, false);
+            }
+        },
+        { 
+            data: 'expiry', 
+            name: 'expiry', 
+            title: 'Vencimiento', 
+            render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, retornar timestamp (fechas vacías al final)
+                    return data ? new Date(data).getTime() : 9999999999999;
+                }
+                return data ? formatTableDate(data, false) : 'N/A';
+            }
+        },
         {
             data: null,
             name: 'days_counter',
@@ -100,7 +137,13 @@ $(document).ready(function() {
                 return renderDaysCounter(expiryDate, row.status);
             }
         },
-        { data: 'pay_date', name: 'pay_date', title: 'Fecha Pago', render: (d)=> d ? formatTableDate(d, false) : 'N/A' },
+        { data: 'pay_date', name: 'pay_date', title: 'Fecha Pago', render: function(data, type, row) {
+            if (type === 'sort' || type === 'type') {
+                // Para ordenamiento, retornar timestamp (fechas vacías al final)
+                return data ? new Date(data).getTime() : 9999999999999;
+            }
+            return data ? formatTableDate(data, false) : 'N/A';
+        }},
         { data: 'amount', name: 'amount', title: 'Monto', render: (d)=> formatCurrency(d) },
         {
             data: null,
@@ -187,7 +230,7 @@ $(document).ready(function() {
                 });
             }
         },
-        order: [[3, 'asc']], // Ordenar por días: más urgentes primero cuando hay filtro pendiente
+        order: shouldFilterPending ? [[4, 'asc']] : [[2, 'desc']], // Si hay filtro pending: ordenar por días (urgentes primero), sino por fecha (más reciente primero)
         columnDefs: [
             { targets: 0, width: '140px', responsivePriority: 2 }, // Número Factura
             { targets: 1, width: '260px', className: 'text-start', responsivePriority: 3 }, // Cliente
@@ -217,6 +260,47 @@ $(document).ready(function() {
             $('#facturas-clientes-table').DataTable().ajax.reload();
         });
     });
+
+    // Inicializar eventos del modal de detalles
+    function initModalEvents() {
+        const modalElement = document.getElementById('facturaDetailsModal');
+        if (!modalElement) return;
+        
+        // Limpiar eventos previos
+        modalElement.removeEventListener('hidden.bs.modal', handleModalHidden);
+        
+        // Agregar evento de cierre
+        modalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+        
+        // Manejar botones de cierre específicamente
+        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+        });
+    }
+    
+    // Función para manejar el cierre del modal
+    function handleModalHidden() {
+        // Limpiar backdrop residual
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        backdrops.forEach(backdrop => backdrop.remove());
+        
+        // Restaurar scroll del body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+        
+        // Limpiar atributos del HTML
+        const htmlElement = document.documentElement;
+        htmlElement.style.overflow = '';
+        htmlElement.style.paddingRight = '';
+    }
 
     // Ver detalles de la factura en un modal
     window.verFactura = function(id) {
@@ -252,8 +336,23 @@ $(document).ready(function() {
                 <p><strong>Detalle:</strong> ${factura.detail || 'Sin detalles'}</p>
                 ${archivoSection}
             `;
+            
+            // Actualizar contenido del modal
             $('#facturaDetailsContent').html(detailsHtml);
-            new bootstrap.Modal(document.getElementById('facturaDetailsModal')).show();
+            
+            // Obtener o crear instancia del modal de manera segura
+            const modalElement = document.getElementById('facturaDetailsModal');
+            let modalInstance = bootstrap.Modal.getInstance(modalElement);
+            
+            if (!modalInstance) {
+                modalInstance = new bootstrap.Modal(modalElement, {
+                    backdrop: true,
+                    keyboard: true,
+                    focus: true
+                });
+            }
+            
+            modalInstance.show();
         } else {
             Swal.fire('Error', 'No se pudieron encontrar los detalles de la factura.', 'error');
         }

@@ -4,7 +4,19 @@ $(document).ready(function() {
     // Configuración de columnas para la tabla de facturas
     const columns = [
         {data: 'id', name: 'id'},
-        {data: 'invoice', name: 'invoice', title: 'Factura'},
+        {
+            data: 'invoice', 
+            name: 'invoice', 
+            title: 'Factura',
+            render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, extraer el número de la factura y convertirlo a entero
+                    const match = String(data || '').match(/\d+/);
+                    return match ? parseInt(match[0], 10) : 0;
+                }
+                return data || '';
+            }
+        },
         {
             data: 'tipo', 
             name: 'tipo',
@@ -27,6 +39,10 @@ $(document).ready(function() {
             name: 'date',
             title: 'Fecha',
             render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, retornar timestamp
+                    return data ? new Date(data).getTime() : 0;
+                }
                 return formatTableDate(data, false);
             }
         },
@@ -35,6 +51,10 @@ $(document).ready(function() {
             name: 'expiry',
             title: 'Vencimiento',
             render: function(data, type, row) {
+                if (type === 'sort' || type === 'type') {
+                    // Para ordenamiento, retornar timestamp (fechas vacías al final)
+                    return data ? new Date(data).getTime() : 9999999999999;
+                }
                 return data ? formatTableDate(data, false) : 'N/A';
             }
         },
@@ -93,7 +113,7 @@ $(document).ready(function() {
                 });
             }
         },
-        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+        order: [[3, 'desc']] // Ordenar por fecha descendente (más recientes primero)
     };
     
     // Inicializar DataTable usando la función reutilizable

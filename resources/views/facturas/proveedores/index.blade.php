@@ -1,9 +1,5 @@
 @extends('layouts.app')
 
-@push('styles')
-<link href="{{ asset('assets/css/facturas/filtros-responsive.css') }}" rel="stylesheet">
-@endpush
-
 @section('content')
 <div class="container-fluid">
     <div class="row">

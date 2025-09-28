@@ -871,7 +871,9 @@ class ActionButtonFactory {
 
         // Priorizar archivo desde R2 si existe
         if (factura.has_file && factura.file_path) {
-            const downloadUrl = buildApiUrl(`r2/download/${factura.file_path}`);
+            // Codificar correctamente la ruta para URL
+            const encodedPath = encodeURIComponent(factura.file_path).replace(/%2F/g, '/');
+            const downloadUrl = buildApiUrl(`r2/download/${encodedPath}`);
             window.open(downloadUrl, '_blank');
             
             Swal.fire({
@@ -925,9 +927,11 @@ class ActionButtonFactory {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                // Realizar la eliminación
+                // Realizar la eliminación con codificación correcta de la ruta
+                const encodedPath = encodeURIComponent(factura.file_path).replace(/%2F/g, '/');
+                
                 $.ajax({
-                    url: buildApiUrl(`r2/delete/${factura.file_path}`),
+                    url: buildApiUrl(`r2/delete/${encodedPath}`),
                     type: 'DELETE',
                     data: {
                         "_token": $('meta[name="csrf-token"]').attr('content')

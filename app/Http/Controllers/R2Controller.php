@@ -47,17 +47,37 @@ class R2Controller extends Controller
      */
     public function downloadFile($path)
     {
-        // Basic security check to prevent directory traversal
-        if (str_contains($path, '..')) {
-            abort(400, 'Ruta inválida.');
-        }
+        try {
+            // Decodificar la ruta si viene codificada desde la URL
+            $path = urldecode($path);
+            
+            // Basic security check to prevent directory traversal
+            if (str_contains($path, '..')) {
+                abort(400, 'Ruta inválida.');
+            }
 
-        if (!Storage::disk('r2')->exists($path)) {
-            abort(404, 'Archivo no encontrado.');
-        }
+            // Log para debug
+            \Log::info('Intentando descargar archivo desde R2', [
+                'path' => $path,
+                'exists' => Storage::disk('r2')->exists($path)
+            ]);
 
-        // Usar response() para que el navegador maneje el archivo (lo muestra en línea o lo descarga)
-        return Storage::disk('r2')->response($path);
+            if (!Storage::disk('r2')->exists($path)) {
+                abort(404, 'Archivo no encontrado en R2: ' . $path);
+            }
+
+            // Usar response() para que el navegador maneje el archivo (lo muestra en línea o lo descarga)
+            return Storage::disk('r2')->response($path);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error al descargar archivo desde R2', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            abort(500, 'Error interno al procesar el archivo: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -315,13 +335,28 @@ class R2Controller extends Controller
     public function deleteFileByPath($path)
     {
         try {
+            // Decodificar la ruta si viene codificada desde la URL
+            $path = urldecode($path);
             $path = ltrim($path, '/');
+            
+            // Log para debug
+            \Log::info('Intentando eliminar archivo desde R2', [
+                'path' => $path,
+                'exists' => Storage::disk('r2')->exists($path)
+            ]);
+            
             if (Storage::disk('r2')->exists($path)) {
                 Storage::disk('r2')->delete($path);
             }
             FilesRegistry::where('path', $path)->delete();
-            return response()->json(['success' => true]);
+            
+            return response()->json(['success' => true, 'message' => 'Archivo eliminado correctamente']);
         } catch (\Exception $e) {
+            \Log::error('Error al eliminar archivo desde R2', [
+                'path' => $path,
+                'error' => $e->getMessage()
+            ]);
+            
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -388,5 +423,36 @@ class R2Controller extends Controller
                 ];
             });
         return response()->json(['status' => 'success', 'files' => $files]);
+    }
+
+    /**
+     * Debug function to test file paths and R2 storage
+     * 
+     * @param string $path
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function debugPath($path)
+    {
+        $originalPath = $path;
+        $decodedPath = urldecode($path);
+        
+        $debug = [
+            'original_path' => $originalPath,
+            'decoded_path' => $decodedPath,
+            'exists_original' => Storage::disk('r2')->exists($originalPath),
+            'exists_decoded' => Storage::disk('r2')->exists($decodedPath),
+            'r2_files' => [],
+        ];
+        
+        // Intentar listar archivos en el directorio padre
+        try {
+            $parentDir = dirname($decodedPath);
+            $debug['parent_dir'] = $parentDir;
+            $debug['r2_files'] = Storage::disk('r2')->files($parentDir);
+        } catch (\Exception $e) {
+            $debug['r2_error'] = $e->getMessage();
+        }
+        
+        return response()->json($debug);
     }
 }

@@ -1,9 +1,5 @@
 @extends('layouts.app')
 
-@push('styles')
-<link href="{{ asset('assets/css/facturas/filtros-responsive.css') }}" rel="stylesheet">
-@endpush
-
 @section('content')
 <div class="container-fluid">
     <div class="row">
@@ -207,7 +203,7 @@
                 <!-- Contenido se carga dinámicamente -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="$('#facturaDetailsModal').modal('hide');">Cerrar</button>
             </div>
         </div>
     </div>

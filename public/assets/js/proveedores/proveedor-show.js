@@ -60,6 +60,8 @@ $(function(){
     $(document).on('click', '[data-download-path]', function(){
         const path = $(this).data('download-path');
         if (!path) return;
-        window.open(buildApiUrl(`r2/download/${path}`), '_blank');
+        // Codificar correctamente la ruta para URL
+        const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/');
+        window.open(buildApiUrl(`r2/download/${encodedPath}`), '_blank');
     });
 });

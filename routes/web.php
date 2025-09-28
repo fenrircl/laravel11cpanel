@@ -89,6 +89,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/r2/upload', [R2Controller::class, 'upload']);
     Route::get('/r2/list', [R2Controller::class, 'list']);
+    Route::get('/r2/debug/{path}', [R2Controller::class, 'debugPath'])->where('path', '.*')->name('r2.debug');
     Route::get('/r2/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('r2.download');
     
     // Rutas para gestión de archivos
