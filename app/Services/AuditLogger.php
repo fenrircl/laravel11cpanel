@@ -27,6 +27,11 @@ class AuditLogger
             return;
         }
 
+        // Normalizar la descripción para evitar problemas de codificación
+        if ($description) {
+            $description = self::normalizeDescription($description);
+        }
+
         $payload = [
             'user_id' => (int) $userId,
             'action' => $action,
@@ -66,5 +71,33 @@ class AuditLogger
             }
         }
         return $changes;
+    }
+
+    /**
+     * Normaliza la descripción para evitar problemas de codificación UTF-8
+     */
+    private static function normalizeDescription(string $description): string
+    {
+        // Asegurar codificación UTF-8 correcta
+        $description = mb_convert_encoding($description, 'UTF-8', 'UTF-8');
+        
+        // Corregir caracteres mal codificados comunes
+        $replacements = [
+            'Ã±' => 'ñ', 'Ã'' => 'Ñ', 'Ã³' => 'ó', 'Ã©' => 'é', 'Ã­' => 'í', 
+            'Ãº' => 'ú', 'Ã¡' => 'á', 'Ã¹' => 'ù', 'Ã ' => 'à', 'Ã¨' => 'è',
+            'Ãª' => 'ê', 'Ã´' => 'ô', 'Ã¢' => 'â', 'Ãç' => 'ç', 'Ã¼' => 'ü',
+            'CreÃ³' => 'Creó', 'EditÃ³' => 'Editó', 'EliminÃ³' => 'Eliminó',
+            'ActualizÃ³' => 'Actualizó', 'SubiÃ³' => 'Subió', 'DescargÃ³' => 'Descargó'
+        ];
+        
+        $description = str_replace(array_keys($replacements), array_values($replacements), $description);
+        
+        // Limpiar caracteres de control no imprimibles
+        $description = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $description);
+        
+        // Decodificar entidades HTML si existen
+        $description = html_entity_decode($description, ENT_QUOTES, 'UTF-8');
+        
+        return trim($description);
     }
 }

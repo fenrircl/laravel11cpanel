@@ -116,6 +116,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/cotizaciones/{cotizacion}/export-upload', [CotizacionesController::class, 'exportPdfAndUpload'])->name('cotizaciones.export-upload');
     Route::post('/cotizaciones/{cotizacion}/send-email', [CotizacionesController::class, 'sendEmail'])->name('cotizaciones.send-email');
 
+    // API para logs de auditoría
+    Route::get('/api/audit-logs', [\App\Http\Controllers\AuditLogController::class, 'apiLogs'])->name('api.audit-logs');
+
     // Vista rápida y rutas por tipo para factura completa
     Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');
     Route::get('/facturas/proveedores/{factura}', [FacturasController::class, 'show'])->name('facturas.proveedores.show');
@@ -138,5 +141,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Charts
     Route::get('/charts/facturas/pendientes', [\App\Http\Controllers\ChartsController::class, 'facturasPendientes'])->name('charts.facturas.pendientes');
+    
+    // API para logs de auditoría
+    Route::get('/api/audit/logs', [\App\Http\Controllers\AuditLogController::class, 'apiLogs'])->name('api.audit.logs');
 });
 

@@ -31,6 +31,11 @@ class FacturasController extends Controller
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas', 'facturas/filtros-responsive'];
         $data["asset_js"] = ['facturas/filtros', 'facturas/facturas-cliente'];
+        
+        // Obtener logs de auditoría de facturas de clientes
+        $auditController = new AuditLogController();
+        $data['auditLogs'] = $auditController->getFacturasClientesLogs();
+        
         return view('facturas.clientes.index', $data);
     }
 
@@ -41,6 +46,11 @@ class FacturasController extends Controller
     {
         $data["asset_css"] = ['comun/tablas', 'facturas/facturas', 'facturas/filtros-responsive'];
         $data["asset_js"] = ['facturas/filtros', 'facturas/facturas-proveedor'];
+        
+        // Obtener logs de auditoría de facturas de proveedores
+        $auditController = new AuditLogController();
+        $data['auditLogs'] = $auditController->getFacturasProveedoresLogs();
+        
         return view('facturas.proveedores.index', $data);
     }
 

@@ -18,6 +18,11 @@ class ClientesController extends Controller
         // Solo pasar datos estáticos, no los clientes para optimizar la carga inicial
         $data["asset_css"] = ['comun/tablas', 'clientes/clientes'];
         $data["asset_js"] = ['clientes/clientes'];
+        
+        // Obtener logs de auditoría de clientes
+        $auditController = new AuditLogController();
+        $data['auditLogs'] = $auditController->getClienteLogs();
+        
         return view('clientes.index', $data);
     }
 

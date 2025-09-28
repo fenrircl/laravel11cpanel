@@ -52,6 +52,13 @@
             </div>
         </div>
     </div>
+    
+    <!-- Logs de auditoría -->
+    <x-audit-log-table 
+        :logs="$auditLogs" 
+        title="Actividades Recientes - Facturas de Proveedores" 
+        module="facturas" 
+    />
 </div>
 
 <!-- Modal para CRUD de Facturas de Proveedor -->

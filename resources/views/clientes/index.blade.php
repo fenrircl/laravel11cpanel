@@ -33,9 +33,13 @@
             </div>
         </div>
     </div>
-    <div class="row">
-        
-    </div>
+    
+    <!-- Logs de auditoría -->
+    <x-audit-log-table 
+        :logs="$auditLogs" 
+        title="Actividades Recientes - Clientes" 
+        module="clientes" 
+    />
 </div>
 
 <!-- Modal para CRUD de Clientes -->
