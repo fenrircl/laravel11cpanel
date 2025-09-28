@@ -29,6 +29,10 @@ class R2Controller extends Controller
         // Limpiar caracteres nulos que pueden venir por problemas de codificación
         $path = str_replace("\x00", '', $path);
         
+        // Limpiar caracteres de control ASCII (0x01-0x1F excepto 0x09, 0x0A, 0x0D)
+        // Estos causan "Corrupted path detected" en Flysystem
+        $path = preg_replace('/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $path);
+        
         // Decodificar la ruta si viene codificada desde la URL
         $path = urldecode($path);
         
@@ -51,12 +55,44 @@ class R2Controller extends Controller
         // Eliminar dobles barras
         $path = preg_replace('#/+#', '/', $path);
         
+        // Limpiar espacios múltiples
+        $path = preg_replace('/\s+/', ' ', $path);
+        
         \Log::info('Ruta normalizada', [
             'result' => $path,
-            'final_length' => strlen($path)
+            'final_length' => strlen($path),
+            'final_hex' => bin2hex(substr($path, 0, 100))
         ]);
         
         return $path;
+    }
+
+    /**
+     * Sanitize filename to prevent filesystem issues
+     * 
+     * @param string $filename
+     * @return string
+     */
+    private function sanitizeFilename($filename)
+    {
+        // Limpiar caracteres de control y nulos
+        $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename);
+        
+        // Caracteres problemáticos para nombres de archivo
+        $filename = preg_replace('/[<>:"|?*]/', '', $filename);
+        
+        // Normalizar espacios
+        $filename = preg_replace('/\s+/', ' ', trim($filename));
+        
+        // Limitar longitud (255 caracteres max para la mayoría de filesystems)
+        if (strlen($filename) > 255) {
+            $ext = pathinfo($filename, PATHINFO_EXTENSION);
+            $base = pathinfo($filename, PATHINFO_FILENAME);
+            $maxBase = 255 - strlen($ext) - 1;
+            $filename = substr($base, 0, $maxBase) . '.' . $ext;
+        }
+        
+        return $filename;
     }
 
     // Subir un archivo de prueba a R2
@@ -175,10 +211,11 @@ class R2Controller extends Controller
                 $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
                 $numeroFactura = $factura->invoice; // Usar número de factura en lugar del ID
                 
-                // Generate a unique filename
-                $originalName = $file->getClientOriginalName();
+                // Generate a unique filename with sanitization
+                $originalName = $this->sanitizeFilename($file->getClientOriginalName());
                 $extension = $file->getClientOriginalExtension();
                 $fileName = pathinfo($originalName, PATHINFO_FILENAME);
+                $fileName = $this->sanitizeFilename($fileName); // Sanitizar también el nombre base
                 $uniqueFileName = $fileName . '_' . time() . '.' . $extension;
                 
                 // Create the storage path: facturas/clientes/{numero_factura} o facturas/proveedores/{numero_factura}

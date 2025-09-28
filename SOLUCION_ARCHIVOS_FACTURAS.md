@@ -1,12 +1,91 @@
-# Solución para Problema de Archivos de Facturas
+# Solución para Problema de Archivos de Facturas (ACTUALIZADO)
 
 ## Problema Identificado
 
-El sistema presentaba el error "Corrupted path detected" al intentar descargar archivos adjuntos de facturas desde R2, específicamente con rutas como `facturas/proveedores/9960/386_9960.jpg`.
+El sistema presentaba el error "Corrupted path detected" al intentar descargar archivos adjuntos de facturas desde R2. El análisis de logs reveló que las rutas llegaban con **caracteres nulos** (`\u0000`) intercalados entre cada carácter:
 
-## Causa del Problema
+**Ejemplo del error:**
+```
+\u0000f\u0000a\u0000c\u0000t\u0000u\u0000r\u0000a\u0000s\u0000/\u0000p\u0000r\u0000o\u0000v\u0000e\u0000e\u0000d\u0000o\u0000r\u0000e\u0000s\u0000/\u00001\u00007\u00005\u00000\u00006\u00006\u00003\u0000/\u0000D\u0000o\u0000c\u0000u\u0000m\u0000e\u0000n\u0000t\u0000o...
+```
 
-El problema era causado por **codificación incorrecta de URLs** al pasar rutas de archivos con caracteres especiales o números a través de parámetros de URL de Laravel. Las rutas no se estaban codificando/decodificando correctamente entre el frontend JavaScript y el backend PHP.
+**Ruta esperada:**
+```
+facturas/proveedores/1750663/Documento Electronico Recibido_1756935962.pdf
+```
+
+## Causa Raíz del Problema
+
+El problema era causado por **corrupción de codificación de caracteres**:
+
+1. **Caracteres nulos intercalados** - Indicativo de conversión UTF-16 a UTF-8 incorrecta
+2. **Codificación mezclada** - Problemas de encoding entre frontend JavaScript y backend PHP
+3. **Falta de normalización** - No había limpieza consistente de rutas de archivos
+
+## Soluciones Implementadas
+
+### 1. **Función de Normalización de Rutas** 
+
+**Nueva función en R2Controller:**
+```php
+private function normalizePath($path)
+{
+    // Log inicial para debug
+    \Log::info('Normalizando ruta', [
+        'original' => $path,
+        'length' => strlen($path),
+        'hex' => bin2hex(substr($path, 0, 100))
+    ]);
+    
+    // Limpiar caracteres nulos (problema principal)
+    $path = str_replace("\x00", '', $path);
+    
+    // Decodificar URL encoding
+    $path = urldecode($path);
+    
+    // Asegurar codificación UTF-8 correcta
+    if (!mb_check_encoding($path, 'UTF-8')) {
+        $path = mb_convert_encoding($path, 'UTF-8', 'auto');
+    }
+    
+    // Normalizar separadores y limpiar
+    $path = trim($path);
+    $path = str_replace('\\', '/', $path);
+    $path = preg_replace('#/+#', '/', $path);
+    
+    return $path;
+}
+```
+
+### 2. **Backend PHP Mejorado** 
+
+**Funciones actualizadas:**
+- ✅ `downloadFile()` - Usa `normalizePath()` y mejor manejo de errores
+- ✅ `deleteFileByPath()` - Normalización consistente
+- ✅ Controladores de facturas - Codificación UTF-8 asegurada en respuestas JSON
+
+### 3. **Frontend JavaScript Mejorado**
+
+**Mejoras en `main.js`:**
+```javascript
+// Limpiar y normalizar la ruta del archivo
+let filePath = factura.file_path;
+
+// Limpiar caracteres nulos si existen
+filePath = filePath.replace(/\x00/g, '');
+
+// Asegurar codificación correcta
+try {
+    if (filePath.includes('%')) {
+        filePath = decodeURIComponent(filePath);
+    }
+} catch (e) {
+    console.warn('Error al decodificar ruta:', e);
+}
+
+// Codificar correctamente para URL
+const encodedPath = encodeURIComponent(filePath).replace(/%2F/g, '/');
+```
 
 ## Soluciones Implementadas
 
@@ -130,21 +209,95 @@ public function debugPath($path)
 
 **Uso:** Para verificar si un archivo existe y debug de rutas problemáticas.
 
+### 4. **Logging Mejorado y Debug**
+
+**Logs detallados para troubleshooting:**
+```php
+\Log::info('Normalizando ruta', [
+    'original' => $path,
+    'length' => strlen($path),
+    'hex' => bin2hex(substr($path, 0, 100))
+]);
+```
+
+**Función de debug temporal:**
+```php
+public function debugPath($path)
+{
+    $originalPath = $path;
+    $normalizedPath = $this->normalizePath($path);
+    
+    return response()->json([
+        'original_path' => $originalPath,
+        'normalized_path' => $normalizedPath,
+        'exists_normalized' => Storage::disk('r2')->exists($normalizedPath),
+        'parent_dir' => dirname($normalizedPath),
+        'r2_files' => Storage::disk('r2')->files(dirname($normalizedPath))
+    ]);
+}
+```
+
 ## Funciones Corregidas
 
-### 1. **Descarga de Archivos**
-- ✅ `descargarPDF()` en `main.js`
-- ✅ Handlers de descarga en `cliente-show.js`
-- ✅ Handlers de descarga en `proveedor-show.js`
+### 1. **Backend PHP**
+- ✅ `normalizePath()` - Nueva función de normalización (R2Controller)
+- ✅ `downloadFile()` - Usa normalización y logs mejorados
+- ✅ `deleteFileByPath()` - Normalización consistente
+- ✅ `getClienteData()` - Codificación UTF-8 asegurada
+- ✅ `getProveedorData()` - Codificación UTF-8 asegurada
+- ✅ `getData()` - Codificación UTF-8 asegurada
 
-### 2. **Eliminación de Archivos**
-- ✅ `eliminarArchivoFactura()` en `main.js`
-- ✅ `deleteFileByPath()` en `R2Controller.php`
+### 2. **Frontend JavaScript**
+- ✅ `descargarPDF()` - Limpieza de caracteres nulos y codificación correcta
+- ✅ `eliminarArchivoFactura()` - Normalización de rutas
+- ✅ Handlers de descarga en `cliente-show.js` y `proveedor-show.js`
 
-### 3. **Logging y Debug**
-- ✅ Logs informativos en descargas
-- ✅ Logs de error con stack trace
-- ✅ Función de debug temporal
+## Flujo de Corrección
+
+```mermaid
+graph TD
+    A[Ruta con caracteres nulos] --> B[normalizePath()]
+    B --> C[Limpiar \x00]
+    C --> D[urldecode()]
+    D --> E[Verificar UTF-8]
+    E --> F[Convertir si necesario]
+    F --> G[Normalizar separadores]
+    G --> H[Ruta limpia]
+    H --> I[Storage::exists()]
+    I --> J[Storage::response()]
+```
+
+## Resultados de Testing
+
+### ✅ **Problema Original Resuelto**
+```
+ANTES: \u0000f\u0000a\u0000c\u0000t\u0000u\u0000r\u0000a\u0000s...
+DESPUÉS: facturas/proveedores/1750663/Documento Electronico Recibido_1756935962.pdf
+```
+
+### ✅ **Funcionalidades Verificadas**
+- Descarga de archivos desde tablas de facturas
+- Eliminación de archivos adjuntos  
+- Visualización de archivos en modales de detalles
+- Compatibilidad con caracteres especiales y espacios
+- Logging detallado para troubleshooting futuro
+
+## Archivos Modificados
+
+### Backend PHP:
+1. `/app/Http/Controllers/R2Controller.php` - Normalización de rutas y logs mejorados
+2. `/app/Http/Controllers/FacturasController.php` - Codificación UTF-8 en respuestas JSON
+
+### Frontend JavaScript:
+1. `/public/assets/js/comun/main.js` - Funciones `descargarPDF()` y `eliminarArchivoFactura()`
+2. `/public/assets/js/clientes/cliente-show.js` - Handler de descarga mejorado
+3. `/public/assets/js/proveedores/proveedor-show.js` - Handler de descarga mejorado
+
+---
+
+**Fecha:** 28 de Septiembre, 2025  
+**Status:** ✅ **RESUELTO** - Problema de caracteres nulos eliminado  
+**Próximos pasos:** Remover función de debug en producción después de confirmar estabilidad
 
 ## Rutas de Archivos Soportadas
 
