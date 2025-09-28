@@ -80,6 +80,10 @@
                                             <span class="text-primary">
                                                 <i class="fas fa-file-invoice me-1"></i>#{{ $log->entity_display_info['display'] }}
                                             </span>
+                                        @elseif($log->entity_display_info['type'] === 'cotizacion')
+                                            <span class="text-success" title="Cliente: {{ $log->entity_display_info['cliente_name'] ?? '' }}">
+                                                <i class="fas fa-file-alt me-1"></i>COT-{{ $log->entity_display_info['display'] }}
+                                            </span>
                                         @else
                                             {{ $log->entity_display_info['display'] ?? '—' }}
                                         @endif

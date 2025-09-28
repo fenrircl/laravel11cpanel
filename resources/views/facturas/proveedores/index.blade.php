@@ -7,8 +7,8 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 text-center w-100">Facturas de Proveedores</h4>
                         <div>
-                            <h4 class="mb-0">Facturas de Proveedores</h4>
                             @if(request()->get('filter') === 'pending')
                                 <small class="text-primary"><i class="fas fa-filter me-1"></i>Mostrando solo facturas pendientes (vencidas y próximas a vencer)</small>
                             @endif

@@ -17,6 +17,11 @@ class CotizacionesController extends Controller
     {
         $data["asset_css"] = ['comun/tablas'];
         $data["asset_js"] = ['cotizaciones/cotizaciones'];
+        
+        // Obtener logs de auditoría de cotizaciones
+        $auditController = new AuditLogController();
+        $data['auditLogs'] = $auditController->getCotizacionesLogs();
+        
         return view('cotizacion.index', $data);
     }
 

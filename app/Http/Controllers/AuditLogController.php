@@ -122,6 +122,21 @@ class AuditLogController extends Controller
         return $this->enrichLogsWithEntityInfo($logs);
     }
 
+    public function getCotizacionesLogs(int $limit = 10)
+    {
+        $logs = AuditLog::with('user')
+            ->where('module', 'cotizaciones')
+            ->orWhere(function($q) {
+                $q->where('module', 'archivos')
+                  ->where('description', 'like', '%cotizacion%');
+            })
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+            
+        return $this->enrichLogsWithEntityInfo($logs);
+    }
+
     public function apiLogs(Request $request)
     {
         $module = $request->get('module');
@@ -153,6 +168,7 @@ class AuditLogController extends Controller
         $clienteIds = [];
         $proveedorIds = [];
         $facturaIds = [];
+        $cotizacionIds = [];
 
         foreach ($logs as $log) {
             if ($log->module === 'clientes' && !empty($log->entity_id)) {
@@ -161,12 +177,15 @@ class AuditLogController extends Controller
                 $proveedorIds[] = $log->entity_id;
             } elseif ($log->module === 'facturas' && !empty($log->entity_id)) {
                 $facturaIds[] = $log->entity_id;
+            } elseif ($log->module === 'cotizaciones' && !empty($log->entity_id)) {
+                $cotizacionIds[] = $log->entity_id;
             }
         }
 
         $clientes = [];
         $proveedores = [];
         $facturas = [];
+        $cotizaciones = [];
 
         if (!empty($clienteIds)) {
             $clientes = \App\Models\Cliente::whereIn('id', array_unique($clienteIds))
@@ -185,6 +204,14 @@ class AuditLogController extends Controller
         if (!empty($facturaIds)) {
             $facturas = \App\Models\Factura::whereIn('id', array_unique($facturaIds))
                 ->select('id', 'invoice')
+                ->get()
+                ->keyBy('id');
+        }
+
+        if (!empty($cotizacionIds)) {
+            $cotizaciones = \App\Models\Cotizacion::whereIn('id', array_unique($cotizacionIds))
+                ->select('id', 'work', 'client_id')
+                ->with('cliente:id,name,rut')
                 ->get()
                 ->keyBy('id');
         }
@@ -214,6 +241,16 @@ class AuditLogController extends Controller
                     'type' => 'factura',
                     'invoice' => $factura->invoice,
                     'display' => $factura->invoice
+                ];
+            } elseif ($log->module === 'cotizaciones' && isset($cotizaciones[$log->entity_id])) {
+                $cotizacion = $cotizaciones[$log->entity_id];
+                $log->entity_display_info = [
+                    'type' => 'cotizacion',
+                    'numero' => $cotizacion->id,
+                    'cliente_rut' => $cotizacion->cliente?->rut,
+                    'cliente_name' => $cotizacion->cliente?->name,
+                    'work' => substr($cotizacion->work, 0, 50),
+                    'display' => $cotizacion->id
                 ];
             }
         }

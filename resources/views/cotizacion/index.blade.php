@@ -33,6 +33,12 @@
         </div>
     </div>
 
+    <!-- Componente de auditoría -->
+    <x-audit-log-table 
+        :logs="$auditLogs ?? collect()" 
+        title="Actividad reciente en cotizaciones"
+    />
+
     <!-- Host oculto para la plantilla PDF (no afecta el layout) -->
     <div id="pdfHiddenHost" aria-hidden="true" style="position:fixed; left:-200vw; top:0; width:1000px; background:#fff; pointer-events:none; z-index:-1;">
         @include('cotizacion.pdf')
