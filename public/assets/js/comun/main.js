@@ -652,13 +652,18 @@ function initDataTable(tableId, data, columns, options = {}) {
         serverSide: false,
         columns: columns,
         language: getDTLanguage(isLocal),
-        responsive: { details: false, breakpoints: [
-            { name: 'desktop',  width: Infinity },
-            { name: 'tablet-l', width: 1188 },
-            { name: 'tablet',   width: 1024 },
-            { name: 'fablet',   width: 768 },
-            { name: 'phone',    width: 480 }
-        ]},
+        responsive: { 
+            details: {
+                display: $.fn.dataTable.Responsive.display.childRow
+            },
+            breakpoints: [
+                { name: 'desktop',     width: Infinity },
+                { name: 'tablet-l',    width: 1188 },
+                { name: 'tablet',      width: 1024 },
+                { name: 'fablet',      width: 768 },
+                { name: 'phone',       width: 480 }
+            ]
+        },
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
         dom: 'Bfrtip',

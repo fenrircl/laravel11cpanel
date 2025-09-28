@@ -168,7 +168,7 @@ $(document).ready(function() {
             }
         },
         {
-            data: 'action', name: 'action', orderable: false, searchable: false, title: 'Acciones',
+            data: null, name: 'action', orderable: false, searchable: false, title: 'Acciones',
             render: function(data, type, row) {
                 const options = {};
                 if (!row.has_file || !row.file_path) options.exclude = ['download'];

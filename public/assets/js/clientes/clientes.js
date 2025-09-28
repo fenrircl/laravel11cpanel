@@ -3,23 +3,22 @@ $(document).ready(function() {
     
     // Configuración de columnas para la tabla de clientes
     const columns = [
-        {data: 'rut', name: 'rut', width: '80px'},
-        {data: 'name', name: 'name'},
-        {data: 'email', name: 'email'},
+        {data: 'rut', name: 'rut', width: '80px', responsivePriority: 3},
         {
-            data: 'created_at', 
-            name: 'created_at',
-            width: '150px',
-            render: function(data, type, row) {
-                return formatTableDate(data, true);
-            }
+            data: 'name', 
+            name: 'name',
+            width: '200px',  // Ancho fijo para el nombre
+            responsivePriority: 1  // Máxima prioridad - nunca se oculta
         },
+        {data: 'email', name: 'email', responsivePriority: 4},
+        {data: 'phone', name: 'phone', width: '120px', responsivePriority: 5},
         {
-            data: 'action', 
+            data: null, 
             name: 'action', 
             orderable: false, 
             searchable: false,
             width: '120px',
+            responsivePriority: 2,  // Segunda prioridad - nunca se oculta
             render: function(data, type, row) {
                 // Usar la nueva función genérica con configuración por defecto
                 return generateActionButtons(row.id, 'clientes');
@@ -47,7 +46,7 @@ $(document).ready(function() {
                 });
             }
         },
-        order: [[0, 'desc']] // Ordenar por ID descendente (más recientes primero)
+        order: [[1, 'asc']] // Ordenar por nombre ascendente
     };
     
     // Inicializar DataTable usando la función reutilizable

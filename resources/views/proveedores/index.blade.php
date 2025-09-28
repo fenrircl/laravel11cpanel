@@ -22,7 +22,7 @@
                                     <th>RUT</th>
                                     <th>Nombre</th>
                                     <th>Email</th>
-                                    <th>Creado</th>
+                                    <th>Telefono</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>

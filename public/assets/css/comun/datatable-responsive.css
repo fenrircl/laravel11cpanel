@@ -1,0 +1,320 @@
+/**
+ * Mejoras Responsive para DataTables
+ * Garantiza que la columna de acciones siempre esté visible
+ */
+
+/* Estilos base para la tabla responsive */
+.table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    min-height: 400px;
+}
+
+/* Forzar que la columna de acciones siempre esté visible */
+.dataTables_wrapper table.dataTable tbody td:last-child,
+.dataTables_wrapper table.dataTable thead th:last-child {
+    position: sticky !important;
+    right: 0 !important;
+    background-color: white !important;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1) !important;
+    z-index: 10 !important;
+    min-width: 120px !important;
+}
+
+/* Estilos para botones de acción en móviles */
+@media (max-width: 768px) {
+    /* Hacer los botones más pequeños en móviles */
+    .btn-group-action .btn {
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.8rem !important;
+        margin: 1px !important;
+        min-width: 36px !important;
+    }
+    
+    /* Ocultar texto en móviles, solo mostrar iconos */
+    .btn-group-action .btn .btn-text {
+        display: none !important;
+    }
+    
+    /* Mejorar espaciado entre botones */
+    .btn-group-action {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+    }
+    
+    /* Reducir ancho de columna de acciones en móviles */
+    .dataTables_wrapper table.dataTable tbody td:last-child,
+    .dataTables_wrapper table.dataTable thead th:last-child {
+        min-width: 120px !important;
+        width: 120px !important;
+        padding: 0.5rem 0.25rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* En pantallas muy pequeñas, usar iconos solamente */
+    .btn-group-action .btn {
+        padding: 0.25rem !important;
+        min-width: 32px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    /* Asegurar que solo se vean iconos */
+    .btn-group-action .btn .btn-text {
+        display: none !important;
+    }
+    
+    /* Layout más compacto */
+    .btn-group-action {
+        justify-content: center !important;
+    }
+    
+    .dataTables_wrapper table.dataTable tbody td:last-child,
+    .dataTables_wrapper table.dataTable thead th:last-child {
+        min-width: 100px !important;
+        width: 100px !important;
+        padding: 0.25rem !important;
+        text-align: center !important;
+    }
+}
+
+/* Estilos para botones en desktop - mostrar texto */
+@media (min-width: 769px) {
+    .btn-group-action .btn .btn-text {
+        margin-left: 0.25rem;
+    }
+    
+    .btn-group-action .btn {
+        margin-right: 2px;
+    }
+    
+    .btn-group-action .btn:last-child {
+        margin-right: 0;
+    }
+}
+
+/* Mejorar el modal de detalles responsive */
+.dtr-details {
+    background-color: #f8f9fa !important;
+    border-left: 3px solid #007bff !important;
+    padding: 1rem !important;
+    margin: 0.5rem 0 !important;
+}
+
+.dtr-details li {
+    padding: 0.5rem 0 !important;
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.dtr-details li:last-child {
+    border-bottom: none !important;
+}
+
+/* Estilos para el modal de DataTables */
+div.dtr-modal {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    background: white !important;
+    border: 1px solid #ccc !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    z-index: 1055 !important;
+    max-width: 90vw !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+}
+
+div.dtr-modal-content {
+    padding: 1rem !important;
+}
+
+div.dtr-modal-close {
+    position: absolute !important;
+    top: 0.5rem !important;
+    right: 0.75rem !important;
+    font-size: 1.5rem !important;
+    cursor: pointer !important;
+    color: #6c757d !important;
+}
+
+div.dtr-modal-close:hover {
+    color: #495057 !important;
+}
+
+/* Backdrop para el modal */
+div.dtr-modal-background {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 1050 !important;
+}
+
+/* Mejorar visualización de las tablas */
+.dataTables_wrapper {
+    font-size: 0.9rem;
+}
+
+.dataTables_wrapper table.dataTable {
+    margin-bottom: 1rem !important;
+}
+
+/* Estilos para headers */
+.dataTables_wrapper table.dataTable thead th {
+    background-color: #f8f9fa !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    padding: 0.75rem !important;
+}
+
+/* Estilos para filas */
+.dataTables_wrapper table.dataTable tbody tr {
+    transition: background-color 0.15s ease-in-out;
+}
+
+.dataTables_wrapper table.dataTable tbody tr:hover {
+    background-color: #f5f5f5 !important;
+}
+
+/* Mejorar separación en dispositivos táctiles */
+@media (pointer: coarse) {
+    .dataTables_wrapper table.dataTable tbody td,
+    .dataTables_wrapper table.dataTable thead th {
+        padding: 1rem 0.75rem !important;
+    }
+}
+
+/* Indicador de columna sticky */
+.dataTables_wrapper table.dataTable tbody td:last-child::before,
+.dataTables_wrapper table.dataTable thead th:last-child::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to right, transparent, rgba(0,0,0,0.1));
+    pointer-events: none;
+}
+
+/* Mejoras adicionales para experiencia responsive */
+
+/* Mejorar contraste para filas alternas con columna sticky */
+.dataTables_wrapper table.dataTable tbody tr.even td:last-child,
+.dataTables_wrapper table.dataTable tbody tr:nth-child(even) td:last-child {
+    background-color: #f8f9fa !important;
+}
+
+/* Estilos generales para botones de acción */
+.btn-group-action {
+    display: flex !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 2px !important;
+}
+
+.btn-group-action .btn {
+    border-radius: 0.25rem !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.btn-group-action .btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+/* Estilos para botones en desktop - mostrar texto */
+@media (min-width: 769px) {
+    .btn-group-action .btn .btn-text {
+        margin-left: 0.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-action .btn {
+        margin-right: 2px;
+        padding: 0.375rem 0.75rem !important;
+    }
+    
+    .btn-group-action .btn:last-child {
+        margin-right: 0;
+    }
+    
+    .dataTables_wrapper table.dataTable tbody td:last-child,
+    .dataTables_wrapper table.dataTable thead th:last-child {
+        min-width: 160px !important;
+        width: 160px !important;
+    }
+}
+
+/* Mejoras para tooltips en dispositivos móviles */
+@media (max-width: 768px) {
+    .btn-group-action .btn {
+        position: relative;
+    }
+    
+    /* Mostrar tooltips más visibles en móviles */
+    .btn-group-action .btn[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        z-index: 1000;
+        pointer-events: none;
+    }
+}
+
+/* Hover effect mejorado para columna sticky */
+.dataTables_wrapper table.dataTable tbody tr:hover td:last-child {
+    background-color: #f0f0f0 !important;
+}
+
+/* Mejoras específicas para dispositivos con pantalla táctil */
+@media (hover: none) and (pointer: coarse) {
+    .btn-group-action .btn {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+    
+    /* Aumentar área tocable en móviles */
+    .dataTables_wrapper table.dataTable tbody td:last-child {
+        padding: 0.75rem 0.5rem !important;
+    }
+}
+
+/* Animaciones suaves para cambios de layout */
+.dataTables_wrapper table.dataTable tbody td,
+.dataTables_wrapper table.dataTable thead th {
+    transition: padding 0.3s ease, width 0.3s ease;
+}
+
+/* Mejoras para accesibilidad */
+.btn-group-action .btn:focus {
+    outline: 2px solid #007bff !important;
+    outline-offset: 2px !important;
+}
+
+/* Mejoras para modo oscuro si se implementa */
+@media (prefers-color-scheme: dark) {
+    .dataTables_wrapper table.dataTable tbody td:last-child,
+    .dataTables_wrapper table.dataTable thead th:last-child {
+        background-color: #2d3748 !important;
+        box-shadow: -2px 0 4px rgba(0,0,0,0.3) !important;
+    }
+    
+    .dataTables_wrapper table.dataTable tbody tr.even td:last-child,
+    .dataTables_wrapper table.dataTable tbody tr:nth-child(even) td:last-child {
+        background-color: #4a5568 !important;
+    }
+}

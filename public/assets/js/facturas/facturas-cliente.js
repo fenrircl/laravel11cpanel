@@ -156,7 +156,7 @@ $(document).ready(function() {
             }
         },
         {
-            data: 'action', 
+            data: null, 
             name: 'action', 
             orderable: false, 
             searchable: false,
