@@ -186,7 +186,7 @@ class FacturasController extends Controller
             'client_id' => 'nullable|exists:clients,id',
             'provider_id' => 'nullable|exists:providers,id',
             'date' => 'required|date',
-            'expiry' => 'nullable|date|after_or_equal:date',
+            'expiry' => 'nullable|date',
             'pay_date' => 'nullable|date',
             'amount' => 'required|integer|min:0', // CLP entero
             'check' => 'nullable|string|max:100',
@@ -297,7 +297,7 @@ class FacturasController extends Controller
             'client_id' => 'nullable|exists:clients,id',
             'provider_id' => 'nullable|exists:providers,id',
             'date' => 'required|date',
-            'expiry' => 'nullable|date|after_or_equal:date',
+            'expiry' => 'nullable|date',
             'pay_date' => 'nullable|date',
             'amount' => 'required|numeric|min:0',
             'check' => 'nullable|string|max:100',
