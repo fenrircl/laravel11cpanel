@@ -2168,9 +2168,109 @@ function openCreateFacturaModal(entity) {
 // ===== FUNCIONES DE GESTIÓN DE ARCHIVOS PARA FACTURAS =====
 
 /**
- * Subir archivo para una factura
+ * Subir archivo - función llamada desde los botones en las vistas
  */
-function uploadFile(formData, onSuccess = null) {
+function uploadFile() {
+    const fileInput = document.getElementById('file-upload');
+    if (!fileInput) {
+        Swal.fire({
+            title: 'Error',
+            text: 'No se encontró el campo de archivo',
+            icon: 'error',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    if (!file) {
+        Swal.fire({
+            title: 'Error',
+            text: 'Por favor selecciona un archivo',
+            icon: 'warning',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    // Obtener número de factura desde diferentes posibles fuentes
+    let invoice = null;
+    
+    // 1. Desde formulario modal (si existe y está visible)
+    const facturaModal = document.getElementById('facturaModal');
+    if (facturaModal && (facturaModal.classList.contains('show') || facturaModal.style.display === 'block')) {
+        const invoiceInput = document.querySelector('#facturaModal [name="invoice"]');
+        if (invoiceInput && invoiceInput.value) {
+            invoice = invoiceInput.value;
+        }
+    }
+    
+    // 2. Si no hay modal abierto, pedir al usuario que ingrese el número de factura
+    if (!invoice) {
+        Swal.fire({
+            title: 'Número de Factura',
+            text: 'Ingresa el número de factura para asociar el archivo:',
+            input: 'text',
+            inputAttributes: {
+                autocapitalize: 'off',
+                placeholder: 'Ej: F-001'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Subir Archivo',
+            cancelButtonText: 'Cancelar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes ingresar un número de factura';
+                }
+                if (value.length < 1) {
+                    return 'El número de factura es muy corto';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed && result.value) {
+                proceedWithUpload(result.value);
+            }
+        });
+        return; // Salir aquí, la subida continuará en el callback
+    } else {
+        proceedWithUpload(invoice);
+    }
+    
+    function proceedWithUpload(invoiceNumber) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('invoice', invoiceNumber);
+        
+        // Agregar información adicional según el contexto
+        const clienteId = document.querySelector('meta[name="cliente-id"]')?.getAttribute('content');
+        const proveedorId = document.querySelector('meta[name="proveedor-id"]')?.getAttribute('content');
+        
+        if (clienteId) {
+            formData.append('client_id', clienteId);
+        }
+        if (proveedorId) {
+            formData.append('provider_id', proveedorId);
+        }
+        
+        uploadFileWithFormData(formData, () => {
+            // Limpiar input después de subir
+            fileInput.value = '';
+        });
+    }
+}
+
+/**
+ * Subir archivo para una factura - función interna que maneja el FormData
+ */
+function uploadFileWithFormData(formData, onSuccess = null) {
+    // Debug: Mostrar lo que se está enviando
+    console.log('Enviando archivo con datos:', {
+        file: formData.get('file')?.name || 'No file',
+        invoice: formData.get('invoice') || 'No invoice',
+        client_id: formData.get('client_id') || 'No client_id',
+        provider_id: formData.get('provider_id') || 'No provider_id'
+    });
+    
     fetch(buildApiUrl('files/upload'), {
         method: 'POST',
         body: formData,
@@ -2192,7 +2292,9 @@ function uploadFile(formData, onSuccess = null) {
         return response.json();
     })
     .then(data => {
-        if (data && data.status === 'success') {
+        console.log('Respuesta del servidor:', data);
+        
+        if (data && (data.status === 'success' || data.success === true)) {
             Swal.fire({
                 title: '¡Éxito!',
                 text: 'Archivo subido correctamente',
@@ -2269,16 +2371,18 @@ function uploadFile(formData, onSuccess = null) {
             // Recargar tablas
             reloadInvoiceTables();
         } else {
+            const errorMsg = data?.message || data?.error || 'Error al subir archivo';
+            console.error('Error en respuesta del servidor:', data);
             Swal.fire({
                 title: 'Error',
-                text: data?.message || 'Error al subir archivo',
+                text: errorMsg,
                 icon: 'error',
                 confirmButtonText: 'OK'
             });
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('Error en fetch:', error);
         Swal.fire({
             title: 'Error',
             text: 'Error al subir archivo: ' + error.message,
@@ -2335,7 +2439,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('file', file);
             formData.append('invoice', invoice);
             
-            uploadFile(formData, () => {
+            uploadFileWithFormData(formData, () => {
                 // Limpiar input después de subir
                 fileInput.value = '';
             });
