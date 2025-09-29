@@ -102,7 +102,17 @@ $(document).ready(function() {
             data: 'proveedor.name', 
             name: 'proveedor.name',
             title: 'Proveedor',
-            render: function(data) {
+            render: function(data, type, row) {
+                 if (type === 'export') {
+                    // Si data ya viene como HTML, extraer solo el texto
+                    if (typeof data === 'string') {
+                        // Usar DOMParser para extraer el texto del span
+                        const div = document.createElement('div');
+                        div.innerHTML = data;
+                        return div.textContent || div.innerText || 'N/A';
+                    }
+                    return data || 'N/A';
+                }
                 const name = data || 'N/A';
                 return `<span class="text-truncate d-inline-block" style="max-width:240px" title="${name}">${name}</span>`;
             }
@@ -116,6 +126,17 @@ $(document).ready(function() {
                     // Para ordenamiento, retornar timestamp
                     return data ? new Date(data).getTime() : 0;
                 }
+                if (type === 'export') {
+                    // Para exportación, formato ISO (YYYY-MM-DD) que Excel entiende mejor
+                    if (!data) return '';
+                    try {
+                        const date = new Date(data);
+                        if (isNaN(date.getTime())) return '';
+                        return date.toISOString().split('T')[0];
+                    } catch(e) {
+                        return '';
+                    }
+                }
                 return formatTableDate(data, false);
             }
         },
@@ -127,6 +148,17 @@ $(document).ready(function() {
                 if (type === 'sort' || type === 'type') {
                     // Para ordenamiento, retornar timestamp (fechas vacías al final)
                     return data ? new Date(data).getTime() : 9999999999999;
+                }
+                if (type === 'export') {
+                    // Para exportación, formato ISO que Excel entiende
+                    if (!data) return '';
+                    try {
+                        const date = new Date(data);
+                        if (isNaN(date.getTime())) return '';
+                        return date.toISOString().split('T')[0];
+                    } catch(e) {
+                        return '';
+                    }
                 }
                 return data ? formatTableDate(data, false) : 'N/A';
             }
@@ -146,6 +178,22 @@ $(document).ready(function() {
                     }
                     return calculateDaysToExpiry(expiryDate) || 999999;
                 }
+                if (type === 'export') {
+                    // Para exportación, texto plano sin badges HTML
+                    if (row.status !== 0 && row.status !== '0') {
+                        return '—'; // Factura pagada
+                    }
+                    const days = calculateDaysToExpiry(expiryDate);
+                    if (days === null) return '—';
+                    
+                    if (days > 0) {
+                        return `${days} días para vencer`;
+                    } else if (days === 0) {
+                        return 'Hoy';
+                    } else {
+                        return `${Math.abs(days)} días vencida`;
+                    }
+                }
                 return renderDaysCounter(expiryDate, row.status);
             }
         },
@@ -154,16 +202,52 @@ $(document).ready(function() {
                 // Para ordenamiento, retornar timestamp (fechas vacías al final)
                 return data ? new Date(data).getTime() : 9999999999999;
             }
+            if (type === 'export') {
+                    // Para exportación, formato ISO que Excel entiende
+                    if (!data) return '';
+                    try {
+                        const date = new Date(data);
+                        if (isNaN(date.getTime())) return '';
+                        return date.toISOString().split('T')[0];
+                    } catch(e) {
+                        return '';
+                    }
+                }
             return data ? formatTableDate(data, false) : 'N/A';
         }},
-        { data: 'amount', name: 'amount', title: 'Monto', render: (d)=> formatCurrency(d) },
+        { data: 'amount', name: 'amount', title: 'Monto', render: function(data, type, row) {
+            if (type === 'export') {
+                    // Eliminar cualquier símbolo de moneda y separadores de miles
+                    // Ejemplo: "$ 107.100" -> "107100"
+                    if (typeof data === 'string') {
+                        // Quitar símbolo de moneda y espacios
+                        let cleaned = data.replace(/[^0-9,.-]+/g, '');
+                        // Reemplazar punto como separador de miles por nada, y coma decimal por punto
+                        // Si el formato es "107.100,50" (europeo), convertir a "107100.50"
+                        if (cleaned.indexOf(',') > -1 && cleaned.indexOf('.') > -1) {
+                            cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+                        } else {
+                            cleaned = cleaned.replace(/\./g, '');
+                        }
+                        const amount = parseFloat(cleaned);
+                        return isNaN(amount) ? 0 : amount;
+                    }
+                    // Si ya es número
+                    return data || 0;
+                }
+            return formatCurrency(data);
+        }},
         {
             data: null,
             name: 'status_badge',
             title: 'Estado',
             orderable: false,
             searchable: false,
-            render: function(_data, _type, row){
+            render: function(_data, type, row){
+                if (type === 'export') {
+                    // Para exportación, texto plano sin HTML
+                    return (row.status === 1 || row.status === '1') ? 'Pagado' : 'Pendiente';
+                }
                 return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry) : '';
             }
         },

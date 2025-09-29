@@ -43,6 +43,10 @@ $(document).ready(function() {
                     // Para ordenamiento, retornar timestamp
                     return data ? new Date(data).getTime() : 0;
                 }
+                if (type === 'export') {
+                    // Para exportación, formato ISO (YYYY-MM-DD) que Excel entiende mejor
+                    return data ? new Date(data).toISOString().split('T')[0] : '';
+                }
                 return formatTableDate(data, false);
             }
         },
@@ -55,6 +59,10 @@ $(document).ready(function() {
                     // Para ordenamiento, retornar timestamp (fechas vacías al final)
                     return data ? new Date(data).getTime() : 9999999999999;
                 }
+                if (type === 'export') {
+                    // Para exportación, formato ISO que Excel entiende
+                    return data ? new Date(data).toISOString().split('T')[0] : '';
+                }
                 return data ? formatTableDate(data, false) : 'N/A';
             }
         },
@@ -63,6 +71,10 @@ $(document).ready(function() {
             name: 'amount',
             title: 'Monto',
             render: function(data, type, row) {
+                if (type === 'export') {
+                    // Para exportación, solo el número sin formato para que Excel lo trate como numérico
+                    return parseFloat(data || 0);
+                }
                 return formatCurrency(data);
             }
         },
