@@ -13,17 +13,17 @@
                                 <small class="text-primary"><i class="fas fa-filter me-1"></i>Mostrando solo facturas pendientes (vencidas y próximas a vencer)</small>
                             @endif
                         </div>
-                        {{-- <div class="btn-group" role="group">
-                            <a href="{{ route('facturas.index') }}" class="btn btn-secondary btn-sm">
+                        <div class="btn-group" role="group">
+                            {{-- <a href="{{ route('facturas.index') }}" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-arrow-left me-1"></i> Todas las Facturas
                             </a>
                             <a href="{{ route('facturas.proveedores.index') }}" class="btn btn-success btn-sm">
                                 <i class="fas fa-truck me-1"></i> Facturas Proveedores
-                            </a>
+                            </a> --}}
                             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#facturaModal" onclick="openCreateFacturaModal('cliente')">
                                 <i class="fas fa-plus me-1"></i> Nueva Factura Cliente
                             </button>
-                        </div> --}}
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
