@@ -2735,8 +2735,279 @@ function clearFileInput() {
 // Exponer la función globalmente
 window.clearFileInput = clearFileInput;
 
+// ===== COMPONENTE DE VISUALIZACIÓN DE ARCHIVOS DE FACTURAS =====
+
 /**
- * Mostrar archivos asociados a una factura en el modal
+ * Componente reutilizable para mostrar archivos de facturas
+ * Proporciona una interfaz consistente para diferentes contextos
+ */
+class FacturaFilesComponent {
+    constructor(facturaId, options = {}) {
+        this.facturaId = facturaId;
+        this.options = {
+            context: 'edit', // 'edit', 'view', 'readonly'
+            showTitle: true,
+            showFileSize: true,
+            showFileDate: true,
+            containerClass: 'factura-files-component',
+            ...options
+        };
+    }
+
+    /**
+     * Renderizar el componente en el contenedor especificado
+     */
+    render(containerSelector) {
+        const container = document.querySelector(containerSelector);
+        if (!container) {
+            console.warn(`Contenedor ${containerSelector} no encontrado`);
+            return;
+        }
+
+        const factura = EntityHelpers.getFactura(this.facturaId);
+        const html = this.generateHTML(factura);
+        
+        container.innerHTML = html;
+        container.className = `${this.options.containerClass} context-${this.options.context}`;
+        
+        // Agregar event listeners específicos del componente
+        this.attachEventListeners(container);
+    }
+
+    /**
+     * Generar HTML del componente
+     */
+    generateHTML(factura) {
+        if (!factura || !factura.has_file || !factura.file_path) {
+            return this.generateEmptyState();
+        }
+
+        return this.generateFileDisplay(factura);
+    }
+
+    /**
+     * Generar HTML para estado vacío (sin archivos)
+     */
+    generateEmptyState() {
+        return `
+            <div class="files-empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="empty-message">
+                    <h6>No hay archivos adjuntos</h6>
+                    <p class="text-muted mb-0">Esta factura no tiene archivos asociados</p>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generar HTML para mostrar archivo
+     */
+    generateFileDisplay(factura) {
+        const fileInfo = this.extractFileInfo(factura);
+        const actions = this.generateActions(factura);
+        
+        return `
+            ${this.options.showTitle ? this.generateTitle() : ''}
+            <div class="file-display-card">
+                <div class="file-header">
+                    <div class="file-icon">
+                        ${this.getFileIcon(fileInfo.extension)}
+                    </div>
+                    <div class="file-info">
+                        <div class="file-name" title="${fileInfo.fullName}">
+                            ${fileInfo.displayName}
+                        </div>
+                        <div class="file-metadata">
+                            ${this.generateMetadata(fileInfo)}
+                        </div>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    ${actions}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generar título del componente
+     */
+    generateTitle() {
+        return `
+            <div class="files-component-title">
+                <h6 class="mb-3">
+                    <i class="fas fa-paperclip me-2"></i>
+                    Archivos Adjuntos
+                </h6>
+            </div>
+        `;
+    }
+
+    /**
+     * Extraer información del archivo
+     */
+    extractFileInfo(factura) {
+        const fullName = factura.file_name || factura.file_path || 'Archivo adjunto';
+        const extension = this.getFileExtension(fullName);
+        const displayName = this.truncateFileName(fullName, 30);
+        
+        return {
+            fullName,
+            displayName,
+            extension,
+            size: factura.file_size || null,
+            uploadDate: factura.file_uploaded_at || factura.updated_at || null,
+            path: factura.file_path
+        };
+    }
+
+    /**
+     * Generar metadatos del archivo
+     */
+    generateMetadata(fileInfo) {
+        const metadata = [];
+        
+        if (this.options.showFileSize && fileInfo.size) {
+            metadata.push(`<span class="file-size">${this.formatFileSize(fileInfo.size)}</span>`);
+        }
+        
+        if (this.options.showFileDate && fileInfo.uploadDate) {
+            metadata.push(`<span class="file-date">${this.formatDate(fileInfo.uploadDate)}</span>`);
+        }
+        
+        return metadata.length > 0 ? metadata.join(' • ') : '';
+    }
+
+    /**
+     * Generar botones de acción
+     */
+    generateActions(factura) {
+        const actions = [];
+        
+        // Botón de descarga (siempre disponible)
+        actions.push(`
+            <button type="button" 
+                    class="btn btn-sm btn-file-action btn-file-download" 
+                    onclick="descargarPDF(${factura.id}, event)"
+                    title="Descargar archivo">
+                <i class="fas fa-download"></i>
+                <span class="btn-text">Descargar</span>
+            </button>
+        `);
+        
+        // Botón de eliminar (solo en contextos editables)
+        if (this.options.context === 'edit') {
+            actions.push(`
+                <button type="button" 
+                        class="btn btn-sm btn-file-action btn-file-delete" 
+                        onclick="eliminarArchivoFacturaModal()" 
+                        title="Eliminar archivo">
+                    <i class="fas fa-trash"></i>
+                    <span class="btn-text">Eliminar</span>
+                </button>
+            `);
+        }
+        
+        return actions.join('');
+    }
+
+    /**
+     * Obtener icono según extensión de archivo
+     */
+    getFileIcon(extension) {
+        const iconMap = {
+            'pdf': '<i class="fas fa-file-pdf text-danger"></i>',
+            'doc': '<i class="fas fa-file-word text-primary"></i>',
+            'docx': '<i class="fas fa-file-word text-primary"></i>',
+            'xls': '<i class="fas fa-file-excel text-success"></i>',
+            'xlsx': '<i class="fas fa-file-excel text-success"></i>',
+            'jpg': '<i class="fas fa-file-image text-info"></i>',
+            'jpeg': '<i class="fas fa-file-image text-info"></i>',
+            'png': '<i class="fas fa-file-image text-info"></i>',
+            'gif': '<i class="fas fa-file-image text-info"></i>',
+            'txt': '<i class="fas fa-file-alt text-secondary"></i>',
+            'zip': '<i class="fas fa-file-archive text-warning"></i>',
+            'rar': '<i class="fas fa-file-archive text-warning"></i>'
+        };
+        
+        return iconMap[extension.toLowerCase()] || '<i class="fas fa-file text-muted"></i>';
+    }
+
+    /**
+     * Obtener extensión de archivo
+     */
+    getFileExtension(filename) {
+        return filename.split('.').pop() || '';
+    }
+
+    /**
+     * Truncar nombre de archivo para visualización
+     */
+    truncateFileName(filename, maxLength) {
+        if (filename.length <= maxLength) return filename;
+        
+        const extension = this.getFileExtension(filename);
+        const nameWithoutExt = filename.substring(0, filename.lastIndexOf('.')) || filename;
+        const maxNameLength = maxLength - extension.length - 4; // 4 para "..." y punto
+        
+        if (nameWithoutExt.length > maxNameLength) {
+            return nameWithoutExt.substring(0, maxNameLength) + '...' + (extension ? '.' + extension : '');
+        }
+        
+        return filename;
+    }
+
+    /**
+     * Formatear tamaño de archivo
+     */
+    formatFileSize(bytes) {
+        if (!bytes) return '';
+        
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const size = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1);
+        
+        return `${size} ${sizes[i]}`;
+    }
+
+    /**
+     * Formatear fecha
+     */
+    formatDate(dateString) {
+        if (!dateString) return '';
+        
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            return '';
+        }
+    }
+
+    /**
+     * Adjuntar event listeners específicos del componente
+     */
+    attachEventListeners(container) {
+        // Agregar tooltips para nombres de archivos largos
+        const fileNameElements = container.querySelectorAll('.file-name');
+        fileNameElements.forEach(element => {
+            if (element.scrollWidth > element.clientWidth) {
+                element.classList.add('text-truncated');
+            }
+        });
+    }
+}
+
+/**
+ * Mostrar archivos asociados a una factura usando el componente
+ * Función de compatibilidad que mantiene la API existente
  */
 function displayFacturaFiles(facturaId, modalContext = 'edit') {
     console.log('Mostrando archivos para factura ID:', facturaId, 'Contexto:', modalContext);
@@ -2746,156 +3017,47 @@ function displayFacturaFiles(facturaId, modalContext = 'edit') {
         return;
     }
     
-    // Buscar datos de la factura
-    const factura = EntityHelpers.getFactura(facturaId);
+    // Crear instancia del componente
+    const component = new FacturaFilesComponent(facturaId, {
+        context: modalContext,
+        showTitle: true,
+        showFileSize: true,
+        showFileDate: true
+    });
     
-    // Contenedores donde mostrar los archivos
-    const archivoAsociadoDiv = document.getElementById('archivo-asociado');
-    const filesListContainer = document.getElementById('files-list');
+    // Buscar contenedores existentes y renderizar
+    const containers = [
+        '#archivo-asociado',
+        '#files-list',
+        '.factura-files-container'
+    ];
     
-    if (factura && factura.has_file && factura.file_path) {
-        console.log('Factura tiene archivo asociado:', factura.file_path);
-        
-        // Crear HTML para archivo asociado
-        const archivoHtml = createArchivoAsociadoHtml(factura, modalContext);
-        
-        if (archivoAsociadoDiv) {
-            archivoAsociadoDiv.innerHTML = archivoHtml;
-            archivoAsociadoDiv.style.display = 'block';
+    containers.forEach(selector => {
+        const container = document.querySelector(selector);
+        if (container) {
+            component.render(selector);
         }
-        
-        if (filesListContainer) {
-            filesListContainer.innerHTML = createFilesListHtml(factura, modalContext);
-            filesListContainer.style.display = 'block';
-        }
-    } else {
-        console.log('Factura no tiene archivo asociado');
-        
-        // Mostrar mensaje de "sin archivos"
-        const noFileHtml = `
-            <div class="no-archivo">
-                <i class="fas fa-file me-2"></i>
-                No hay archivos asociados a esta factura
-            </div>
-        `;
-        
-        if (archivoAsociadoDiv) {
-            archivoAsociadoDiv.innerHTML = noFileHtml;
-            archivoAsociadoDiv.style.display = 'block';
-        }
-        
-        if (filesListContainer) {
-            filesListContainer.innerHTML = noFileHtml;
-            filesListContainer.style.display = 'block';
-        }
-    }
+    });
 }
 
-/**
- * Crear HTML para mostrar archivo asociado
- */
-function createArchivoAsociadoHtml(factura, modalContext) {
-    const fileName = factura.file_name || 'Archivo adjunto';
-    const facturaId = factura.id;
-    
-    // Botones según el contexto
-    let buttons = '';
-    if (modalContext === 'view') {
-        // Solo mostrar botón de descarga en modo ver
-        buttons = `
-            <a href="javascript:void(0)" 
-               class="btn btn-sm btn-file-action btn-file-download" 
-               onclick="descargarPDF(${facturaId}, event)"
-               title="Descargar archivo">
-                <i class="fas fa-download me-1"></i>Descargar
-            </a>
-        `;
-    } else {
-        // Mostrar ambos botones en modo editar
-        buttons = `
-            <a href="javascript:void(0)" 
-               class="btn btn-sm btn-file-action btn-file-download" 
-               onclick="descargarPDF(${facturaId}, event)"
-               title="Descargar archivo">
-                <i class="fas fa-download me-1"></i>Descargar
-            </a>
-            <button type="button" 
-                    class="btn btn-sm btn-file-action btn-file-delete" 
-                    onclick="eliminarArchivoFacturaModal()" 
-                    title="Eliminar archivo">
-                <i class="fas fa-trash me-1"></i>Eliminar
-            </button>
-        `;
-    }
-    
-    return `
-        <div class="archivo-asociado">
-            <h6><i class="fas fa-paperclip me-2"></i>Archivo Asociado</h6>
-            <div class="archivo-info">
-                <div class="archivo-nombre">${fileName}</div>
-                <div class="archivo-acciones">
-                    ${buttons}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Crear HTML para lista de archivos
- */
-function createFilesListHtml(factura, modalContext) {
-    const fileName = factura.file_name || 'Archivo adjunto';
-    const fileSize = factura.file_size ? `(${(factura.file_size / 1024 / 1024).toFixed(2)} MB)` : '';
-    const facturaId = factura.id;
-    
-    // Botones según el contexto
-    let buttons = '';
-    if (modalContext === 'view') {
-        buttons = `
-            <a href="javascript:void(0)" 
-               class="btn btn-sm btn-file-action btn-file-download" 
-               onclick="descargarPDF(${facturaId}, event)"
-               title="Descargar">
-                <i class="fas fa-download"></i>
-            </a>
-        `;
-    } else {
-        buttons = `
-            <a href="javascript:void(0)" 
-               class="btn btn-sm btn-file-action btn-file-download" 
-               onclick="descargarPDF(${facturaId}, event)"
-               title="Descargar">
-                <i class="fas fa-download"></i>
-            </a>
-            <button type="button" 
-                    class="btn btn-sm btn-file-action btn-file-delete" 
-                    onclick="eliminarArchivoFacturaModal()" 
-                    title="Eliminar">
-                <i class="fas fa-trash"></i>
-            </button>
-        `;
-    }
-    
-    return `
-        <div class="files-container">
-            <div class="file-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="file-name">${fileName}</div>
-                        <div class="file-size">${fileSize}</div>
-                    </div>
-                    <div class="file-actions">
-                        ${buttons}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Exponer funciones globalmente
+// Exponer funciones y clases globalmente
 window.displayFacturaFiles = displayFacturaFiles;
+window.FacturaFilesComponent = FacturaFilesComponent;
+
+/**
+ * Función de utilidad para crear rápidamente un componente de archivos
+ * @param {number} facturaId - ID de la factura
+ * @param {string} containerSelector - Selector del contenedor
+ * @param {Object} options - Opciones del componente
+ */
+function createFacturaFilesComponent(facturaId, containerSelector, options = {}) {
+    const component = new FacturaFilesComponent(facturaId, options);
+    component.render(containerSelector);
+    return component;
+}
+
+// Exponer función de utilidad
+window.createFacturaFilesComponent = createFacturaFilesComponent;
 
 // ==============================
 // Referencias de datos (clientes, proveedores, métodos de pago)
