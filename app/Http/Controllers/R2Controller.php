@@ -101,6 +101,9 @@ class R2Controller extends Controller
             'original_hex' => bin2hex(substr($filename, 0, 100))
         ]);
         
+        // Primero sanitizar para JSON
+        $filename = $this->sanitizeForJson($filename);
+        
         // Primera limpieza: caracteres nulos y de control más problemáticos
         $filename = str_replace("\x00", '', $filename); // Null bytes
         $filename = str_replace("\x01", '', $filename); // SOH - Start of Heading  
@@ -390,7 +393,7 @@ class R2Controller extends Controller
                 
                 if (!$factura) {
                     \Log::error('Factura no encontrada', ['invoice' => $invoice]);
-                    return response()->json([
+                    return $this->safeJsonResponse([
                         'status' => 'error',
                         'message' => 'Factura no encontrada'
                     ], 404);
@@ -442,7 +445,7 @@ class R2Controller extends Controller
 
                 if (!$uploaded) {
                     \Log::error('Falló la subida a R2');
-                    return response()->json([
+                    return $this->safeJsonResponse([
                         'status' => 'error',
                         'message' => 'Error al subir el archivo'
                     ], 500);
@@ -474,7 +477,7 @@ class R2Controller extends Controller
                 AuditLogger::log($request, 'upload', 'archivos', $factura->id, 'Subió archivo a factura #' . $factura->invoice);
 
                 \Log::info('=== UPLOAD COMPLETADO EXITOSAMENTE ===');
-                return response()->json([
+                return $this->safeJsonResponse([
                     'status' => 'success',
                     'message' => 'Archivo subido exitosamente',
                     'file' => [
@@ -504,7 +507,7 @@ class R2Controller extends Controller
                 $factura = DB::table('invoices')->where('id', $modelId)->first();
                 
                 if (!$factura) {
-                    return response()->json([
+                    return $this->safeJsonResponse([
                         'success' => false,
                         'message' => 'Factura no encontrada'
                     ], 404);
@@ -517,7 +520,7 @@ class R2Controller extends Controller
             } elseif ($modelType === 'App\\Quotation') {
                 $cotizacion = Cotizacion::find($modelId);
                 if (!$cotizacion) {
-                    return response()->json([
+                    return $this->safeJsonResponse([
                         'success' => false,
                         'message' => 'Cotización no encontrada'
                     ], 404);
@@ -552,7 +555,7 @@ class R2Controller extends Controller
             );
 
             if (!$uploaded) {
-                return response()->json([
+                return $this->safeJsonResponse([
                     'success' => false,
                     'message' => 'Error al subir el archivo'
                 ], 500);
@@ -574,7 +577,7 @@ class R2Controller extends Controller
             // Auditoría
             AuditLogger::log($request, 'upload', 'archivos', $modelId, 'Subió archivo a ' . $modelType . ' #' . $modelId);
 
-            return response()->json([
+            return $this->safeJsonResponse([
                 'success' => true,
                 'status' => 'success',
                 'message' => 'Archivo subido exitosamente',
@@ -598,10 +601,12 @@ class R2Controller extends Controller
                 'ip' => $request->ip()
             ]);
             
-            return response()->json([
+            $errorMessage = $this->sanitizeForJson('Error al procesar el archivo: ' . $e->getMessage());
+            
+            return $this->safeJsonResponse([
                 'success' => false,
                 'status' => 'error',
-                'message' => 'Error al procesar el archivo: ' . $e->getMessage()
+                'message' => $errorMessage
             ], 500);
         }
     }
@@ -623,17 +628,18 @@ class R2Controller extends Controller
             $files = $q->orderBy('created_at','desc')->get()->map(function($f){
                 return [
                     'id' => $f->id,
-                    'name' => $f->file_name,
+                    'name' => $this->sanitizeForJson($f->file_name),
                     'size' => $f->size,
-                    'mime_type' => $f->mime_type,
+                    'mime_type' => $this->sanitizeForJson($f->mime_type),
                     'created_at' => $f->created_at,
-                    'path' => $f->path,
+                    'path' => $this->sanitizeForJson($f->path),
                     'download_url' => route('files.download', ['path' => $f->path])
                 ];
             });
-            return response()->json(['success' => true, 'files' => $files]);
+            return $this->safeJsonResponse(['success' => true, 'files' => $files]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            $errorMessage = $this->sanitizeForJson('Error al obtener archivos: ' . $e->getMessage());
+            return $this->safeJsonResponse(['success' => false, 'message' => $errorMessage], 500);
         }
     }
 
@@ -647,14 +653,88 @@ class R2Controller extends Controller
     {
         try {
             $f = FilesRegistry::findOrFail($id);
+            
+            \Log::info('Eliminando archivo por ID', [
+                'id' => $id,
+                'path' => $f->path,
+                'filename' => $f->file_name
+            ]);
+            
             if (Storage::disk('r2')->exists($f->path)) {
                 Storage::disk('r2')->delete($f->path);
+                \Log::info('Archivo eliminado de R2', ['path' => $f->path]);
             }
+            
             $f->delete();
-            return response()->json(['success' => true]);
+            \Log::info('Registro eliminado de BD', ['id' => $id]);
+            
+            return $this->safeJsonResponse([
+                'success' => true,
+                'message' => 'Archivo eliminado correctamente'
+            ]);
+            
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            \Log::error('Error al eliminar archivo por ID', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            $errorMessage = $this->sanitizeForJson('Error al eliminar el archivo: ' . $e->getMessage());
+            
+            return $this->safeJsonResponse([
+                'success' => false, 
+                'message' => $errorMessage
+            ], 500);
         }
+    }
+
+    /**
+     * Sanitize string for JSON response to prevent UTF-8 encoding issues
+     *
+     * @param string $string
+     * @return string
+     */
+    private function sanitizeForJson($string)
+    {
+        if (!is_string($string)) {
+            return $string;
+        }
+        
+        // Limpiar caracteres nulos y de control
+        $string = str_replace("\x00", '', $string);
+        $string = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $string);
+        
+        // Asegurar codificación UTF-8 válida
+        if (!mb_check_encoding($string, 'UTF-8')) {
+            $string = mb_convert_encoding($string, 'UTF-8', 'auto');
+        }
+        
+        // Limpiar caracteres UTF-8 inválidos
+        $string = mb_convert_encoding($string, 'UTF-8', 'UTF-8');
+        
+        return trim($string);
+    }
+
+    /**
+     * Create a safe JSON response
+     *
+     * @param array $data
+     * @param int $status
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function safeJsonResponse(array $data, int $status = 200)
+    {
+        // Sanitizar recursivamente todos los strings en el array
+        array_walk_recursive($data, function(&$value) {
+            if (is_string($value)) {
+                $value = $this->sanitizeForJson($value);
+            }
+        });
+        
+        return response()->json($data, $status, [
+            'Content-Type' => 'application/json; charset=utf-8'
+        ], JSON_UNESCAPED_UNICODE);
     }
 
     /**
@@ -684,79 +764,104 @@ class R2Controller extends Controller
             $deletedRecords = FilesRegistry::where('path', $path)->delete();
             \Log::info('Registros eliminados de BD', ['path' => $path, 'count' => $deletedRecords]);
             
-            return response()->json(['success' => true, 'message' => 'Archivo eliminado correctamente']);
+            return $this->safeJsonResponse([
+                'success' => true, 
+                'message' => 'Archivo eliminado correctamente'
+            ]);
+            
         } catch (\Exception $e) {
             \Log::error('Error al eliminar archivo desde R2', [
                 'path' => $path ?? 'null',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['success' => false, 'message' => 'Error al eliminar el archivo: ' . $e->getMessage()], 500);
+            
+            $errorMessage = $this->sanitizeForJson('Error al eliminar el archivo: ' . $e->getMessage());
+            
+            return $this->safeJsonResponse([
+                'success' => false, 
+                'message' => $errorMessage
+            ], 500);
         }
     }
 
     // Listar archivos adjuntos de un cliente
     public function listClienteFiles($clienteId)
     {
-        $files = FilesRegistry::where('model_type', 'App\\Client')
-            ->where('model_id', $clienteId)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($file) {
-                return [
-                    'id' => $file->id,
-                    'name' => $file->file_name,
-                    'size' => $file->size,
-                    'mime_type' => $file->mime_type,
-                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
-                    'download_url' => route('files.download', ['path' => $file->path])
-                ];
-            });
-        return response()->json(['status' => 'success', 'files' => $files]);
+        try {
+            $files = FilesRegistry::where('model_type', 'App\\Client')
+                ->where('model_id', $clienteId)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'name' => $this->sanitizeForJson($file->file_name),
+                        'size' => $file->size,
+                        'mime_type' => $this->sanitizeForJson($file->mime_type),
+                        'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                        'download_url' => route('files.download', ['path' => $file->path])
+                    ];
+                });
+            return $this->safeJsonResponse(['status' => 'success', 'files' => $files]);
+        } catch (\Exception $e) {
+            $errorMessage = $this->sanitizeForJson('Error al listar archivos del cliente: ' . $e->getMessage());
+            return $this->safeJsonResponse(['status' => 'error', 'message' => $errorMessage], 500);
+        }
     }
 
     // Listar archivos adjuntos de un proveedor
     public function listProveedorFiles($proveedorId)
     {
-        $files = FilesRegistry::where('model_type', 'App\\Provider')
-            ->where('model_id', $proveedorId)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($file) {
-                return [
-                    'id' => $file->id,
-                    'name' => $file->file_name,
-                    'size' => $file->size,
-                    'mime_type' => $file->mime_type,
-                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
-                    'download_url' => route('files.download', ['path' => $file->path])
-                ];
-            });
-        return response()->json(['status' => 'success', 'files' => $files]);
+        try {
+            $files = FilesRegistry::where('model_type', 'App\\Provider')
+                ->where('model_id', $proveedorId)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'name' => $this->sanitizeForJson($file->file_name),
+                        'size' => $file->size,
+                        'mime_type' => $this->sanitizeForJson($file->mime_type),
+                        'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                        'download_url' => route('files.download', ['path' => $file->path])
+                    ];
+                });
+            return $this->safeJsonResponse(['status' => 'success', 'files' => $files]);
+        } catch (\Exception $e) {
+            $errorMessage = $this->sanitizeForJson('Error al listar archivos del proveedor: ' . $e->getMessage());
+            return $this->safeJsonResponse(['status' => 'error', 'message' => $errorMessage], 500);
+        }
     }
 
     // Listar PDFs de cotizaciones de un cliente (en base a FilesRegistry de App\Cotizacion)
     public function listClientCotizacionFiles($clienteId)
     {
-        $cotIds = \App\Models\Cotizacion::where('client_id', $clienteId)->pluck('id');
-        if ($cotIds->isEmpty()) {
-            return response()->json(['status' => 'success', 'files' => []]);
+        try {
+            $cotIds = \App\Models\Cotizacion::where('client_id', $clienteId)->pluck('id');
+            if ($cotIds->isEmpty()) {
+                return $this->safeJsonResponse(['status' => 'success', 'files' => []]);
+            }
+            $files = FilesRegistry::where('model_type', 'App\\Quotation')
+                ->whereIn('model_id', $cotIds)
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($file) {
+                    return [
+                        'id' => $file->id,
+                        'name' => $this->sanitizeForJson($file->file_name),
+                        'size' => $file->size,
+                        'mime_type' => $this->sanitizeForJson($file->mime_type),
+                        'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
+                        'download_url' => route('files.download', ['path' => $file->path])
+                    ];
+                });
+            return $this->safeJsonResponse(['status' => 'success', 'files' => $files]);
+        } catch (\Exception $e) {
+            $errorMessage = $this->sanitizeForJson('Error al listar archivos de cotizaciones: ' . $e->getMessage());
+            return $this->safeJsonResponse(['status' => 'error', 'message' => $errorMessage], 500);
         }
-        $files = FilesRegistry::where('model_type', 'App\\Quotation')
-            ->whereIn('model_id', $cotIds)
-            ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($file) {
-                return [
-                    'id' => $file->id,
-                    'name' => $file->file_name,
-                    'size' => $file->size,
-                    'mime_type' => $file->mime_type,
-                    'created_at' => optional($file->created_at)->format('d/m/Y H:i'),
-                    'download_url' => route('files.download', ['path' => $file->path])
-                ];
-            });
-        return response()->json(['status' => 'success', 'files' => $files]);
     }
 
     /**
@@ -767,26 +872,32 @@ class R2Controller extends Controller
      */
     public function debugPath($path)
     {
-        $originalPath = $path;
-        $decodedPath = urldecode($path);
-        
-        $debug = [
-            'original_path' => $originalPath,
-            'decoded_path' => $decodedPath,
-            'exists_original' => Storage::disk('r2')->exists($originalPath),
-            'exists_decoded' => Storage::disk('r2')->exists($decodedPath),
-            'r2_files' => [],
-        ];
-        
-        // Intentar listar archivos en el directorio padre
         try {
-            $parentDir = dirname($decodedPath);
-            $debug['parent_dir'] = $parentDir;
-            $debug['r2_files'] = Storage::disk('r2')->files($parentDir);
+            $originalPath = $path;
+            $decodedPath = urldecode($path);
+            
+            $debug = [
+                'original_path' => $this->sanitizeForJson($originalPath),
+                'decoded_path' => $this->sanitizeForJson($decodedPath),
+                'exists_original' => Storage::disk('r2')->exists($originalPath),
+                'exists_decoded' => Storage::disk('r2')->exists($decodedPath),
+                'r2_files' => [],
+            ];
+            
+            // Intentar listar archivos en el directorio padre
+            try {
+                $parentDir = dirname($decodedPath);
+                $debug['parent_dir'] = $this->sanitizeForJson($parentDir);
+                $files = Storage::disk('r2')->files($parentDir);
+                $debug['r2_files'] = array_map([$this, 'sanitizeForJson'], $files);
+            } catch (\Exception $e) {
+                $debug['r2_error'] = $this->sanitizeForJson($e->getMessage());
+            }
+            
+            return $this->safeJsonResponse($debug);
         } catch (\Exception $e) {
-            $debug['r2_error'] = $e->getMessage();
+            $errorMessage = $this->sanitizeForJson('Error en debug: ' . $e->getMessage());
+            return $this->safeJsonResponse(['error' => $errorMessage], 500);
         }
-        
-        return response()->json($debug);
     }
 }

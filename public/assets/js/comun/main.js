@@ -1747,92 +1747,220 @@ function saveFactura() {
         });
         return;
     }
+
+    // ===== VERIFICACIÓN DE ARCHIVO PENDIENTE =====
+    // Verificar si hay un archivo seleccionado pero no subido
+    const fileInput = document.getElementById('file-upload');
+    const hasFileSelected = fileInput && fileInput.files && fileInput.files.length > 0;
     
-    // Preparar datos del formulario
-    const formData = new FormData(form[0]);
-    // Determinar URL y método según si es edición o creación
-    let url = '';
-    let method = 'POST';
-    
-    if (isEdit) {
-        url = buildApiUrl(`facturas/${encodeURIComponent(facturaId)}`);
-        formData.append('_method', 'PUT');
-    } else {
-        url = buildApiUrl('facturas');
+    if (hasFileSelected) {
+        console.log('Detectado archivo seleccionado pero no subido, preguntando al usuario');
+        const fileName = fileInput.files[0].name;
+        
+        Swal.fire({
+            title: '¿Subir archivo?',
+            html: `Tienes un archivo seleccionado:<br><strong>"${fileName}"</strong><br><br>¿Deseas subirlo junto con la factura?`,
+            icon: 'question',
+            showDenyButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, subir archivo y guardar',
+            denyButtonText: 'No, solo guardar factura',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#28a745',
+            denyButtonColor: '#6c757d',
+            cancelButtonColor: '#dc3545'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Subir archivo primero, luego guardar factura
+                console.log('Usuario eligió subir archivo y guardar');
+                uploadFileBeforeSaving();
+            } else if (result.isDenied) {
+                // Solo guardar factura, ignorar archivo
+                console.log('Usuario eligió solo guardar factura');
+                proceedWithSaving();
+            }
+            // Si es cancelar, no hacer nada
+        });
+        return; // Salir aquí hasta que el usuario decida
     }
-        console.log(formData)
-
-    // Enviar datos
-    $.ajax({
-        url: url,
-        type: method,
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function(response) {
-            if (response.success) {
-                // Si el backend devuelve la factura actualizada/creada, refrescar caches locales
-                try {
-                    const f = response.factura || response.data || null;
-                    if (f && window.EntityDataManager) {
-                        const exists = !!window.EntityDataManager.findById('facturas', f.id);
-                        if (exists) {
-                            window.EntityDataManager.updateItem('facturas', f.id, f);
-                        } else {
-                            window.EntityDataManager.addItem('facturas', f);
-                        }
-                        // Actualizar datasets del Home si están presentes
-                        (function(){
-                            const mergeInto = (arr, item) => {
-                                if (!Array.isArray(arr)) return;
-                                const idx = arr.findIndex(x => String(x.id) === String(item.id));
-                                if (idx !== -1) arr[idx] = { ...arr[idx], ...item };
-                            };
-                            mergeInto(window.__HOME_CLIENTES_VENCIDAS__, f);
-                            mergeInto(window.__HOME_PROVEEDORES_VENCIDAS__, f);
-                        })();
-                    }
-                } catch(e) { /* noop */ }
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Éxito',
-                    text: isEdit ? 'Factura actualizada correctamente' : 'Factura creada correctamente'
-                }).then(() => {
-                    $('#facturaModal').modal('hide');
-                    reloadInvoiceTables();
-                    // Limpiar formulario
-                    form[0].reset();
-                    $('#factura_id').val('');
-                    form.removeAttr('data-mode');
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: response.message || 'Error al procesar la solicitud'
-                });
-            }
-        },
-        error: function(xhr) {
-            let errorMessage = 'Error al procesar la solicitud';
-            
-            if (xhr.responseJSON) {
-                if (xhr.responseJSON.message) {
-                    errorMessage = xhr.responseJSON.message;
-                } else if (xhr.responseJSON.errors) {
-                    const errors = Object.values(xhr.responseJSON.errors).flat();
-                    errorMessage = errors.join('\n');
-                }
-            }
-            
+    
+    // Si no hay archivo seleccionado, proceder normalmente
+    proceedWithSaving();
+    
+    // Función para subir archivo antes de guardar
+    function uploadFileBeforeSaving() {
+        console.log('Subiendo archivo antes de guardar factura');
+        
+        // Obtener número de factura
+        const invoiceNumber = document.querySelector('#facturaModal [name="invoice"]')?.value;
+        if (!invoiceNumber) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: errorMessage
+                text: 'No se pudo obtener el número de factura para subir el archivo'
             });
+            return;
         }
-    });
+        
+        // Preparar FormData para subir archivo
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('invoice', invoiceNumber);
+        
+        // Agregar información adicional según el contexto
+        const clienteId = document.querySelector('meta[name="cliente-id"]')?.getAttribute('content');
+        const proveedorId = document.querySelector('meta[name="proveedor-id"]')?.getAttribute('content');
+        
+        if (clienteId) formData.append('client_id', clienteId);
+        if (proveedorId) formData.append('provider_id', proveedorId);
+        
+        // Mostrar loading
+        Swal.fire({
+            title: 'Subiendo archivo...',
+            text: 'Por favor espera mientras se sube el archivo',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Subir archivo usando la función existente
+        uploadFileWithFormData(formData, 
+            // Callback de éxito
+            (uploadResponse) => {
+                console.log('Archivo subido exitosamente, procediendo a guardar factura');
+                // Limpiar el input después de subir exitosamente
+                fileInput.value = '';
+                
+                // Cerrar el loading y proceder a guardar
+                Swal.close();
+                proceedWithSaving();
+            },
+            // Callback de error
+            (errorMessage) => {
+                console.error('Error al subir archivo:', errorMessage);
+                
+                Swal.fire({
+                    title: 'Error al subir archivo',
+                    html: `No se pudo subir el archivo:<br><strong>${errorMessage}</strong><br><br>¿Deseas continuar guardando la factura sin el archivo?`,
+                    icon: 'error',
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, guardar sin archivo',
+                    denyButtonText: 'Intentar subir archivo otra vez',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#28a745',
+                    denyButtonColor: '#ffc107',
+                    cancelButtonColor: '#dc3545'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Guardar factura sin archivo
+                        console.log('Usuario eligió guardar sin archivo');
+                        // Limpiar el input para que no se detecte en futuras validaciones
+                        fileInput.value = '';
+                        proceedWithSaving();
+                    } else if (result.isDenied) {
+                        // Intentar subir archivo otra vez
+                        console.log('Usuario eligió intentar subir archivo otra vez');
+                        // No hacer nada, volver al modal principal para que pueda intentar otra vez
+                    }
+                    // Si es cancelar, no hacer nada
+                });
+            }
+        );
+    }
+    
+    // Función para proceder con el guardado normal
+    function proceedWithSaving() {
+        console.log('Procediendo con guardado de factura (sin archivo pendiente)');
+        
+        // Preparar datos del formulario
+        const formData = new FormData(form[0]);
+        // Determinar URL y método según si es edición o creación
+        let url = '';
+        let method = 'POST';
+        
+        if (isEdit) {
+            url = buildApiUrl(`facturas/${encodeURIComponent(facturaId)}`);
+            formData.append('_method', 'PUT');
+        } else {
+            url = buildApiUrl('facturas');
+        }
+        console.log(formData)
+
+        // Enviar datos
+        $.ajax({
+            url: url,
+            type: method,
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Si el backend devuelve la factura actualizada/creada, refrescar caches locales
+                    try {
+                        const f = response.factura || response.data || null;
+                        if (f && window.EntityDataManager) {
+                            const exists = !!window.EntityDataManager.findById('facturas', f.id);
+                            if (exists) {
+                                window.EntityDataManager.updateItem('facturas', f.id, f);
+                            } else {
+                                window.EntityDataManager.addItem('facturas', f);
+                            }
+                            // Actualizar datasets del Home si están presentes
+                            (function(){
+                                const mergeInto = (arr, item) => {
+                                    if (!Array.isArray(arr)) return;
+                                    const idx = arr.findIndex(x => String(x.id) === String(item.id));
+                                    if (idx !== -1) arr[idx] = { ...arr[idx], ...item };
+                                    else arr.push(item);
+                                };
+                                mergeInto(window.__HOME_CLIENTES_VENCIDAS__, f);
+                                mergeInto(window.__HOME_PROVEEDORES_VENCIDAS__, f);
+                            })();
+                        }
+                    } catch(e) { /* noop */ }
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Éxito',
+                        text: isEdit ? 'Factura actualizada correctamente' : 'Factura creada correctamente'
+                    }).then(() => {
+                        $('#facturaModal').modal('hide');
+                        reloadInvoiceTables();
+                        // Limpiar formulario
+                        form[0].reset();
+                        $('#factura_id').val('');
+                        form.removeAttr('data-mode');
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Error al procesar la solicitud'
+                    });
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error al procesar la solicitud';
+                
+                if (xhr.responseJSON) {
+                    if (xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.responseJSON.errors) {
+                        const errors = Object.values(xhr.responseJSON.errors).flat();
+                        errorMessage = errors.join('\n');
+                    }
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: errorMessage
+                });
+            }
+        });
+    }
 }
 
 /**
@@ -2292,7 +2420,7 @@ function uploadFile() {
 /**
  * Subir archivo para una factura - función interna que maneja el FormData
  */
-function uploadFileWithFormData(formData, onSuccess = null) {
+function uploadFileWithFormData(formData, onSuccess = null, onError = null) {
     console.log('=== INICIANDO PETICIÓN AL SERVIDOR ===');
     
     // Debug: Mostrar lo que se está enviando
@@ -2346,12 +2474,15 @@ function uploadFileWithFormData(formData, onSuccess = null) {
             console.log('✅ Upload exitoso!');
             console.log('Detalles del archivo subido:', data.file);
             
-            Swal.fire({
-                title: '¡Éxito!',
-                text: 'Archivo subido correctamente',
-                icon: 'success',
-                confirmButtonText: 'OK'
-            });
+            // Solo mostrar SweetAlert si no hay callback de éxito (modo manual)
+            if (!onSuccess) {
+                Swal.fire({
+                    title: '¡Éxito!',
+                    text: 'Archivo subido correctamente',
+                    icon: 'success',
+                    confirmButtonText: 'OK'
+                });
+            }
             
             if (onSuccess) {
                 console.log('Ejecutando callback de éxito');
@@ -2422,28 +2553,41 @@ function uploadFileWithFormData(formData, onSuccess = null) {
                 }
             }
             
-            // Recargar tablas
-            console.log('Recargando tablas de facturas');
-            reloadInvoiceTables();
+            // Recargar tablas solo si no hay callback (modo manual)
+            if (!onSuccess) {
+                console.log('Recargando tablas de facturas');
+                reloadInvoiceTables();
+            }
         } else {
             const errorMsg = data?.message || data?.error || 'Error al subir archivo';
             console.error('❌ Error en respuesta del servidor:', data);
-            Swal.fire({
-                title: 'Error',
-                text: errorMsg,
-                icon: 'error',
-                confirmButtonText: 'OK'
-            });
+            
+            if (onError) {
+                onError(errorMsg);
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: errorMsg,
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
         }
     })
     .catch(error => {
         console.error('❌ Error en fetch:', error);
-        Swal.fire({
-            title: 'Error',
-            text: 'Error al subir archivo: ' + error.message,
-            icon: 'error',
-            confirmButtonText: 'OK'
-        });
+        const errorMessage = 'Error al subir archivo: ' + error.message;
+        
+        if (onError) {
+            onError(errorMessage);
+        } else {
+            Swal.fire({
+                title: 'Error',
+                text: errorMessage,
+                icon: 'error',
+                confirmButtonText: 'OK'
+            });
+        }
     });
 }
 
@@ -2473,7 +2617,104 @@ function eliminarArchivoFacturaModal() {
 document.addEventListener('DOMContentLoaded', function() {
     // Ya no hay auto-upload, solo se sube cuando se presiona el botón uploadFile()
     console.log('Event listeners de archivos cargados - Auto-upload deshabilitado');
+    
+    // Agregar indicador visual para archivos seleccionados
+    const fileInput = document.getElementById('file-upload');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            updateFileInputIndicator(this);
+        });
+        
+        // Inicializar indicador
+        updateFileInputIndicator(fileInput);
+    }
 });
+
+/**
+ * Actualizar indicador visual del input de archivo
+ */
+function updateFileInputIndicator(fileInput) {
+    if (!fileInput) return;
+    
+    const hasFile = fileInput.files && fileInput.files.length > 0;
+    let indicator = fileInput.parentElement.querySelector('.file-indicator');
+    
+    // Crear indicador si no existe
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'file-indicator mt-2';
+        fileInput.parentElement.appendChild(indicator);
+    }
+    
+    if (hasFile) {
+        const fileName = fileInput.files[0].name;
+        const fileSize = (fileInput.files[0].size / 1024 / 1024).toFixed(2); // MB
+        
+        indicator.innerHTML = `
+            <div class="alert alert-info d-flex align-items-center" role="alert">
+                <i class="fas fa-file-upload me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Archivo seleccionado:</strong><br>
+                    <small>${fileName} (${fileSize} MB)</small><br>
+                    <small class="text-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Recuerda presionar "Subir" para adjuntar el archivo a la factura
+                    </small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFileInput()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Hacer más visible el botón de subir
+        const uploadButton = document.querySelector('button[onclick="uploadFile()"]');
+        if (uploadButton) {
+            uploadButton.classList.add('btn-warning', 'fw-bold');
+            uploadButton.classList.remove('btn-primary');
+            if (!uploadButton.querySelector('.pulse-animation')) {
+                uploadButton.innerHTML = `<i class="fas fa-upload pulse-animation"></i> Subir Archivo`;
+            }
+        }
+    } else {
+        indicator.innerHTML = `
+            <div class="alert alert-light text-muted" role="alert">
+                <i class="fas fa-file me-2"></i>
+                <small>No hay archivo seleccionado</small>
+            </div>
+        `;
+        
+        // Restaurar botón de subir
+        const uploadButton = document.querySelector('button[onclick="uploadFile()"]');
+        if (uploadButton) {
+            uploadButton.classList.remove('btn-warning', 'fw-bold');
+            uploadButton.classList.add('btn-primary');
+            uploadButton.innerHTML = `<i class="fas fa-upload"></i> Subir Archivo`;
+        }
+    }
+}
+
+/**
+ * Limpiar input de archivo
+ */
+function clearFileInput() {
+    const fileInput = document.getElementById('file-upload');
+    if (fileInput) {
+        fileInput.value = '';
+        updateFileInputIndicator(fileInput);
+        
+        Swal.fire({
+            title: 'Archivo eliminado',
+            text: 'Se ha eliminado el archivo seleccionado',
+            icon: 'info',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    }
+}
+
+// Exponer la función globalmente
+window.clearFileInput = clearFileInput;
 
 // ==============================
 // Referencias de datos (clientes, proveedores, métodos de pago)

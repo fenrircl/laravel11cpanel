@@ -2,3 +2,119 @@
  * Archivo CSS principal de la aplicación 
  * Se han eliminado las directivas de Tailwind ya que la aplicación utiliza Bootstrap
  */
+
+/* ===== ESTILOS PARA GESTIÓN DE ARCHIVOS ===== */
+
+/* Animación de pulso para botón de subir archivo */
+.pulse-animation {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Indicador de archivo seleccionado */
+.file-indicator .alert {
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.file-indicator .alert-info {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+    color: #1565c0;
+}
+
+.file-indicator .alert-light {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #6c757d;
+}
+
+/* Botón de subir archivo destacado */
+.btn.btn-warning.fw-bold {
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+    transition: all 0.3s ease;
+}
+
+.btn.btn-warning.fw-bold:hover {
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.7);
+    transform: translateY(-1px);
+}
+
+/* Estilos para archivos asociados en modal */
+.archivo-asociado {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.archivo-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.archivo-nombre {
+    font-weight: 500;
+    color: #495057;
+    word-break: break-word;
+}
+
+.archivo-acciones {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+@media (max-width: 576px) {
+    .archivo-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .archivo-acciones {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Files list container */
+.files-container {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    background-color: #ffffff;
+    transition: background-color 0.2s ease;
+}
+
+.file-item:hover {
+    background-color: #f8f9fa;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #495057;
+    word-break: break-word;
+}
+
+.file-actions {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
