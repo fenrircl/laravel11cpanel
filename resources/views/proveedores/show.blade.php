@@ -161,9 +161,9 @@
                             <label for="file-upload" class="form-label">Subir Archivo</label>
                             <div class="input-group">
                                 <input type="file" class="form-control" id="file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-                                {{-- <button class="btn btn-outline-primary" type="button" onclick="uploadFile()">
+                                <button class="btn btn-outline-primary" type="button" onclick="uploadFile()">
                                     <i class="fas fa-upload"></i> Subir
-                                </button> --}}
+                                </button>
                             </div>
                             <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. Máximo 10MB.</small>
                         </div>

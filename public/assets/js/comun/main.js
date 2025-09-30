@@ -2171,8 +2171,11 @@ function openCreateFacturaModal(entity) {
  * Subir archivo - función llamada desde los botones en las vistas
  */
 function uploadFile() {
+    console.log('=== INICIO PROCESO UPLOAD FILE ===');
+    
     const fileInput = document.getElementById('file-upload');
     if (!fileInput) {
+        console.error('No se encontró el input file-upload');
         Swal.fire({
             title: 'Error',
             text: 'No se encontró el campo de archivo',
@@ -2184,6 +2187,7 @@ function uploadFile() {
     
     const file = fileInput.files[0];
     if (!file) {
+        console.warn('No hay archivo seleccionado');
         Swal.fire({
             title: 'Error',
             text: 'Por favor selecciona un archivo',
@@ -2192,6 +2196,12 @@ function uploadFile() {
         });
         return;
     }
+    
+    console.log('Archivo seleccionado:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+    });
     
     // Obtener número de factura desde diferentes posibles fuentes
     let invoice = null;
@@ -2202,11 +2212,13 @@ function uploadFile() {
         const invoiceInput = document.querySelector('#facturaModal [name="invoice"]');
         if (invoiceInput && invoiceInput.value) {
             invoice = invoiceInput.value;
+            console.log('Número de factura obtenido del modal:', invoice);
         }
     }
     
     // 2. Si no hay modal abierto, pedir al usuario que ingrese el número de factura
     if (!invoice) {
+        console.log('No se encontró número de factura, solicitando al usuario');
         Swal.fire({
             title: 'Número de Factura',
             text: 'Ingresa el número de factura para asociar el archivo:',
@@ -2228,7 +2240,10 @@ function uploadFile() {
             }
         }).then((result) => {
             if (result.isConfirmed && result.value) {
+                console.log('Usuario ingresó número de factura:', result.value);
                 proceedWithUpload(result.value);
+            } else {
+                console.log('Usuario canceló la subida');
             }
         });
         return; // Salir aquí, la subida continuará en el callback
@@ -2237,6 +2252,9 @@ function uploadFile() {
     }
     
     function proceedWithUpload(invoiceNumber) {
+        console.log('=== PROCEDIENDO CON UPLOAD ===');
+        console.log('Número de factura final:', invoiceNumber);
+        
         const formData = new FormData();
         formData.append('file', file);
         formData.append('invoice', invoiceNumber);
@@ -2247,12 +2265,24 @@ function uploadFile() {
         
         if (clienteId) {
             formData.append('client_id', clienteId);
+            console.log('Agregado client_id:', clienteId);
         }
         if (proveedorId) {
             formData.append('provider_id', proveedorId);
+            console.log('Agregado provider_id:', proveedorId);
+        }
+        
+        console.log('Datos del FormData preparados:');
+        for (let [key, value] of formData.entries()) {
+            if (key === 'file') {
+                console.log(`${key}:`, value.name, `(${value.size} bytes)`);
+            } else {
+                console.log(`${key}:`, value);
+            }
         }
         
         uploadFileWithFormData(formData, () => {
+            console.log('Upload completado exitosamente, limpiando input');
             // Limpiar input después de subir
             fileInput.value = '';
         });
@@ -2263,26 +2293,43 @@ function uploadFile() {
  * Subir archivo para una factura - función interna que maneja el FormData
  */
 function uploadFileWithFormData(formData, onSuccess = null) {
-    // Debug: Mostrar lo que se está enviando
-    console.log('Enviando archivo con datos:', {
-        file: formData.get('file')?.name || 'No file',
-        invoice: formData.get('invoice') || 'No invoice',
-        client_id: formData.get('client_id') || 'No client_id',
-        provider_id: formData.get('provider_id') || 'No provider_id'
-    });
+    console.log('=== INICIANDO PETICIÓN AL SERVIDOR ===');
     
-    fetch(buildApiUrl('files/upload'), {
+    // Debug: Mostrar lo que se está enviando
+    console.log('Enviando archivo con datos:');
+    for (let [key, value] of formData.entries()) {
+        if (key === 'file') {
+            console.log(`${key}:`, value.name, `(${value.size} bytes, ${value.type})`);
+        } else {
+            console.log(`${key}:`, value);
+        }
+    }
+    
+    const url = buildApiUrl('files/upload');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    console.log('URL de destino:', url);
+    console.log('CSRF Token presente:', !!csrfToken);
+    
+    fetch(url, {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+            'X-CSRF-TOKEN': csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'same-origin'
     })
     .then(response => {
+        console.log('Respuesta del servidor recibida:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+        
         if (response.status === 401) {
-            // Usuario no autenticado
+            console.error('Usuario no autenticado, redirigiendo a login');
             window.location.href = '/login';
             return;
         }
@@ -2292,9 +2339,13 @@ function uploadFileWithFormData(formData, onSuccess = null) {
         return response.json();
     })
     .then(data => {
-        console.log('Respuesta del servidor:', data);
+        console.log('=== RESPUESTA JSON DEL SERVIDOR ===');
+        console.log('Respuesta completa:', data);
         
         if (data && (data.status === 'success' || data.success === true)) {
+            console.log('✅ Upload exitoso!');
+            console.log('Detalles del archivo subido:', data.file);
+            
             Swal.fire({
                 title: '¡Éxito!',
                 text: 'Archivo subido correctamente',
@@ -2303,14 +2354,17 @@ function uploadFileWithFormData(formData, onSuccess = null) {
             });
             
             if (onSuccess) {
+                console.log('Ejecutando callback de éxito');
                 onSuccess(data);
             }
             
             // Actualizar modal de edición si está abierto
             if ($('#facturaModal').hasClass('show')) {
+                console.log('Modal de factura abierto, actualizando interfaz');
                 const invoice = document.querySelector('[name="invoice"]')?.value;
                 const facturaId = document.getElementById('factura_id')?.value;
                 if (invoice && data.file && facturaId) {
+                    console.log('Actualizando sección de archivos en modal');
                     // Actualizar la sección de archivo asociado
                     const archivoAsociadoDiv = document.getElementById('archivo-asociado');
                     if (archivoAsociadoDiv) {
@@ -2369,10 +2423,11 @@ function uploadFileWithFormData(formData, onSuccess = null) {
             }
             
             // Recargar tablas
+            console.log('Recargando tablas de facturas');
             reloadInvoiceTables();
         } else {
             const errorMsg = data?.message || data?.error || 'Error al subir archivo';
-            console.error('Error en respuesta del servidor:', data);
+            console.error('❌ Error en respuesta del servidor:', data);
             Swal.fire({
                 title: 'Error',
                 text: errorMsg,
@@ -2382,7 +2437,7 @@ function uploadFileWithFormData(formData, onSuccess = null) {
         }
     })
     .catch(error => {
-        console.error('Error en fetch:', error);
+        console.error('❌ Error en fetch:', error);
         Swal.fire({
             title: 'Error',
             text: 'Error al subir archivo: ' + error.message,
@@ -2414,37 +2469,10 @@ function eliminarArchivoFacturaModal() {
 
 // ===== EVENT LISTENERS PARA GESTIÓN DE ARCHIVOS =====
 
-// Event listener para upload de archivos
+// Event listener para upload de archivos - REMOVIDO EL AUTO-UPLOAD
 document.addEventListener('DOMContentLoaded', function() {
-    // Manejar cambio en input de archivo
-    document.addEventListener('change', function(e) {
-        if (e.target && e.target.id === 'file-upload') {
-            const fileInput = e.target;
-            const file = fileInput.files[0];
-            
-            if (!file) return;
-            
-            const invoice = document.querySelector('[name="invoice"]')?.value;
-            if (!invoice) {
-                Swal.fire({
-                    title: 'Error',
-                    text: 'No se puede subir archivo sin número de factura',
-                    icon: 'error',
-                    confirmButtonText: 'OK'
-                });
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('invoice', invoice);
-            
-            uploadFileWithFormData(formData, () => {
-                // Limpiar input después de subir
-                fileInput.value = '';
-            });
-        }
-    });
+    // Ya no hay auto-upload, solo se sube cuando se presiona el botón uploadFile()
+    console.log('Event listeners de archivos cargados - Auto-upload deshabilitado');
 });
 
 // ==============================

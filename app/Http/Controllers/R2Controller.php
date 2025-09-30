@@ -356,8 +356,19 @@ class R2Controller extends Controller
     public function uploadFile(Request $request)
     {
         try {
+            \Log::info('=== INICIO UPLOAD FILE ===', [
+                'method' => $request->method(),
+                'url' => $request->url(),
+                'has_invoice' => $request->has('invoice'),
+                'has_file' => $request->hasFile('file'),
+                'user_id' => auth()->id(),
+                'ip' => $request->ip()
+            ]);
+
             // Soporte para facturas por invoice number
             if ($request->has('invoice')) {
+                \Log::info('Procesando upload por número de factura');
+                
                 // Validación para facturas por invoice
                 $request->validate([
                     'file' => 'required|file|max:10240', // Max 10MB
@@ -367,19 +378,39 @@ class R2Controller extends Controller
                 $file = $request->file('file');
                 $invoice = $request->input('invoice');
 
+                \Log::info('Datos validados:', [
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'file_type' => $file->getMimeType(),
+                    'invoice' => $invoice
+                ]);
+
                 // Buscar la factura por número de invoice
                 $factura = DB::table('invoices')->where('invoice', $invoice)->first();
                 
                 if (!$factura) {
+                    \Log::error('Factura no encontrada', ['invoice' => $invoice]);
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Factura no encontrada'
                     ], 404);
                 }
 
+                \Log::info('Factura encontrada:', [
+                    'id' => $factura->id,
+                    'invoice' => $factura->invoice,
+                    'client_id' => $factura->client_id,
+                    'provider_id' => $factura->provider_id
+                ]);
+
                 // Determinar el tipo de factura (cliente o proveedor) y crear el path apropiado
                 $tipoFactura = $factura->client_id ? 'clientes' : 'proveedores';
                 $numeroFactura = $factura->invoice; // Usar número de factura en lugar del ID
+                
+                \Log::info('Configuración de subida:', [
+                    'tipo_factura' => $tipoFactura,
+                    'numero_factura' => $numeroFactura
+                ]);
                 
                 // Generate a unique filename with sanitization
                 $originalName = $this->sanitizeFilename($file->getClientOriginalName());
@@ -391,6 +422,12 @@ class R2Controller extends Controller
                 // Create the storage path: facturas/clientes/{numero_factura} o facturas/proveedores/{numero_factura}
                 $storagePath = "facturas/{$tipoFactura}/{$numeroFactura}/{$uniqueFileName}";
 
+                \Log::info('Archivos procesados:', [
+                    'original_name' => $originalName,
+                    'unique_filename' => $uniqueFileName,
+                    'storage_path' => $storagePath
+                ]);
+
                 // Upload to R2
                 $uploaded = Storage::disk('r2')->putFileAs(
                     "facturas/{$tipoFactura}/{$numeroFactura}",
@@ -398,7 +435,13 @@ class R2Controller extends Controller
                     $uniqueFileName
                 );
 
+                \Log::info('Resultado upload a R2:', [
+                    'uploaded' => $uploaded ? 'success' : 'failed',
+                    'path' => $uploaded
+                ]);
+
                 if (!$uploaded) {
+                    \Log::error('Falló la subida a R2');
                     return response()->json([
                         'status' => 'error',
                         'message' => 'Error al subir el archivo'
@@ -406,6 +449,7 @@ class R2Controller extends Controller
                 }
 
                 // Register in database
+                \Log::info('Registrando archivo en base de datos');
                 $fileRegistry = FilesRegistry::create([
                     'model_type' => 'App\\Invoice',
                     'model_id' => $factura->id,
@@ -418,9 +462,18 @@ class R2Controller extends Controller
                     'created_at' => now()
                 ]);
 
+                \Log::info('Archivo registrado en base de datos:', [
+                    'file_registry_id' => $fileRegistry->id,
+                    'model_type' => $fileRegistry->model_type,
+                    'model_id' => $fileRegistry->model_id,
+                    'real_id' => $fileRegistry->real_id,
+                    'path' => $fileRegistry->path
+                ]);
+
                 // Auditoría
                 AuditLogger::log($request, 'upload', 'archivos', $factura->id, 'Subió archivo a factura #' . $factura->invoice);
 
+                \Log::info('=== UPLOAD COMPLETADO EXITOSAMENTE ===');
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Archivo subido exitosamente',
@@ -535,6 +588,16 @@ class R2Controller extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('=== ERROR EN UPLOAD FILE ===', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['file']), // Excluir archivo del log
+                'user_id' => auth()->id(),
+                'ip' => $request->ip()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'status' => 'error',
