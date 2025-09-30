@@ -1003,21 +1003,25 @@ class ActionButtonFactory {
                                 reloadInvoiceTables();
                                 // Actualizar modal de edición si está abierto
                                 if ($('#facturaModal').hasClass('show')) {
-                                    // Actualizar la sección de archivo asociado
-                                    const archivoAsociadoDiv = document.getElementById('archivo-asociado');
-                                    if (archivoAsociadoDiv) {
-                                        archivoAsociadoDiv.innerHTML = `
-                                            <div class="archivo-asociado">
-                                                <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
-                                                <p class="text-muted">No hay archivo asociado a esta factura</p>
+                                    const facturaId = document.getElementById('factura_id')?.value;
+                                    if (facturaId) {
+                                        // Mostrar mensaje de "sin archivos" usando las nuevas funciones
+                                        const noFileHtml = `
+                                            <div class="no-archivo">
+                                                <i class="fas fa-file me-2"></i>
+                                                No hay archivos asociados a esta factura
                                             </div>
                                         `;
-                                    }
-                                    
-                                    // Actualizar contenedor files-list
-                                    const filesListContainer = document.getElementById('files-list');
-                                    if (filesListContainer) {
-                                        filesListContainer.innerHTML = '<p class="text-muted">No hay archivos asociados</p>';
+                                        
+                                        const archivoAsociadoDiv = document.getElementById('archivo-asociado');
+                                        if (archivoAsociadoDiv) {
+                                            archivoAsociadoDiv.innerHTML = noFileHtml;
+                                        }
+                                        
+                                        const filesListContainer = document.getElementById('files-list');
+                                        if (filesListContainer) {
+                                            filesListContainer.innerHTML = noFileHtml;
+                                        }
                                     }
                                 }
                                 
@@ -2131,6 +2135,10 @@ function openEditFacturaModal(entity, id) {
         // Mostrar sección de archivos en edición
         const fileManagementSection = document.getElementById('file-management-section');
         if (fileManagementSection) fileManagementSection.style.display = 'block';
+        
+        // Mostrar archivos asociados a la factura
+        displayFacturaFiles(fNorm.id, 'edit');
+        
         $('#facturaModal').modal('show');
     };
 
@@ -2496,59 +2504,32 @@ function uploadFileWithFormData(formData, onSuccess = null, onError = null) {
                 const facturaId = document.getElementById('factura_id')?.value;
                 if (invoice && data.file && facturaId) {
                     console.log('Actualizando sección de archivos en modal');
-                    // Actualizar la sección de archivo asociado
+                    
+                    // Crear objeto factura temporal para mostrar el archivo recién subido
+                    const tempFactura = {
+                        id: facturaId,
+                        has_file: true,
+                        file_path: data.file.path,
+                        file_name: data.file.name,
+                        file_size: data.file.size || null
+                    };
+                    
+                    // Actualizar la visualización usando las nuevas funciones
                     const archivoAsociadoDiv = document.getElementById('archivo-asociado');
                     if (archivoAsociadoDiv) {
-                        archivoAsociadoDiv.innerHTML = `
-                            <div class="archivo-asociado">
-                                <h6><i class="fas fa-paperclip"></i> Archivo Asociado</h6>
-                                <div class="archivo-info">
-                                    <span class="archivo-nombre">${data.file.name}</span>
-                                    <div class="archivo-acciones">
-                                        <a href="javascript:void(0)" 
-                                           class="btn btn-sm btn-outline-primary" 
-                                           onclick="descargarPDF(${facturaId}, event)"
-                                           title="Descargar archivo">
-                                            <i class="fas fa-download"></i> Descargar
-                                        </a>
-                                        <button type="button" 
-                                                class="btn btn-sm btn-outline-danger" 
-                                                onclick="eliminarArchivoFacturaModal()" 
-                                                title="Eliminar archivo">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                        archivoAsociadoDiv.innerHTML = createArchivoAsociadoHtml(tempFactura, 'edit');
                     }
                     
-                    // Actualizar contenedor files-list
                     const filesListContainer = document.getElementById('files-list');
                     if (filesListContainer) {
-                        filesListContainer.innerHTML = `
-                            <div class="files-container">
-                                <div class="file-item mb-2 p-2 border rounded">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="file-name">${data.file.name}</span>
-                                        <div class="file-actions">
-                                            <a href="javascript:void(0)" 
-                                               class="btn btn-sm btn-outline-primary" 
-                                               onclick="descargarPDF(${facturaId}, event)"
-                                               title="Descargar">
-                                                <i class="fas fa-download"></i>
-                                            </a>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger" 
-                                                    onclick="eliminarArchivoFacturaModal()" 
-                                                    title="Eliminar">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                        filesListContainer.innerHTML = createFilesListHtml(tempFactura, 'edit');
+                    }
+                    
+                    // Actualizar el indicador de archivo para mostrar que ya fue subido
+                    const fileInput = document.getElementById('file-upload');
+                    if (fileInput) {
+                        fileInput.value = '';
+                        updateFileInputIndicator(fileInput);
                     }
                 }
             }
@@ -2619,16 +2600,44 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Event listeners de archivos cargados - Auto-upload deshabilitado');
     
     // Agregar indicador visual para archivos seleccionados
-    const fileInput = document.getElementById('file-upload');
-    if (fileInput) {
+    initializeFileInputs();
+});
+
+/**
+ * Inicializar inputs de archivo en la página
+ */
+function initializeFileInputs() {
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    
+    fileInputs.forEach(fileInput => {
+        // Agregar contenedor visual si no existe
+        if (!fileInput.closest('.file-input-container')) {
+            const container = document.createElement('div');
+            container.className = 'file-input-container';
+            
+            // Envolver el input en el contenedor
+            fileInput.parentNode.insertBefore(container, fileInput);
+            container.appendChild(fileInput);
+            
+            // Agregar texto instructivo
+            const helpText = document.createElement('div');
+            helpText.className = 'text-muted text-center mt-2';
+            helpText.innerHTML = '<small><i class="fas fa-upload me-1"></i>Selecciona un archivo para subir</small>';
+            container.appendChild(helpText);
+        }
+        
+        // Agregar event listener
         fileInput.addEventListener('change', function(e) {
             updateFileInputIndicator(this);
         });
         
         // Inicializar indicador
         updateFileInputIndicator(fileInput);
-    }
-});
+    });
+}
+
+// Exponer función globalmente
+window.initializeFileInputs = initializeFileInputs;
 
 /**
  * Actualizar indicador visual del input de archivo
@@ -2642,8 +2651,18 @@ function updateFileInputIndicator(fileInput) {
     // Crear indicador si no existe
     if (!indicator) {
         indicator = document.createElement('div');
-        indicator.className = 'file-indicator mt-2';
+        indicator.className = 'file-indicator';
         fileInput.parentElement.appendChild(indicator);
+    }
+    
+    // Actualizar contenedor del input
+    const container = fileInput.closest('.file-input-container');
+    if (container) {
+        if (hasFile) {
+            container.classList.add('has-file');
+        } else {
+            container.classList.remove('has-file');
+        }
     }
     
     if (hasFile) {
@@ -2652,16 +2671,16 @@ function updateFileInputIndicator(fileInput) {
         
         indicator.innerHTML = `
             <div class="alert alert-info d-flex align-items-center" role="alert">
-                <i class="fas fa-file-upload me-2"></i>
+                <i class="fas fa-file-upload me-2" style="color: #0a58ca;"></i>
                 <div class="flex-grow-1">
                     <strong>Archivo seleccionado:</strong><br>
-                    <small>${fileName} (${fileSize} MB)</small><br>
-                    <small class="text-warning">
+                    <small style="color: #0a58ca;">${fileName} (${fileSize} MB)</small><br>
+                    <small style="color: #856404;">
                         <i class="fas fa-exclamation-triangle me-1"></i>
-                        Recuerda presionar "Subir" para adjuntar el archivo a la factura
+                        Presiona "Subir" para adjuntar el archivo
                     </small>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFileInput()">
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearFileInput()" title="Quitar archivo">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -2715,6 +2734,168 @@ function clearFileInput() {
 
 // Exponer la función globalmente
 window.clearFileInput = clearFileInput;
+
+/**
+ * Mostrar archivos asociados a una factura en el modal
+ */
+function displayFacturaFiles(facturaId, modalContext = 'edit') {
+    console.log('Mostrando archivos para factura ID:', facturaId, 'Contexto:', modalContext);
+    
+    if (!facturaId) {
+        console.warn('No se proporcionó ID de factura');
+        return;
+    }
+    
+    // Buscar datos de la factura
+    const factura = EntityHelpers.getFactura(facturaId);
+    
+    // Contenedores donde mostrar los archivos
+    const archivoAsociadoDiv = document.getElementById('archivo-asociado');
+    const filesListContainer = document.getElementById('files-list');
+    
+    if (factura && factura.has_file && factura.file_path) {
+        console.log('Factura tiene archivo asociado:', factura.file_path);
+        
+        // Crear HTML para archivo asociado
+        const archivoHtml = createArchivoAsociadoHtml(factura, modalContext);
+        
+        if (archivoAsociadoDiv) {
+            archivoAsociadoDiv.innerHTML = archivoHtml;
+            archivoAsociadoDiv.style.display = 'block';
+        }
+        
+        if (filesListContainer) {
+            filesListContainer.innerHTML = createFilesListHtml(factura, modalContext);
+            filesListContainer.style.display = 'block';
+        }
+    } else {
+        console.log('Factura no tiene archivo asociado');
+        
+        // Mostrar mensaje de "sin archivos"
+        const noFileHtml = `
+            <div class="no-archivo">
+                <i class="fas fa-file me-2"></i>
+                No hay archivos asociados a esta factura
+            </div>
+        `;
+        
+        if (archivoAsociadoDiv) {
+            archivoAsociadoDiv.innerHTML = noFileHtml;
+            archivoAsociadoDiv.style.display = 'block';
+        }
+        
+        if (filesListContainer) {
+            filesListContainer.innerHTML = noFileHtml;
+            filesListContainer.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Crear HTML para mostrar archivo asociado
+ */
+function createArchivoAsociadoHtml(factura, modalContext) {
+    const fileName = factura.file_name || 'Archivo adjunto';
+    const facturaId = factura.id;
+    
+    // Botones según el contexto
+    let buttons = '';
+    if (modalContext === 'view') {
+        // Solo mostrar botón de descarga en modo ver
+        buttons = `
+            <a href="javascript:void(0)" 
+               class="btn btn-sm btn-file-action btn-file-download" 
+               onclick="descargarPDF(${facturaId}, event)"
+               title="Descargar archivo">
+                <i class="fas fa-download me-1"></i>Descargar
+            </a>
+        `;
+    } else {
+        // Mostrar ambos botones en modo editar
+        buttons = `
+            <a href="javascript:void(0)" 
+               class="btn btn-sm btn-file-action btn-file-download" 
+               onclick="descargarPDF(${facturaId}, event)"
+               title="Descargar archivo">
+                <i class="fas fa-download me-1"></i>Descargar
+            </a>
+            <button type="button" 
+                    class="btn btn-sm btn-file-action btn-file-delete" 
+                    onclick="eliminarArchivoFacturaModal()" 
+                    title="Eliminar archivo">
+                <i class="fas fa-trash me-1"></i>Eliminar
+            </button>
+        `;
+    }
+    
+    return `
+        <div class="archivo-asociado">
+            <h6><i class="fas fa-paperclip me-2"></i>Archivo Asociado</h6>
+            <div class="archivo-info">
+                <div class="archivo-nombre">${fileName}</div>
+                <div class="archivo-acciones">
+                    ${buttons}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Crear HTML para lista de archivos
+ */
+function createFilesListHtml(factura, modalContext) {
+    const fileName = factura.file_name || 'Archivo adjunto';
+    const fileSize = factura.file_size ? `(${(factura.file_size / 1024 / 1024).toFixed(2)} MB)` : '';
+    const facturaId = factura.id;
+    
+    // Botones según el contexto
+    let buttons = '';
+    if (modalContext === 'view') {
+        buttons = `
+            <a href="javascript:void(0)" 
+               class="btn btn-sm btn-file-action btn-file-download" 
+               onclick="descargarPDF(${facturaId}, event)"
+               title="Descargar">
+                <i class="fas fa-download"></i>
+            </a>
+        `;
+    } else {
+        buttons = `
+            <a href="javascript:void(0)" 
+               class="btn btn-sm btn-file-action btn-file-download" 
+               onclick="descargarPDF(${facturaId}, event)"
+               title="Descargar">
+                <i class="fas fa-download"></i>
+            </a>
+            <button type="button" 
+                    class="btn btn-sm btn-file-action btn-file-delete" 
+                    onclick="eliminarArchivoFacturaModal()" 
+                    title="Eliminar">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+    }
+    
+    return `
+        <div class="files-container">
+            <div class="file-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="file-name">${fileName}</div>
+                        <div class="file-size">${fileSize}</div>
+                    </div>
+                    <div class="file-actions">
+                        ${buttons}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Exponer funciones globalmente
+window.displayFacturaFiles = displayFacturaFiles;
 
 // ==============================
 // Referencias de datos (clientes, proveedores, métodos de pago)
