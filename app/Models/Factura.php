@@ -22,7 +22,8 @@ class Factura extends Model
         'check',
         'payment_method_id',
         'detail',
-        'status'
+        'status',
+        'extra'
     ];
     
     protected $casts = [

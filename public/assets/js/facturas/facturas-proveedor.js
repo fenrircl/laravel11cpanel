@@ -416,7 +416,7 @@ $(document).ready(function() {
                     </div>
                 </div>
             ` : '';
-
+            console.log(factura)
             const detailsHtml = `
                 <p><strong>ID:</strong> ${factura.id}</p>
                 <p><strong>Número de Factura:</strong> ${factura.invoice}</p>
@@ -425,7 +425,7 @@ $(document).ready(function() {
                 <p><strong>Vencimiento:</strong> ${factura.expiry ? formatTableDate(factura.expiry, false) : 'N/A'}</p>
                 <p><strong>Fecha de Pago:</strong> ${factura.pay_date ? formatTableDate(factura.pay_date, false) : 'N/A'}</p>
                 <p><strong>Monto:</strong> ${formatCurrency(factura.amount)}</p>
-                <p><strong>Método de Pago:</strong> ${factura.metodo_pago.name}</p>
+                <p><strong>Método de Pago:</strong> ${factura.metodo_pago?.name?factura.metodo_pago?.name:""}</p>
                 <p><strong>Estado:</strong> <span class="badge ${factura.status === 1 ? 'bg-success' : 'bg-warning'}">${factura.status === 1 ? 'Pagado' : 'Pendiente'}</span></p>
                 <p><strong>Detalle:</strong> ${factura.detail || 'Sin detalles'}</p>
                 ${archivoSection}
