@@ -13,18 +13,6 @@ $(document).ready(function() {
     // Inicializar eventos del modal de detalles
     initModalEvents();
     
-    // Detectar si viene desde Home con filtro de pendientes o desde URLeady(function() {
-    console.log('Facturas Proveedor DataTable initialized');
-
-    // Precargar datos necesarios para esta vista
-    if (window.ReferenceDataManager) {
-        ReferenceDataManager.ensureLoaded(['proveedores', 'metodosPago']);
-    }
-
-    // Refrescar datasets si hay cambios en proveedores o métodos de pago
-    document.addEventListener('proveedores:updated', () => ReferenceDataManager.refresh('proveedores'));
-    document.addEventListener('metodosPago:updated', () => ReferenceDataManager.refresh('metodosPago'));
-    
     // Detectar si viene desde Home con filtro de pendientes o desde URL
     const urlParams = new URLSearchParams(window.location.search);
     const filterParam = urlParams.get('filter');
@@ -114,7 +102,7 @@ $(document).ready(function() {
                     return data || 'N/A';
                 }
                 const name = data || 'N/A';
-                return `<span class="text-truncate d-inline-block" style="max-width:240px" title="${name}">${name}</span>`;
+                return `<span class="text-truncate d-inline-block small" style="max-width:240px" title="${name}">${name}</span>`;
             }
         },
         { 
@@ -215,6 +203,20 @@ $(document).ready(function() {
                 }
             return data ? formatTableDate(data, false) : 'N/A';
         }},
+        {
+            data: 'check',
+            name: 'check',
+            title: 'Pago verificado',
+            orderable: false,
+            searchable: false,
+            render: function(data, type, row) {
+                if (type === 'export') {
+                    return (data === '1' || data === 1 || data === true) ? 'Sí' : 'No';
+                }
+                const checked = (data === '1' || data === 1 || data === true) ? 'checked' : '';
+                return `<input type="checkbox" class="form-check-input check-pago-verificado" data-id="${row.id}" ${checked} />`;
+            }
+        },
         { data: 'amount', name: 'amount', title: 'Monto', render: function(data, type, row) {
             if (type === 'export') {
                     // Eliminar cualquier símbolo de moneda y separadores de miles
@@ -327,8 +329,9 @@ $(document).ready(function() {
             { targets: 3, width: '120px', responsivePriority: 7 }, // Vencimiento  
             { targets: 4, width: '140px', responsivePriority: shouldFilterPending ? 2 : 5 }, // Días (prioritario si filtro activo)
             { targets: 5, width: '120px', responsivePriority: 8 }, // Fecha Pago
-            { targets: 6, width: '120px', responsivePriority: 5 }, // Monto
-            { targets: 7, width: '110px', responsivePriority: 4 }, // Estado 
+            { targets: 6, width: '110px', responsivePriority: 4 }, // Pago verificado
+            { targets: 7, width: '120px', responsivePriority: 5 }, // Monto
+            { targets: 8, width: '110px', responsivePriority: 4 }, // Estado 
             { targets: -1, width: '160px', className: 'text-end nowrap', responsivePriority: 1 } // Acciones siempre visible
         ]
     };
@@ -448,4 +451,31 @@ $(document).ready(function() {
             Swal.fire('Error', 'No se pudieron encontrar los detalles de la factura.', 'error');
         }
     };
+
+    $(document).on('change', '.check-pago-verificado', function() {
+        const facturaId = $(this).data('id');
+        const checked = $(this).is(':checked');
+        $.ajax({
+            url: buildApiUrl(`facturas/${facturaId}/check`),
+            type: 'POST',
+            data: {
+                check: checked,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pago verificado',
+                    text: 'El estado de pago verificado ha sido actualizado.'
+                });
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo actualizar el estado de pago verificado.'
+                });
+            }
+        });
+    });
 });

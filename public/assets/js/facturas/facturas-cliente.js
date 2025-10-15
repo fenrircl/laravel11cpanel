@@ -77,7 +77,7 @@ $(document).ready(function() {
         {
             data: 'invoice', 
             name: 'invoice', 
-            title: 'Número Factura',
+            title: 'Factura',
             render: function(data, type, row) {
                 if (type === 'sort' || type === 'type') {
                     // Para ordenamiento, extraer el número de la factura y convertirlo a entero
@@ -87,6 +87,7 @@ $(document).ready(function() {
                 return data || '';
             }
         },
+
         {
             data: 'cliente.name', 
             name: 'cliente.name',
@@ -109,7 +110,7 @@ $(document).ready(function() {
                         return div.textContent || div.innerText || 'N/A';
                     })()
                     : (data || 'N/A');
-                return `<span class="text-truncate d-inline-block" style="max-width:240px" title="${name}">${name}</span>`;
+                return `<span class="text-truncate d-inline-block small" style="max-width:240px" title="${name}">${name}</span>`;
             }
         },
         { 
@@ -244,6 +245,20 @@ $(document).ready(function() {
             }
         },
         {
+            data: 'check',
+            name: 'check',
+            title: 'Pago verificado',
+            orderable: false,
+            searchable: false,
+            render: function(data, type, row) {
+                if (type === 'export') {
+                    return (data === '1' || data === 1 || data === true) ? 'Sí' : 'No';
+                }
+                const checked = (data === '1' || data === 1 || data === true) ? 'checked' : '';
+                return `<input type="checkbox" class="form-check-input check-pago-verificado" data-id="${row.id}" ${checked} />`;
+            }
+        },
+        {
             data: null,
             name: 'status_badge',
             title: 'Estado',
@@ -332,16 +347,17 @@ $(document).ready(function() {
                 });
             }
         },
-        order: shouldFilterPending ? [[4, 'asc']] : [[2, 'desc']], // Si hay filtro pending: ordenar por días (urgentes primero), sino por fecha (más reciente primero)
+        order: shouldFilterPending ? [[5, 'asc']] : [[3, 'desc']], // Si hay filtro pending: ordenar por días (urgentes primero), sino por fecha (más reciente primero)
         columnDefs: [
             { targets: 0, width: '140px', responsivePriority: 2 }, // Número Factura
-            { targets: 1, width: '260px', className: 'text-start', responsivePriority: 3 }, // Cliente
-            { targets: 2, width: '120px', responsivePriority: 6 }, // Fecha
-            { targets: 3, width: '120px', responsivePriority: 7 }, // Vencimiento  
-            { targets: 4, width: '140px', responsivePriority: shouldFilterPending ? 2 : 5 }, // Días (prioritario si filtro activo)
-            { targets: 5, width: '120px', responsivePriority: 8 }, // Fecha Pago
-            { targets: 6, width: '120px', responsivePriority: 5 }, // Monto
-            { targets: 7, width: '110px', responsivePriority: 4 }, // Estado 
+            { targets: 1, width: '120px', responsivePriority: 4 }, // Pago verificado
+            { targets: 2, width: '260px', className: 'text-start', responsivePriority: 3 }, // Cliente
+            { targets: 3, width: '120px', responsivePriority: 6 }, // Fecha
+            { targets: 4, width: '120px', responsivePriority: 7 }, // Vencimiento  
+            { targets: 5, width: '140px', responsivePriority: shouldFilterPending ? 2 : 5 }, // Días (prioritario si filtro activo)
+            { targets: 6, width: '120px', responsivePriority: 8 }, // Fecha Pago
+            { targets: 7, width: '120px', responsivePriority: 5 }, // Monto
+            { targets: 8, width: '110px', responsivePriority: 4 }, // Pago verificado 
             { targets: -1, width: '160px', className: 'text-end nowrap', responsivePriority: 1 } // Acciones siempre visible
         ],
         // Configuración específica para botones de exportación - SOLUCION DE EXPORTACION
@@ -500,4 +516,31 @@ $(document).ready(function() {
             Swal.fire('Error', 'No se pudieron encontrar los detalles de la factura.', 'error');
         }
     };
+
+    $(document).on('change', '.check-pago-verificado', function() {
+        const facturaId = $(this).data('id');
+        const checked = $(this).is(':checked');
+        $.ajax({
+            url: buildApiUrl(`facturas/${facturaId}/check`),
+            type: 'POST',
+            data: {
+                check: checked,
+                _token: $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function(response) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Pago verificado',
+                    text: 'El estado de pago verificado ha sido actualizado.'
+                });
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'No se pudo actualizar el estado de pago verificado.'
+                });
+            }
+        });
+    });
 });

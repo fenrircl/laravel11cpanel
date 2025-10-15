@@ -1742,6 +1742,7 @@ function saveFactura() {
     }
     isEdit = !!facturaId;
 
+
     // Validar campos requeridos
     if (!validateRequiredFields('facturaForm')) {
         Swal.fire({
@@ -1750,6 +1751,23 @@ function saveFactura() {
             text: 'Por favor completa todos los campos obligatorios.'
         });
         return;
+    }
+
+    // Validar que la fecha de emisión no sea superior al día actual
+    const fechaInput = document.getElementById('date');
+    if (fechaInput && fechaInput.value) {
+        const fechaIngresada = new Date(fechaInput.value);
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0);
+        fechaIngresada.setHours(0,0,0,0);
+        if (fechaIngresada > hoy) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Fecha inválida',
+                text: 'La fecha de emisión no puede ser posterior al día actual.'
+            });
+            return;
+        }
     }
 
     // ===== VERIFICACIÓN DE ARCHIVO PENDIENTE =====
@@ -2176,6 +2194,23 @@ function saveFacturaEdit(entity) {
         });
         return;
     }
+     // Validar que la fecha de emisión no sea superior al día actual
+    const fechaInput = document.getElementById('date');
+    if (fechaInput && fechaInput.value) {
+        const fechaIngresada = new Date(fechaInput.value);
+        const hoy = new Date();
+        hoy.setHours(0,0,0,0);
+        fechaIngresada.setHours(0,0,0,0);
+        if (fechaIngresada > hoy) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Fecha inválida',
+                text: 'La fecha de emisión no puede ser posterior al día actual.'
+            });
+            return;
+        }
+    }
+    
     const formData = form.serialize();
     let url = '';
     if (entity === 'cliente') {

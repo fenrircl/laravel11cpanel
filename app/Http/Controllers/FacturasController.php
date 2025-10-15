@@ -65,7 +65,7 @@ class FacturasController extends Controller
     public function getData()
     {
         $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo'])
-                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at', 'detail'])
+                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at', 'detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -90,7 +90,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('client_id')
-                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at','detail'])
+                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -115,7 +115,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('provider_id')
-                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'created_at', 'updated_at','detail'])
+                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -129,6 +129,38 @@ class FacturasController extends Controller
                           });
         return response()->json([
             'data' => $facturas
+        ]);
+    }
+
+    /**
+     * Update the pago verificado (check) field for a specific invoice
+     */
+    public function updatePagoVerificado(Request $request, Factura $factura)
+    {
+        $request->validate([
+            'check' => 'required|in:true,false,1,0'
+        ]);
+
+        $before = $factura->toArray();
+        // Convertir el valor a string para el campo check
+        $checkValue = filter_var($request->input('check'), FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        $factura->update([
+            'check' => $checkValue
+        ]);
+        $after = $factura->fresh()->toArray();
+        $diff = AuditLogger::simpleDiff($before, $after);
+
+        AuditLogger::log($request, 'update', 'facturas', $factura->id, 'Actualizó estado de pago verificado #' . $factura->invoice, [
+            'model' => Factura::class,
+            'data_before' => $before,
+            'data_after' => $after,
+            'changes' => $diff,
+            'reversible' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estado de pago verificado actualizado correctamente.'
         ]);
     }
 

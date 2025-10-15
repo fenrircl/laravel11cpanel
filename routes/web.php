@@ -59,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('facturas/data', [FacturasController::class, 'getData'])->name('facturas.data');
     Route::get('facturas/clientes/data', [FacturasController::class, 'getClienteData'])->name('facturas.clientes.data');
     Route::get('facturas/proveedores/data', [FacturasController::class, 'getProveedorData'])->name('facturas.proveedores.data');
+    Route::post('facturas/{factura}/check', [FacturasController::class, 'updatePagoVerificado'])->name('facturas.check');
     Route::get('metodos-pago/data', [MetodoPagoController::class, 'getData'])->name('metodos-pago.data');
     
     Route::get('/clientes', [ClientesController::class, 'index'])->name('clientes.index');
