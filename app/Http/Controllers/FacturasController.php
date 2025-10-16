@@ -65,7 +65,7 @@ class FacturasController extends Controller
     public function getData()
     {
         $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo'])
-                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at', 'detail'])
+                          ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at', 'detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -90,7 +90,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('client_id')
-                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at','detail'])
+                          ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -115,7 +115,7 @@ class FacturasController extends Controller
     {
         $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo'])
                           ->whereNotNull('provider_id')
-                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'created_at', 'updated_at','detail'])
+                          ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
                           ->map(function ($factura) {
@@ -224,6 +224,7 @@ class FacturasController extends Controller
             'check' => 'nullable|string|max:100',
             'payment_method_id' => 'nullable|exists:payment_methods,id', // No requerido al crear
             'detail' => 'nullable|string|max:1000',
+            'extra' => 'nullable|string|max:2000',
             'status' => 'required|in:0,1', // 0 = pendiente, 1 = pagado
         ]);
 
@@ -335,6 +336,7 @@ class FacturasController extends Controller
             'check' => 'nullable|string|max:100',
             'payment_method_id' => 'nullable|exists:payment_methods,id|required_if:status,1',
             'detail' => 'nullable|string|max:1000',
+            'extra' => 'nullable|string|max:2000',
             'status' => 'required|in:0,1',
         ]);
 

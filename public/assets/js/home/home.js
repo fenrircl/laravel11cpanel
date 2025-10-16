@@ -100,7 +100,7 @@ $(function(){
     const tipo = getTipoFromRow(r);
     const entidad = getEntidadName(r);
     const metodo = r.metodo_pago?.name || r.metodoPago?.name || r.payment_method_name || '—';
-    const estadoHtml = (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry) : '';
+    const estadoHtml = (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry, r.extra) : '';
 
     const html = `
       <div class="row g-3">
@@ -231,7 +231,7 @@ $(function(){
       },
       { data: 'amount', title: 'Monto', width: '140px', className: 'text-end', render: (d)=> typeof formatCurrency === 'function' ? formatCurrency(d) : d },
       { data: null, title: 'Estado', width: '110px', className: 'text-center', render: (d,t,r)=>{
-          return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry) : '';
+          return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(r.status ?? 0, r.expiry, r.extra) : '';
         }
       },
       { data: null, title: 'Acciones', orderable:false, searchable:false, className:'text-end nowrap', width: '150px', render: (d,t,r)=>{

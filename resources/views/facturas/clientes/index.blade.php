@@ -157,30 +157,46 @@
                         <textarea class="form-control" id="detail" name="detail" rows="3"></textarea>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="extra" class="form-label">Extra</label>
+                        <textarea class="form-control" id="extra" name="extra" rows="3" placeholder="Información adicional"></textarea>
+                    </div>
+                    
                     <!-- Sección de gestión de archivos (solo para edición) -->
                     <div id="file-management-section" style="display: none;">
-                       
-                        <h6><i class="fas fa-file-upload me-2"></i>Gestión de Archivos</h6>
-                        
-                        <!-- Subida de archivos -->
-                        <div class="mb-3">
-                            <label for="file-upload" class="form-label">Subir Archivo</label>
-                            <div class="input-group">
-                                <input type="file" class="form-control" id="file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-                                <button class="btn btn-outline-primary" type="button" onclick="uploadFile()">
-                                    <i class="fas fa-upload"></i> Subir
-                                </button>
-                            </div>
-                            <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. Máximo 10MB.</small>
-                        </div>
-                        
-                        <!-- Lista de archivos -->
-                        <div class="mb-3">
-                            <label class="form-label">Archivos Asociados</label>
-                            <div id="files-list" class="border rounded p-3 bg-light">
-                                <div class="text-center text-muted" id="no-files-message">
-                                    <i class="fas fa-folder-open fa-2x mb-2"></i>
-                                    <p>No hay archivos asociados a esta factura</p>
+                        <!-- Acordeón para gestión de archivos -->
+                        <div class="accordion mt-3" id="filesAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#filesSection" aria-expanded="false" aria-controls="filesSection">
+                                        <i class="fas fa-file-upload me-2"></i>Gestión de Archivos
+                                    </button>
+                                </h2>
+                                <div id="filesSection" class="accordion-collapse collapse" data-bs-parent="#filesAccordion">
+                                    <div class="accordion-body">
+                                        <!-- Subida de archivos -->
+                                        <div class="mb-3">
+                                            <label for="file-upload" class="form-label">Subir Archivo</label>
+                                            <div class="input-group">
+                                                <input type="file" class="form-control" id="file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                                                <button class="btn btn-outline-primary" type="button" onclick="uploadFile()">
+                                                    <i class="fas fa-upload"></i> Subir
+                                                </button>
+                                            </div>
+                                            <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. Máximo 10MB.</small>
+                                        </div>
+                                        
+                                        <!-- Lista de archivos -->
+                                        <div class="mb-3">
+                                            <label class="form-label">Archivos Asociados</label>
+                                            <div id="files-list" class="border rounded p-3 bg-light">
+                                                <div class="text-center text-muted" id="no-files-message">
+                                                    <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                                    <p>No hay archivos asociados a esta factura</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

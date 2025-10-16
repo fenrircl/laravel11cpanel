@@ -181,7 +181,7 @@ $(document).ready(function() {
             orderable: false,
             searchable: false,
             render: function(_data, _type, row){
-                return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry) : '';
+                return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry, row.extra) : '';
             }
         },
         {

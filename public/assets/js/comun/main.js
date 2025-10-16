@@ -1345,32 +1345,41 @@ function formatTableDate(dateString, includeTime = true) {
  * - status = 1 => Pagado (verde)
  * - status = 0 => Pendiente: si no vencida => warning; si vencida <=7 días => warning; si >7 días => danger
  */
-function renderInvoiceStatusBadge(status, expiryDate) {
+function renderInvoiceStatusBadge(status, expiryDate, extra) {
     try {
+        let statusBadge = '';
+        
         if (status === 1 || status === '1' || status === true) {
-            return '<span class="badge bg-success">Pagado</span>';
+            statusBadge = '<span class="badge bg-success">Pagado</span>';
+        } else {
+            // Pendiente
+            if (!expiryDate) {
+                statusBadge = '<span class="badge bg-warning">Pendiente</span>';
+            } else {
+                const exp = new Date(expiryDate);
+                const today = new Date();
+                // Normalizar a día
+                exp.setHours(0,0,0,0);
+                today.setHours(0,0,0,0);
+                const diff = today.getTime() - exp.getTime();
+                const days = Math.floor(diff / (1000*60*60*24));
+                if (days <= 0) {
+                    // Aún no vence
+                    statusBadge = '<span class="badge bg-warning">Pendiente</span>';
+                } else {
+                    // Vencida hace >7 días => rojo
+                    statusBadge = '<span class="badge bg-danger">Vencida</span>';
+                }
+            }
         }
-        // Pendiente
-        if (!expiryDate) {
-            return '<span class="badge bg-warning">Pendiente</span>';
+        
+        // Agregar badge de alerta si hay información adicional
+        let extraBadge = '';
+        if (extra && String(extra).trim() !== '') {
+            extraBadge = ' <span class="badge bg-info" title="Tiene información adicional"><i class="fas fa-info-circle"></i></span>';
         }
-        const exp = new Date(expiryDate);
-        const today = new Date();
-        // Normalizar a día
-        exp.setHours(0,0,0,0);
-        today.setHours(0,0,0,0);
-        const diff = today.getTime() - exp.getTime();
-        const days = Math.floor(diff / (1000*60*60*24));
-        if (days <= 0) {
-            // Aún no vence
-            return '<span class="badge bg-warning">Pendiente</span>';
-        }
-        // if (days <= 7) {
-        //     // Vencida hace <=7 días => naranja
-        //     return '<span class="badge bg-warning">Vencida</span>';
-        // }
-        // Vencida hace >7 días => rojo
-        return '<span class="badge bg-danger">Vencida</span>';
+        
+        return statusBadge + extraBadge;
     } catch (e) {
         return '<span class="badge bg-secondary">—</span>';
     }
@@ -2094,6 +2103,12 @@ function openEditFacturaModal(entity, id) {
             if (detailEl) detailEl.value = fNorm.detail;
         }
 
+        // Prefill extra si existe
+        if (fNorm.extra) {
+            const extraEl = document.getElementById('extra');
+            if (extraEl) extraEl.value = fNorm.extra;
+        }
+
         // Cargar datos de selectores y popular formulario
         ReferenceDataManager.ensureLoaded(['clientes', 'proveedores', 'metodosPago']).then(() => {
             populateFacturaSelects($('#facturaModal'));
@@ -2210,7 +2225,7 @@ function saveFacturaEdit(entity) {
             return;
         }
     }
-    
+
     const formData = form.serialize();
     let url = '';
     if (entity === 'cliente') {

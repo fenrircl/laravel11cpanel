@@ -269,7 +269,7 @@ $(document).ready(function() {
                     // Para exportación, texto plano sin badges
                     return row.status === 1 ? 'Pagado' : 'Pendiente';
                 }
-                return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry) : '';
+                return (typeof renderInvoiceStatusBadge === 'function') ? renderInvoiceStatusBadge(row.status, row.expiry, row.extra) : '';
             }
         },
         {
@@ -493,6 +493,7 @@ $(document).ready(function() {
                 <p><strong>Método de Pago:</strong> ${factura.metodo_pago?.name?factura.metodo_pago.name:""}</p>
                 <p><strong>Estado:</strong> <span class="badge ${factura.status === 1 ? 'bg-success' : 'bg-warning'}">${factura.status === 1 ? 'Pagado' : 'Pendiente'}</span></p>
                 <p><strong>Detalle:</strong> ${factura.detail || 'Sin detalles'}</p>
+                <p><strong>Extra:</strong> ${factura.extra || 'Sin información adicional'}</p>
                 ${archivoSection}
             `;
             

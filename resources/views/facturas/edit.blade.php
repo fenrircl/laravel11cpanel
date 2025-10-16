@@ -83,12 +83,54 @@
                         <textarea name="detail" class="form-control" rows="3">{{ old('detail', $factura->detail) }}</textarea>
                     </div>
 
+                    <div class="col-md-12">
+                        <label class="form-label">Extra</label>
+                        <textarea name="extra" class="form-control" rows="3" placeholder="Información adicional">{{ old('extra', $factura->extra) }}</textarea>
+                    </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Estado</label>
                         <select name="status" class="form-select" required>
                             <option value="0" {{ (string) old('status', (string) $factura->status) === '0' ? 'selected' : '' }}>Pendiente</option>
                             <option value="1" {{ (string) old('status', (string) $factura->status) === '1' ? 'selected' : '' }}>Pagado</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Acordeón para gestión de archivos -->
+                <div class="accordion mt-4" id="filesAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#filesSection" aria-expanded="false" aria-controls="filesSection">
+                                <i class="fas fa-file-upload me-2"></i>Gestión de Archivos
+                            </button>
+                        </h2>
+                        <div id="filesSection" class="accordion-collapse collapse" data-bs-parent="#filesAccordion">
+                            <div class="accordion-body">
+                                <!-- Subida de archivos -->
+                                <div class="mb-3">
+                                    <label for="file-upload" class="form-label">Subir Archivo</label>
+                                    <div class="input-group">
+                                        <input type="file" class="form-control" id="file-upload" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                                        <button class="btn btn-outline-primary" type="button" onclick="uploadFile()">
+                                            <i class="fas fa-upload"></i> Subir
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Formatos permitidos: PDF, DOC, DOCX, XLS, XLSX, JPG, PNG. Máximo 10MB.</small>
+                                </div>
+
+                                <!-- Lista de archivos -->
+                                <div class="mb-3">
+                                    <label class="form-label">Archivos Asociados</label>
+                                    <div id="files-list" class="border rounded p-3 bg-light">
+                                        <div class="text-center text-muted" id="no-files-message">
+                                            <i class="fas fa-folder-open fa-2x mb-2"></i>
+                                            <p>No hay archivos asociados a esta factura</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -101,3 +143,19 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+// Inicializar cuando se carga la página
+document.addEventListener('DOMContentLoaded', function() {
+    // Cargar archivos asociados a la factura si existen
+    const facturaId = {{ $factura->id }};
+    if (facturaId) {
+        displayFacturaFiles(facturaId, 'edit');
+    }
+    
+    // Inicializar inputs de archivo
+    initializeFileInputs();
+});
+</script>
+@endpush

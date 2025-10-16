@@ -31,6 +31,10 @@
                 <strong>Detalle:</strong>
                 <div class="border rounded p-2 bg-light">{{ $factura->detail ?: 'Sin detalles' }}</div>
             </div>
+            <div class="mt-3">
+                <strong>Extra:</strong>
+                <div class="border rounded p-2 bg-light">{{ $factura->extra ?: 'Sin información adicional' }}</div>
+            </div>
         </div>
     </div>
 </div>
