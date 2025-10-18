@@ -160,36 +160,14 @@ $(document).ready(function() {
                         return '';
                     }
                 }
-                return data ? formatTableDate(data, false) : 'N/A';
-            }
-        },
-        {
-            data: null,
-            name: 'days_counter',
-            title: 'Días',
-            orderable: true,
-            searchable: false,
-            render: function(data, type, row) {
-                const expiryDate = row.expiry || row.date || '';
-                if (type === 'sort' || type === 'type') {
-                    // Para ordenamiento, retornar los días calculados solo si está pendiente
-                    if (row.status !== 0 && row.status !== '0') {
-                        return 999999; // Facturas pagadas van al final
+                let html = data ? formatTableDate(data, false) : 'N/A';
+                if (row.status === 0 || row.status === '0') {
+                    const daysBadge = renderDaysCounter(data, row.status);
+                    if (daysBadge) {
+                        html += '<br>' + daysBadge;
                     }
-                    return calculateDaysToExpiry(expiryDate) || 999999;
                 }
-                if (type === 'export') {
-                    // Para exportación, texto plano sin badges
-                    if (row.status !== 0 && row.status !== '0') {
-                        return '—';
-                    }
-                    const days = calculateDaysToExpiry(expiryDate);
-                    if (days === null) return '—';
-                    if (days > 0) return `${days} días para vencer`;
-                    if (days === 0) return 'Hoy';
-                    return `${Math.abs(days)} días vencida`;
-                }
-                return renderDaysCounter(expiryDate, row.status);
+                return html;
             }
         },
         { 
@@ -347,17 +325,16 @@ $(document).ready(function() {
                 });
             }
         },
-        order: shouldFilterPending ? [[5, 'asc']] : [[3, 'desc']], // Si hay filtro pending: ordenar por días (urgentes primero), sino por fecha (más reciente primero)
+        order: shouldFilterPending ? [[4, 'asc']] : [[3, 'desc']], // Si hay filtro pending: ordenar por vencimiento (urgentes primero), sino por fecha (más reciente primero)
         columnDefs: [
             { targets: 0, width: '140px', responsivePriority: 2 }, // Número Factura
             { targets: 1, width: '120px', responsivePriority: 4 }, // Pago verificado
             { targets: 2, width: '260px', className: 'text-start', responsivePriority: 3 }, // Cliente
             { targets: 3, width: '120px', responsivePriority: 6 }, // Fecha
-            { targets: 4, width: '120px', responsivePriority: 7 }, // Vencimiento  
-            { targets: 5, width: '140px', responsivePriority: shouldFilterPending ? 2 : 5 }, // Días (prioritario si filtro activo)
-            { targets: 6, width: '120px', responsivePriority: 8 }, // Fecha Pago
-            { targets: 7, width: '120px', responsivePriority: 5 }, // Monto
-            { targets: 8, width: '110px', responsivePriority: 4 }, // Pago verificado 
+            { targets: 4, width: '120px', responsivePriority: shouldFilterPending ? 2 : 7 }, // Vencimiento (prioritario si filtro activo)
+            { targets: 5, width: '120px', responsivePriority: 8 }, // Fecha Pago
+            { targets: 6, width: '120px', responsivePriority: 5 }, // Monto
+            { targets: 7, width: '110px', responsivePriority: 4 }, // Estado 
             { targets: -1, width: '160px', className: 'text-end nowrap', responsivePriority: 1 } // Acciones siempre visible
         ],
         // Configuración específica para botones de exportación - SOLUCION DE EXPORTACION

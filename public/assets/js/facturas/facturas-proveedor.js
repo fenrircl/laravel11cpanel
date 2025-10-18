@@ -148,41 +148,14 @@ $(document).ready(function() {
                         return '';
                     }
                 }
-                return data ? formatTableDate(data, false) : 'N/A';
-            }
-        },
-        {
-            data: null,
-            name: 'days_counter',
-            title: 'Días',
-            orderable: true,
-            searchable: false,
-            render: function(data, type, row) {
-                const expiryDate = row.expiry || row.date || '';
-                if (type === 'sort' || type === 'type') {
-                    // Para ordenamiento, retornar los días calculados solo si está pendiente
-                    if (row.status !== 0 && row.status !== '0') {
-                        return 999999; // Facturas pagadas van al final
-                    }
-                    return calculateDaysToExpiry(expiryDate) || 999999;
-                }
-                if (type === 'export') {
-                    // Para exportación, texto plano sin badges HTML
-                    if (row.status !== 0 && row.status !== '0') {
-                        return '—'; // Factura pagada
-                    }
-                    const days = calculateDaysToExpiry(expiryDate);
-                    if (days === null) return '—';
-                    
-                    if (days > 0) {
-                        return `${days} días para vencer`;
-                    } else if (days === 0) {
-                        return 'Hoy';
-                    } else {
-                        return `${Math.abs(days)} días vencida`;
+                let html = data ? formatTableDate(data, false) : 'N/A';
+                if (row.status === 0 || row.status === '0') {
+                    const daysBadge = renderDaysCounter(data, row.status);
+                    if (daysBadge) {
+                        html += '<br>' + daysBadge;
                     }
                 }
-                return renderDaysCounter(expiryDate, row.status);
+                return html;
             }
         },
         { data: 'pay_date', name: 'pay_date', title: 'Fecha Pago', render: function(data, type, row) {
@@ -321,17 +294,16 @@ $(document).ready(function() {
                 });
             }
         },
-        order: shouldFilterPending ? [[4, 'asc']] : [[2, 'desc']], // Si hay filtro pending: ordenar por días (urgentes primero), sino por fecha (más reciente primero)
+        order: shouldFilterPending ? [[3, 'asc']] : [[2, 'desc']], // Si hay filtro pending: ordenar por vencimiento (urgentes primero), sino por fecha (más reciente primero)
         columnDefs: [
             { targets: 0, width: '140px', responsivePriority: 2 }, // Número Factura
             { targets: 1, width: '260px', className: 'text-start', responsivePriority: 3 }, // Proveedor
             { targets: 2, width: '120px', responsivePriority: 6 }, // Fecha
-            { targets: 3, width: '120px', responsivePriority: 7 }, // Vencimiento  
-            { targets: 4, width: '140px', responsivePriority: shouldFilterPending ? 2 : 5 }, // Días (prioritario si filtro activo)
-            { targets: 5, width: '120px', responsivePriority: 8 }, // Fecha Pago
-            { targets: 6, width: '110px', responsivePriority: 4 }, // Pago verificado
-            { targets: 7, width: '120px', responsivePriority: 5 }, // Monto
-            { targets: 8, width: '110px', responsivePriority: 4 }, // Estado 
+            { targets: 3, width: '120px', responsivePriority: shouldFilterPending ? 2 : 7 }, // Vencimiento (prioritario si filtro activo)
+            { targets: 4, width: '120px', responsivePriority: 8 }, // Fecha Pago
+            { targets: 5, width: '110px', responsivePriority: 4 }, // Pago verificado
+            { targets: 6, width: '120px', responsivePriority: 5 }, // Monto
+            { targets: 7, width: '110px', responsivePriority: 4 }, // Estado 
             { targets: -1, width: '160px', className: 'text-end nowrap', responsivePriority: 1 } // Acciones siempre visible
         ]
     };
