@@ -120,6 +120,9 @@ Route::middleware(['auth'])->group(function () {
     // API para logs de auditoría
     Route::get('/api/audit-logs', [\App\Http\Controllers\AuditLogController::class, 'apiLogs'])->name('api.audit-logs');
 
+    // Ruta para rollback de facturas (disponible para usuarios autenticados)
+    Route::post('/audit/facturas/{log}/restore', [\App\Http\Controllers\AuditLogController::class, 'restoreFactura'])->name('audit.facturas.restore');
+
     // Vista rápida y rutas por tipo para factura completa
     Route::get('/facturas/clientes/{factura}', [FacturasController::class, 'show'])->name('facturas.clientes.show');
     Route::get('/facturas/proveedores/{factura}', [FacturasController::class, 'show'])->name('facturas.proveedores.show');

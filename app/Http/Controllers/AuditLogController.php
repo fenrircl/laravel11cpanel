@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Arr;
 
 class AuditLogController extends Controller
 {
@@ -111,10 +112,6 @@ class AuditLogController extends Controller
     {
         $logs = AuditLog::with('user')
             ->where('module', 'facturas')
-            ->orWhere(function($q) {
-                $q->where('module', 'archivos')
-                  ->where('description', 'like', '%factura%');
-            })
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get();
@@ -256,5 +253,105 @@ class AuditLogController extends Controller
         }
 
         return $logs;
+    }
+
+    /**
+     * Restaurar cambios en facturas (disponible para usuarios autenticados)
+     */
+    public function restoreFactura(Request $request, AuditLog $log)
+    {
+        // Verificar que el log sea de facturas y reversible
+        if (!$log->reversible || $log->module !== 'facturas') {
+            $message = 'Este registro no es reversible.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 400);
+            }
+            return back()->with('error', $message);
+        }
+
+        $action = $log->action;
+        $before = is_array($log->data_before) ? $log->data_before : (json_decode($log->data_before, true) ?: []);
+        $after = is_array($log->data_after) ? $log->data_after : (json_decode($log->data_after, true) ?: []);
+
+        try {
+            if ($action === 'delete') {
+                // Restaurar creando una nueva factura desde snapshot "before"
+                $attrs = $before ?: [];
+                // Limpiar campos no asignables
+                $attrs = Arr::except($attrs, ['id','created_at','updated_at']);
+                
+                // Para eliminación, no necesitamos verificar si existe el número de factura
+                // porque la factura original fue eliminada permanentemente
+                $restored = \App\Models\Factura::create($attrs);
+
+                \App\Services\AuditLogger::log($request, 'restore', 'facturas', $restored->id, 'Restauró factura desde eliminación (log #'.$log->id.')', [
+                    'model' => \App\Models\Factura::class,
+                    'data_before' => null,
+                    'data_after' => $restored->toArray(),
+                    'changes' => ['restored_from_log' => $log->id],
+                    'reversible' => false,
+                ]);
+                
+                // Redirigir con éxito
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Factura restaurada correctamente.',
+                        'factura' => $restored
+                    ]);
+                }
+                
+                return back()->with('success', 'Factura restaurada correctamente.');
+            }
+
+            if ($action === 'update') {
+                // Revertir la factura a su estado anterior
+                $entityId = $log->entity_id;
+                $factura = \App\Models\Factura::find($entityId);
+                if (!$factura) {
+                    $message = 'Factura no encontrada para revertir.';
+                    if ($request->expectsJson()) {
+                        return response()->json(['success' => false, 'message' => $message], 404);
+                    }
+                    return back()->with('error', $message);
+                }
+
+                $attrs = $before ?: [];
+                $attrs = Arr::except($attrs, ['id','created_at','updated_at']);
+                $factura->update($attrs);
+
+                \App\Services\AuditLogger::log($request, 'restore', 'facturas', $factura->id, 'Revirtió cambios de factura (log #'.$log->id.')', [
+                    'model' => \App\Models\Factura::class,
+                    'data_before' => $after,
+                    'data_after' => $factura->fresh()->toArray(),
+                    'changes' => ['reverted_from_log' => $log->id],
+                    'reversible' => true,
+                ]);
+                
+                $message = 'Cambios revertidos correctamente.';
+                if ($request->expectsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => $message,
+                        'factura' => $factura->fresh()
+                    ]);
+                }
+                
+                return back()->with('success', $message);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $message = 'No se pudo completar la restauración.';
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+            return back()->with('error', $message);
+        }
+
+        $message = 'Acción de auditoría no soportada para revertir.';
+        if ($request->expectsJson()) {
+            return response()->json(['success' => false, 'message' => $message], 400);
+        }
+        return back()->with('error', $message);
     }
 }

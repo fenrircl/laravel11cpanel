@@ -24,7 +24,7 @@ class FacturasController extends Controller
         
         // Obtener logs de auditoría de todas las facturas
         $auditController = new AuditLogController();
-        $data['auditLogs'] = $auditController->getFacturasGeneralLogs();
+        $data['auditLogs'] = $auditController->getFacturasGeneralLogs(50);
         
         return view('facturas.index', $data);
     }

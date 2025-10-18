@@ -27,8 +27,7 @@
                                 <th width="80">Acción</th>
                                 <th width="120">Entidad</th>
                                 <th>Descripción</th>
-                            
-                            </tr>
+                                <th width="80">Acciones</th>
                         </thead>
                         <tbody>
                             @foreach($logs as $log)
@@ -121,8 +120,17 @@
                                         {{ $description }}
                                     </span>
                                 </td>
-                            
-                            </tr>
+                                <td class="text-center">
+                                    @if($log->module == 'facturas' && !empty($log->reversible) && $log->action === 'delete')
+                                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                onclick="confirmRestore({{ $log->id }}, '{{ addslashes($log->description) }}')"
+                                                title="Restaurar factura eliminada">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
                             @endforeach
                         </tbody>
                     </table>
@@ -150,5 +158,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Función para confirmar restauración con SweetAlert
+function confirmRestore(logId, description) {
+    Swal.fire({
+        title: '¿Restaurar factura?',
+        text: 'Se creará una nueva factura con los datos originales. ' + description,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Sí, restaurar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Enviar petición AJAX para restaurar
+            restoreFactura(logId);
+        }
+    });
+}
+
+// Función para restaurar factura vía AJAX
+function restoreFactura(logId) {
+    // Mostrar loading
+    Swal.fire({
+        title: 'Restaurando...',
+        text: 'Por favor espera',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        willOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    // Construir URL usando Laravel's url helper
+    const baseUrl = '{{ url("/") }}';
+    const url = baseUrl + '/audit/facturas/' + logId + '/restore';
+
+    // Enviar petición
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: '¡Restaurada!',
+                text: 'La factura ha sido restaurada correctamente',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                // Recargar la página para mostrar los cambios
+                location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'No se pudo restaurar la factura'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ocurrió un error al restaurar la factura'
+        });
+    });
+}
 </script>
 @endpush
