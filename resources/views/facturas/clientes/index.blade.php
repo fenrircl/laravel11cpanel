@@ -146,8 +146,10 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="check" class="form-label">Número de Cheque</label>
-                                <input type="text" class="form-control" id="check" name="check">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="check" name="check" value="1">
+                                    <label for="check" class="form-check-label">Pago verificado</label>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -1595,6 +1595,9 @@ function populateForm(data, prefix = '') {
                 } else {
                     element.value = '';
                 }
+            } else if (element.type === 'checkbox') {
+                // Manejar campos checkbox
+                element.checked = (value === 1 || value === '1' || value === true);
             } else {
                 element.value = value;
             }
@@ -1907,6 +1910,16 @@ function saveFactura() {
         
         // Preparar datos del formulario
         const formData = new FormData(form[0]);
+        
+        // Asegurar que el checkbox de pago_verificado se incluya correctamente
+        const pagoVerificadoCheckbox = document.getElementById('check');
+        if (pagoVerificadoCheckbox) {
+            // Si el checkbox está marcado, enviar 1, si no está marcado, enviar 0
+            formData.set('check', pagoVerificadoCheckbox.checked ? '1' : '0');
+        }
+        
+
+        
         // Determinar URL y método según si es edición o creación
         let url = '';
         let method = 'POST';
