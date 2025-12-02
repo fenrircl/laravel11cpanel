@@ -144,6 +144,7 @@ class ClientesController extends Controller
             'telefono' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:500',
             'direccion' => 'nullable|string|max:500',
+            'box' => 'nullable|string',
         ]);
 
         $mapped = [
@@ -152,6 +153,7 @@ class ClientesController extends Controller
             'email' => $validated['email'] ?? null,
             'phone' => $validated['phone'] ?? ($validated['telefono'] ?? null),
             'address' => $validated['address'] ?? ($validated['direccion'] ?? null),
+            'box' => $validated['box'] ?? null,
         ];
 
         $cliente->update($mapped);
@@ -163,7 +165,7 @@ class ClientesController extends Controller
             return response()->json(['success' => true, 'cliente' => $cliente]);
         }
         
-        return redirect()->route('clientes.index')->with('success', 'Cliente actualizado exitosamente.');
+        return redirect()->route('clientes.show', $cliente)->with('success', 'Cliente actualizado exitosamente.');
     }
 
     /**

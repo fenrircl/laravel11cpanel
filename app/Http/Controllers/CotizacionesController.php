@@ -33,59 +33,93 @@ class CotizacionesController extends Controller
 
     public function store(Request $request)
     {
-        // Normalizar total y precios (CLP)
-        $normalizeCLP = fn($v) => (int) preg_replace('/[^0-9]/', '', (string)($v ?? '0'));
-
-        $validated = $request->validate([
-            'agent' => 'required|string|max:100',
-            'date' => 'required|date',
-            'client_id' => 'required|exists:clients,id',
-            'work' => 'nullable|string|max:255',
-            'email' => 'nullable|email',
-            'items' => 'required|array|min:1',
-            'items.*.description' => 'required|string|max:255',
-            'items.*.amount' => 'required|integer|min:1',
-            'items.*.price' => 'required', // se normaliza
-        ]);
-
-        DB::transaction(function() use ($request, $validated, $normalizeCLP) {
-            // Calcular totales NETOS (sin IVA) a partir de los items
-            $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
-                $qty = (int) $it['amount'];
-                $unit = $normalizeCLP($it['price']); // Precio NETO unitario
-                $total = $qty * $unit; // Total NETO por ítem
-                return [
-                    'description' => $it['description'],
-                    'amount' => $qty,
-                    'price' => $unit,
-                    'total' => $total, // Neto
-                ];
-            });
-
-            $netTotal = $itemsData->sum('total'); // Neto
-            $grossTotal = (int) round($netTotal * 1.19); // Con IVA 19%
-
-            $cot = Cotizacion::create([
-                'agent' => $validated['agent'],
-                'date' => $validated['date'],
-                'client_id' => $validated['client_id'],
-                'work' => $validated['work'] ?? null,
-                'email' => $validated['email'] ?? null,
-                'total' => $grossTotal, // Guardamos total con IVA
+        try {
+            // Normalizar total y precios (CLP)
+            $normalizeCLP = fn($v) => (int) preg_replace('/[^0-9]/', '', (string)($v ?? '0'));
+            
+            // Validar con límite de 1000 caracteres para descripción (según BD)
+            $validated = $request->validate([
+                'agent' => 'required|string|max:100',
+                'date' => 'required|date',
+                'client_id' => 'required|exists:clients,id',
+                'work' => 'nullable|string|max:1000',
+                'email' => 'nullable|email',
+                'items' => 'required|array|min:1',
+                'items.*.description' => 'required|string|max:1000',
+                'items.*.amount' => 'required|integer|min:1',
+                'items.*.price' => 'required', // se normaliza
             ]);
 
-            foreach ($itemsData as $row) {
-                $cot->items()->create($row);
+            DB::transaction(function() use ($request, $validated, $normalizeCLP) {
+                // Calcular totales NETOS (sin IVA) a partir de los items
+                $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
+                    $qty = (int) $it['amount'];
+                    $unit = $normalizeCLP($it['price']); // Precio NETO unitario
+                    $total = $qty * $unit; // Total NETO por ítem
+                    return [
+                        'description' => $it['description'],
+                        'amount' => $qty,
+                        'price' => $unit,
+                        'total' => $total, // Neto
+                    ];
+                });
+
+                $netTotal = $itemsData->sum('total'); // Neto
+                $grossTotal = (int) round($netTotal * 1.19); // Con IVA 19%
+
+                $cot = Cotizacion::create([
+                    'agent' => $validated['agent'],
+                    'date' => $validated['date'],
+                    'client_id' => $validated['client_id'],
+                    'work' => $validated['work'] ?? null,
+                    'email' => $validated['email'] ?? null,
+                    'total' => $grossTotal, // Guardamos total con IVA
+                ]);
+
+                foreach ($itemsData as $row) {
+                    $cot->items()->create($row);
+                }
+
+                AuditLogger::log($request, 'create', 'cotizaciones', $cot->id, 'Creó cotización #'.$cot->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
+            });
+
+            if ($request->ajax()) {
+                return response()->json(['success' => true]);
             }
 
-            AuditLogger::log($request, 'create', 'cotizaciones', $cot->id, 'Creó cotización #'.$cot->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
-        });
-
-        if ($request->ajax()) {
-            return response()->json(['success' => true]);
+            return redirect()->route('cotizaciones.index')->with('success', 'Cotización creada');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Re-lanzar excepción de validación para que Laravel la maneje
+            throw $e;
+        } catch (\Exception $e) {
+            // Loguear el error para debugging
+            \Illuminate\Support\Facades\Log::error('Error creando cotización: ' . $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine(), [
+                'exception' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Capturar otros errores (ej: límite de BD, truncación)
+            $errorMsg = 'No se pudo guardar la cotización. ';
+            if (str_contains(strtolower($e->getMessage()), 'truncated') || 
+                str_contains(strtolower($e->getMessage()), 'data too long') ||
+                str_contains(strtolower($e->getMessage()), 'column') ||
+                str_contains(strtolower($e->getMessage()), 'varchar')) {
+                $errorMsg = 'El texto en algunos campos es demasiado largo. Verifique que las descripciones y el campo "Trabajo" no excedan 1000 caracteres.';
+            } else {
+                // En development, mostrar el error real para debugging
+                if (config('app.debug')) {
+                    $errorMsg = 'Error: ' . $e->getMessage();
+                } else {
+                    $errorMsg = 'Error inesperado. Por favor, intente nuevamente. Si el problema persiste, contacte al administrador.';
+                }
+            }
+            
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+            
+            return back()->withInput()->withErrors(['error' => $errorMsg]);
         }
-
-        return redirect()->route('cotizaciones.index')->with('success', 'Cotización creada');
     }
 
     public function getData()
@@ -118,75 +152,93 @@ class CotizacionesController extends Controller
 
     public function update(Request $request, Cotizacion $cotizacion)
     {
-        $normalizeCLP = fn($v) => (int) preg_replace('/[^0-9]/', '', (string)($v ?? '0'));
+        try {
+            $normalizeCLP = fn($v) => (int) preg_replace('/[^0-9]/', '', (string)($v ?? '0'));
 
-        $validated = $request->validate([
-            'agent' => 'required|string|max:100',
-            'date' => 'required|date',
-            'client_id' => 'required|exists:clients,id',
-            'work' => 'nullable|string|max:255',
-            'email' => 'nullable|email',
-            'items' => 'required|array|min:1',
-            'items.*.id' => 'nullable|integer|exists:quotation_items,id',
-            'items.*.description' => 'required|string|max:255',
-            'items.*.amount' => 'required|integer|min:1',
-            'items.*.price' => 'required',
-        ]);
-
-        DB::transaction(function() use ($request, $validated, $normalizeCLP, $cotizacion) {
-            $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
-                $qty = (int) $it['amount'];
-                $unit = $normalizeCLP($it['price']); // Precio NETO unitario
-                $total = $qty * $unit; // Neto por ítem
-                return [
-                    'id' => $it['id'] ?? null,
-                    'description' => $it['description'],
-                    'amount' => $qty,
-                    'price' => $unit,
-                    'total' => $total, // Neto
-                ];
-            });
-
-            $netTotal = $itemsData->sum('total');
-            $grossTotal = (int) round($netTotal * 1.19);
-
-            $cotizacion->update([
-                'agent' => $validated['agent'],
-                'date' => $validated['date'],
-                'client_id' => $validated['client_id'],
-                'work' => $validated['work'] ?? null,
-                'email' => $validated['email'] ?? null,
-                'total' => $grossTotal,
+            $validated = $request->validate([
+                'agent' => 'required|string|max:100',
+                'date' => 'required|date',
+                'client_id' => 'required|exists:clients,id',
+                'work' => 'nullable|string|max:1000',
+                'email' => 'nullable|email',
+                'items' => 'required|array|min:1',
+                'items.*.id' => 'nullable|integer|exists:quotation_items,id',
+                'items.*.description' => 'required|string|max:1000',
+                'items.*.amount' => 'required|integer|min:1',
+                'items.*.price' => 'required',
             ]);
 
-            // Sincronizar items: actualizar/crear según id, y eliminar los no presentes
-            $existingIds = $cotizacion->items()->pluck('id')->toArray();
-            $sentIds = [];
-            foreach ($itemsData as $row) {
-                if (!empty($row['id'])) {
-                    $item = $cotizacion->items()->where('id', $row['id'])->first();
-                    if ($item) {
-                        $item->update($row);
-                        $sentIds[] = $item->id;
-                    }
+            $newCotizacion = DB::transaction(function() use ($request, $validated, $normalizeCLP, $cotizacion) {
+                $itemsData = collect($validated['items'])->map(function($it) use ($normalizeCLP){
+                    $qty = (int) $it['amount'];
+                    $unit = $normalizeCLP($it['price']); // Precio NETO unitario
+                    $total = $qty * $unit; // Neto por ítem
+                    return [
+                        'description' => $it['description'],
+                        'amount' => $qty,
+                        'price' => $unit,
+                        'total' => $total, // Neto
+                    ];
+                });
+
+                $netTotal = $itemsData->sum('total');
+                $grossTotal = (int) round($netTotal * 1.19);
+
+                // Crear una NUEVA cotización en lugar de actualizar la existente
+                $newCot = Cotizacion::create([
+                    'agent' => $validated['agent'],
+                    'date' => $validated['date'],
+                    'client_id' => $validated['client_id'],
+                    'work' => $validated['work'] ?? null,
+                    'email' => $validated['email'] ?? null,
+                    'total' => $grossTotal,
+                ]);
+
+                foreach ($itemsData as $row) {
+                    $newCot->items()->create($row);
+                }
+
+                AuditLogger::log($request, 'create', 'cotizaciones', $newCot->id, 'Creó cotización #'.$newCot->id.' basada en #'.$cotizacion->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
+                
+                return $newCot;
+            });
+
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'newId' => $newCotizacion->id]);
+            }
+
+            return redirect()->route('cotizaciones.index')->with('success', 'Nueva cotización creada basada en la anterior');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            // Loguear el error para debugging
+            \Illuminate\Support\Facades\Log::error('Error actualizando cotización #' . $cotizacion->id . ': ' . $e->getMessage() . ' - ' . $e->getFile() . ':' . $e->getLine(), [
+                'exception' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Capturar otros errores (ej: límite de BD)
+            $errorMsg = 'No se pudo guardar la cotización. ';
+            if (str_contains(strtolower($e->getMessage()), 'truncated') || 
+                str_contains(strtolower($e->getMessage()), 'data too long') ||
+                str_contains(strtolower($e->getMessage()), 'column') ||
+                str_contains(strtolower($e->getMessage()), 'varchar')) {
+                $errorMsg = 'El texto en algunos campos es demasiado largo. Verifique que las descripciones y el campo "Trabajo" no excedan 1000 caracteres.';
+            } else {
+                // En development, mostrar el error real para debugging
+                if (config('app.debug')) {
+                    $errorMsg = 'Error: ' . $e->getMessage();
                 } else {
-                    $item = $cotizacion->items()->create($row);
-                    $sentIds[] = $item->id;
+                    $errorMsg = 'Error inesperado. Por favor, intente nuevamente. Si el problema persiste, contacte al administrador.';
                 }
             }
-            $toDelete = array_diff($existingIds, $sentIds);
-            if (!empty($toDelete)) {
-                $cotizacion->items()->whereIn('id', $toDelete)->delete();
+            
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
             }
-
-            AuditLogger::log($request, 'update', 'cotizaciones', $cotizacion->id, 'Actualizó cotización #'.$cotizacion->id.' (Neto: '.number_format($netTotal,0,',','.').' IVA: '.number_format($grossTotal-$netTotal,0,',','.').' Total: '.number_format($grossTotal,0,',','.').')');
-        });
-
-        if ($request->ajax()) {
-            return response()->json(['success' => true]);
+            
+            return back()->withInput()->withErrors(['error' => $errorMsg]);
         }
-
-        return redirect()->route('cotizaciones.show', $cotizacion)->with('success', 'Cotización actualizada');
     }
 
     public function pdf(Cotizacion $cotizacion)

@@ -26,6 +26,12 @@
                     <div class="mb-2"><strong>Creado:</strong> {{ $proveedor->created_at }}</div>
                 </div>
             </div>
+            <div class="row g-3 mt-2">
+                <div class="col-12">
+                    <label class="form-label"><strong>Datos Extra</strong></label>
+                    <textarea class="form-control" id="proveedor-box" rows="3" readonly>{{ $proveedor->box ?? '' }}</textarea>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -68,13 +68,17 @@
                                 @if($f)
                                     @if($f->client_id)
                                         <span class="badge bg-info">Cliente</span>
-                                        {{ $f->cliente?->name }}
+                                        <a href="{{ route('clientes.show', $f->cliente) }}" target="_blank">
+                                            {{ $f->cliente?->name }}
+                                        </a>
                                         @if($f->cliente?->rut)
                                             <span class="text-muted">({{ $f->cliente->rut }})</span>
                                         @endif
                                     @elseif($f->provider_id)
                                         <span class="badge bg-warning text-dark">Proveedor</span>
-                                        {{ $f->proveedor?->name }}
+                                        <a href="{{ route('proveedores.show', $f->proveedor) }}" target="_blank">
+                                            {{ $f->proveedor?->name }}
+                                        </a>
                                         @if($f->proveedor?->rut)
                                             <span class="text-muted">({{ $f->proveedor->rut }})</span>
                                         @endif

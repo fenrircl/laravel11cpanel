@@ -128,6 +128,7 @@ class ProveedoresController extends Controller
             'telefono' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:500',
             'direccion' => 'nullable|string|max:500',
+            'box' => 'nullable|string',
         ]);
 
         $mapped = [
@@ -136,6 +137,7 @@ class ProveedoresController extends Controller
             'email' => $validated['email'] ?? null,
             'phone' => $validated['phone'] ?? ($validated['telefono'] ?? null),
             'address' => $validated['address'] ?? ($validated['direccion'] ?? null),
+            'box' => $validated['box'] ?? null,
         ];
 
         $proveedor->update($mapped);
@@ -147,7 +149,7 @@ class ProveedoresController extends Controller
             return response()->json(['success' => true, 'proveedor' => $proveedor]);
         }
         
-        return redirect()->route('proveedores.index')->with('success', 'Proveedor actualizado exitosamente.');
+        return redirect()->route('proveedores.show', $proveedor)->with('success', 'Proveedor actualizado exitosamente.');
     }
 
     /**

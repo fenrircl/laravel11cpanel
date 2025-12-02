@@ -3,6 +3,23 @@
 @section('content')
 <div class="container">
   <h4 class="mb-3">Nueva Cotización</h4>
+  
+  @if ($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+      <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Hubo un problema</h6>
+      @if ($errors->has('error'))
+        <p class="mb-0">{{ $errors->first('error') }}</p>
+      @else
+        <ul class="mb-0 mt-2">
+          @foreach ($errors->all() as $error)
+            <li>{{ $error }}</li>
+          @endforeach
+        </ul>
+      @endif
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  @endif
+  
   <form action="{{ route('cotizaciones.store') }}" method="POST" id="cotizacionCreateForm">
     @csrf
     <div class="row g-3">

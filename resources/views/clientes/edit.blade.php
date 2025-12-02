@@ -87,13 +87,29 @@
                     </div>
                 </div>
                 
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="mb-3">
+                            <label for="box" class="form-label">Datos Extra</label>
+                            <textarea class="form-control @error('box') is-invalid @enderror" 
+                                      id="box" 
+                                      name="box" 
+                                      rows="3"
+                                      placeholder="Información adicional: persona de contacto, datos bancarios, etc.">{{ old('box', $cliente->box) }}</textarea>
+                            @error('box')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+                
                 <hr class="my-4">
                 
                 <div class="d-flex justify-content-between">
                     <div>
                         <small class="text-muted">
                             <i class="fas fa-calendar me-1"></i>
-                            Creado: {{ $cliente->created_at->format('d/m/Y H:i') }}
+                            Creado: {{ $cliente->created_at ? $cliente->created_at->format('d/m/Y H:i') : '—' }}
                             @if($cliente->updated_at && $cliente->updated_at != $cliente->created_at)
                                 <br>
                                 <i class="fas fa-edit me-1"></i>

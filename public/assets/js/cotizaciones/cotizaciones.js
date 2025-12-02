@@ -58,6 +58,26 @@ $(document).ready(function() {
 
     const table = initDataTable('cotizaciones-table', null, columns, tableOptions);
 
+    // Interceptar clics en el botón Editar para mostrar SweetAlert
+    $(document).on('click', 'a[title="Editar"][href*="/cotizaciones/"]', function(e) {
+        e.preventDefault();
+        const editUrl = this.href;
+        Swal.fire({
+            title: '¿Editar esta cotización?',
+            html: 'Se creará una <strong>nueva cotización</strong> con los cambios que realice.<br><br>La cotización original se mantendrá sin cambios.',
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#0d6efd',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = editUrl;
+            }
+        });
+    });
+
     window.verCotizacion = function(id) {
         // Obtener siempre desde API para asegurar items actualizados
         fetchRecord(buildApiUrl(`cotizaciones/${id}`), function(res) {

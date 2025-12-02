@@ -207,10 +207,25 @@ $(function(){
       { data: null, title: 'Entidad', className: 'text-start', render: (d, t, r) => {
           const name = getEntidadName(r);
           const rut = r.rut ? `<small class="text-muted d-block">${r.rut}</small>` : '';
-          return `<span class="text-truncate d-inline-block" style="max-width:250px" title="${name}">${name}</span>${rut}`;
+          const tipo = getTipoFromRow(r);
+          const entidadId = r.client_id || r.provider_id || r.id;
+          const baseUrl = getBaseUrl();
+          const link = tipo === 'cliente' 
+            ? `${baseUrl}/clientes/${entidadId}` 
+            : `${baseUrl}/proveedores/${entidadId}`;
+          return `<a href="${link}" class="link-primary text-decoration-none fw-500 text-truncate d-inline-block" style="max-width:250px" title="${name}">${name}</a>${rut}`;
         }
       },
-      { data: 'invoice', title: 'Factura', width: '120px', className: 'text-center' },
+      { data: 'invoice', title: 'Factura', width: '120px', className: 'text-center', render: (d, t, r) => {
+          if (t === 'sort' || t === 'type') return d; // usar como está para ordenar
+          const tipo = getTipoFromRow(r);
+          const baseUrl = getBaseUrl();
+          const link = tipo === 'cliente' 
+            ? `${baseUrl}/facturas/clientes/${r.id}` 
+            : `${baseUrl}/facturas/proveedores/${r.id}`;
+          return `<a href="${link}" class="link-primary text-decoration-none fw-500" title="Ver factura">${d}</a>`;
+        }
+      },
       { data: 'expiry', title: 'Vencimiento', width: '130px', className: 'text-center', render: (data, type, row)=> {
           const raw = row?.expiry || row?.date || '';
           if (type === 'sort' || type === 'type') return raw; // usar ISO para ordenar
