@@ -1,4 +1,9 @@
-import axios from 'axios';
-window.axios = axios;
+window.fetchWithXRequestedWith = (url, options = {}) => {
+    const headers = new Headers(options.headers);
+    headers.set('X-Requested-With', 'XMLHttpRequest');
 
-window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+    return fetch(url, {
+        ...options,
+        headers,
+    });
+};
