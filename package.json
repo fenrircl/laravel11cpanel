@@ -5,6 +5,9 @@
         "build": "vite build",
         "dev": "vite"
     },
+    "overrides": {
+        "shell-quote": "1.8.4"
+    },
     "devDependencies": {
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^1.2.0",
