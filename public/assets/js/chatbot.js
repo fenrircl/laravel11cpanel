@@ -43,17 +43,35 @@
   resizeHandle.setAttribute('aria-valuemin', '420');
   resizeHandle.setAttribute('aria-valuemax', '900');
   resizeHandle.tabIndex = 0;
-  resizeHandle.title = 'Arrastre el borde para ajustar el ancho. Use las flechas del teclado o haga doble clic para volver al ancho inicial.';
+  resizeHandle.title = 'Arrastre el borde izquierdo para cambiar el ancho. Use las flechas o haga doble clic para restaurarlo.';
   resizeHandle.textContent = '↔';
   widget.appendChild(resizeHandle);
 
+  const heightHandle = document.createElement('div');
+  heightHandle.className = 'cb-resize-height';
+  heightHandle.setAttribute('role', 'separator');
+  heightHandle.setAttribute('aria-orientation', 'horizontal');
+  heightHandle.setAttribute('aria-label', 'Ajustar alto del chat');
+  heightHandle.setAttribute('aria-valuemin', '440');
+  heightHandle.setAttribute('aria-valuemax', String(Math.max(440, window.innerHeight - 128)));
+  heightHandle.tabIndex = 0;
+  heightHandle.title = 'Arrastre el borde superior para cambiar la altura. Use las flechas o haga doble clic para restaurarla.';
+  heightHandle.textContent = '↕';
+  widget.appendChild(heightHandle);
+
   const defaultChatWidth = 640;
+  const defaultChatHeight = () => Math.min(820, Math.max(440, Math.round(window.innerHeight * 0.76)));
   const chatWidthKey = 'assistant-chat-width';
+  const chatHeightKey = 'assistant-chat-height';
   const maxChatWidth = () => Math.max(420, Math.min(900, window.innerWidth - 48));
+  const maxChatHeight = () => Math.max(440, Math.min(820, window.innerHeight - 128));
   let chatWidth = defaultChatWidth;
+  let chatHeight = defaultChatHeight();
   try {
     const savedWidth = Number(window.localStorage.getItem(chatWidthKey));
     if (Number.isFinite(savedWidth) && savedWidth >= 420) chatWidth = savedWidth;
+    const savedHeight = Number(window.localStorage.getItem(chatHeightKey));
+    if (Number.isFinite(savedHeight) && savedHeight >= 440) chatHeight = savedHeight;
   } catch (_) {
     // The chat still works when local storage is unavailable.
   }
@@ -71,25 +89,53 @@
     }
   }
 
+  function setChatHeight(height, persist = true) {
+    chatHeight = Math.min(maxChatHeight(), Math.max(440, Math.round(height)));
+    widget.style.setProperty('--cb-widget-height', `${chatHeight}px`);
+    heightHandle.setAttribute('aria-valuenow', String(chatHeight));
+    heightHandle.setAttribute('aria-valuemax', String(maxChatHeight()));
+    if (persist) {
+      try {
+        window.localStorage.setItem(chatHeightKey, String(chatHeight));
+      } catch (_) {
+        // Height remains adjustable for the current page session.
+      }
+    }
+  }
+
   setChatWidth(chatWidth, false);
+  setChatHeight(chatHeight, false);
   let resizeStart = null;
   resizeHandle.addEventListener('pointerdown', (event) => {
     if (window.matchMedia('(max-width: 700px)').matches) return;
     event.preventDefault();
-    resizeStart = { x: event.clientX, width: chatWidth, pointerId: event.pointerId };
+    resizeStart = { axis: 'width', x: event.clientX, width: chatWidth, pointerId: event.pointerId };
     resizeHandle.setPointerCapture(event.pointerId);
-  });
-  resizeHandle.addEventListener('pointermove', (event) => {
-    if (!resizeStart || event.pointerId !== resizeStart.pointerId) return;
-    setChatWidth(resizeStart.width + resizeStart.x - event.clientX, false);
   });
   const finishResize = (event) => {
     if (!resizeStart || event.pointerId !== resizeStart.pointerId) return;
+    if (resizeStart.axis === 'width') setChatWidth(chatWidth);
+    if (resizeStart.axis === 'height') setChatHeight(chatHeight);
     resizeStart = null;
-    setChatWidth(chatWidth);
   };
+  resizeHandle.addEventListener('pointermove', (event) => {
+    if (!resizeStart || resizeStart.axis !== 'width' || event.pointerId !== resizeStart.pointerId) return;
+    setChatWidth(resizeStart.width + resizeStart.x - event.clientX, false);
+  });
   resizeHandle.addEventListener('pointerup', finishResize);
   resizeHandle.addEventListener('pointercancel', finishResize);
+  heightHandle.addEventListener('pointerdown', (event) => {
+    if (window.matchMedia('(max-width: 700px)').matches) return;
+    event.preventDefault();
+    resizeStart = { axis: 'height', y: event.clientY, height: chatHeight, pointerId: event.pointerId };
+    heightHandle.setPointerCapture(event.pointerId);
+  });
+  heightHandle.addEventListener('pointermove', (event) => {
+    if (!resizeStart || resizeStart.axis !== 'height' || event.pointerId !== resizeStart.pointerId) return;
+    setChatHeight(resizeStart.height + resizeStart.y - event.clientY, false);
+  });
+  heightHandle.addEventListener('pointerup', finishResize);
+  heightHandle.addEventListener('pointercancel', finishResize);
   resizeHandle.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowRight') {
       event.preventDefault();
@@ -106,6 +152,26 @@
     }
   });
   resizeHandle.addEventListener('dblclick', () => setChatWidth(defaultChatWidth));
+  heightHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setChatHeight(chatHeight + 32);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setChatHeight(chatHeight - 32);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setChatHeight(440);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setChatHeight(maxChatHeight());
+    }
+  });
+  heightHandle.addEventListener('dblclick', () => setChatHeight(defaultChatHeight()));
+  window.addEventListener('resize', () => {
+    setChatWidth(chatWidth, false);
+    setChatHeight(chatHeight, false);
+  });
 
   document.body.append(toggle, widget);
 
