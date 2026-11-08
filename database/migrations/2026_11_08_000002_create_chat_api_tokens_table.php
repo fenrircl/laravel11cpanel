@@ -14,7 +14,8 @@ return new class extends Migration
 
         Schema::create('chat_api_tokens', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // cPanel's legacy users.id is not always BIGINT UNSIGNED.
+            $table->unsignedBigInteger('user_id');
             $table->string('name', 80);
             $table->char('token_hash', 64)->unique();
             $table->timestamp('last_used_at')->nullable();

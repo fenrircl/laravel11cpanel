@@ -11,7 +11,8 @@ return new class extends Migration
         if (!Schema::hasTable('assistant_conversations')) {
             Schema::create('assistant_conversations', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+                // Legacy cPanel databases may use INT instead of BIGINT for users.id.
+                $table->unsignedBigInteger('user_id');
                 $table->string('title', 120)->default('Nueva conversación');
                 $table->timestamps();
                 $table->index(['user_id', 'updated_at']);

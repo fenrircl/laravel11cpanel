@@ -14,7 +14,8 @@ return new class extends Migration
 
         Schema::create('assistant_usage_logs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            // Keep audit history compatible with legacy users.id column types.
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->string('user_name')->nullable();
             $table->unsignedBigInteger('conversation_id')->nullable()->index();
             $table->mediumText('user_message');

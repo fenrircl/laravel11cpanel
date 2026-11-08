@@ -16,7 +16,8 @@ return new class extends Migration
         Schema::create('assistant_settings', function (Blueprint $table) {
             $table->string('key', 80)->primary();
             $table->longText('value');
-            $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            // The setting editor is an audit field; avoid coupling to legacy users.id types.
+            $table->unsignedBigInteger('updated_by')->nullable()->index();
             $table->timestamps();
         });
 

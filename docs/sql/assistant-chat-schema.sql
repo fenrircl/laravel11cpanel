@@ -5,9 +5,7 @@ CREATE TABLE IF NOT EXISTS `assistant_conversations` (
   `created_at` TIMESTAMP NULL DEFAULT NULL,
   `updated_at` TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `assistant_conversations_user_updated_index` (`user_id`, `updated_at`),
-  CONSTRAINT `assistant_conversations_user_id_foreign`
-    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  KEY `assistant_conversations_user_updated_index` (`user_id`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `assistant_messages` (
@@ -35,9 +33,7 @@ CREATE TABLE IF NOT EXISTS `chat_api_tokens` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `chat_api_tokens_token_hash_unique` (`token_hash`),
   KEY `chat_api_tokens_expires_at_index` (`expires_at`),
-  KEY `chat_api_tokens_user_id_created_at_index` (`user_id`, `created_at`),
-  CONSTRAINT `chat_api_tokens_user_id_foreign`
-    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+  KEY `chat_api_tokens_user_id_created_at_index` (`user_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `invoice_document_contexts` (
@@ -76,9 +72,7 @@ CREATE TABLE IF NOT EXISTS `assistant_usage_logs` (
   PRIMARY KEY (`id`),
   KEY `assistant_usage_logs_created_at_status_index` (`created_at`, `status`),
   KEY `assistant_usage_logs_user_id_created_at_index` (`user_id`, `created_at`),
-  KEY `assistant_usage_logs_conversation_id_index` (`conversation_id`),
-  CONSTRAINT `assistant_usage_logs_user_id_foreign`
-    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `assistant_usage_logs_conversation_id_index` (`conversation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `assistant_settings` (
@@ -88,8 +82,7 @@ CREATE TABLE IF NOT EXISTS `assistant_settings` (
   `created_at` TIMESTAMP NULL DEFAULT NULL,
   `updated_at` TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (`key`),
-  CONSTRAINT `assistant_settings_updated_by_foreign`
-    FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `assistant_settings_updated_by_index` (`updated_by`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO `assistant_settings` (`key`, `value`, `created_at`, `updated_at`) VALUES
