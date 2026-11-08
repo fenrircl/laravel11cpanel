@@ -43,8 +43,6 @@
   resizeHandle.setAttribute('aria-valuemin', '420');
   resizeHandle.setAttribute('aria-valuemax', '900');
   resizeHandle.tabIndex = 0;
-  resizeHandle.title = 'Arrastre el borde izquierdo para cambiar el ancho. Use las flechas o haga doble clic para restaurarlo.';
-  resizeHandle.textContent = '↔';
   widget.appendChild(resizeHandle);
 
   const heightHandle = document.createElement('div');
@@ -55,8 +53,6 @@
   heightHandle.setAttribute('aria-valuemin', '440');
   heightHandle.setAttribute('aria-valuemax', String(Math.max(440, window.innerHeight - 128)));
   heightHandle.tabIndex = 0;
-  heightHandle.title = 'Arrastre el borde superior para cambiar la altura. Use las flechas o haga doble clic para restaurarla.';
-  heightHandle.textContent = '↕';
   widget.appendChild(heightHandle);
 
   const defaultChatWidth = 640;

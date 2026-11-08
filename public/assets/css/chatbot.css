@@ -99,42 +99,29 @@
 .cb-resize-handle {
   position: absolute;
   z-index: 5;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   left: 0;
-  width: 18px;
-  height: 58px;
+  width: 10px;
   padding: 0;
-  transform: translateY(-50%);
-  border: 1px solid #aebfc5;
-  border-left: 0;
-  border-radius: 0 8px 8px 0;
-  background: rgba(255,255,255,.96);
-  color: #365763;
-  font: 700 18px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  border: 0;
+  background: transparent;
   cursor: ew-resize;
   touch-action: none;
 }
-.cb-resize-handle:hover { background: #e8f0f2; }
 .cb-resize-height {
   position: absolute;
   z-index: 6;
-  top: 1px;
-  left: 50%;
-  width: 68px;
-  height: 15px;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
   padding: 0;
-  transform: translateX(-50%);
-  border: 1px solid #9fb4bb;
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-  background: #fff;
-  color: #365763;
-  font: 700 13px/13px system-ui, -apple-system, "Segoe UI", sans-serif;
-  text-align: center;
+  border: 0;
+  background: transparent;
   cursor: ns-resize;
   touch-action: none;
 }
-.cb-resize-height:hover { background: #e8f0f2; }
 
 .cb-history {
   flex: 0 0 auto;
