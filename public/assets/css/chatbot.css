@@ -178,6 +178,23 @@
 }
 .msg .bubble strong { color: #123f53; font-weight: 750; }
 .msg .bubble em { color: #344e59; }
+.cb-inline-icon {
+  display: inline-flex;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0 .12em;
+  color: #21617a;
+  vertical-align: -0.18em;
+}
+.cb-inline-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .msg.user .bubble {
   border-color: #c4dfe6;
   border-bottom-right-radius: 5px;

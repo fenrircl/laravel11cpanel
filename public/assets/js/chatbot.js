@@ -115,6 +115,42 @@
   const form = widget.querySelector('#cb-form');
   const sendButton = widget.querySelector('#cb-send');
   const typing = widget.querySelector('#cb-typing');
+  const inlineIcons = {
+    '📅': '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 11h18"></path>',
+    '🧾': '<path d="M4 3h16v18l-3-2-3 2-3-2-3 2-4-2z"></path><path d="M8 8h8M8 12h8M8 16h4"></path>',
+    '💰': '<rect x="2.5" y="6" width="19" height="12" rx="2"></rect><circle cx="12" cy="12" r="3"></circle><path d="M6 10h.01M18 14h.01"></path>',
+    '✅': '<circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.5 2.5L16 9"></path>',
+    '⚠️': '<path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z"></path><path d="M12 9v4M12 17h.01"></path>',
+  };
+
+  function renderInlineIcons(container) {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    textNodes.forEach((node) => {
+      const matches = [...node.textContent.matchAll(/📅|🧾|💰|✅|⚠️/gu)];
+      if (!matches.length) return;
+      const fragment = document.createDocumentFragment();
+      let offset = 0;
+      matches.forEach((match) => {
+        fragment.appendChild(document.createTextNode(node.textContent.slice(offset, match.index)));
+        const icon = document.createElement('span');
+        icon.className = 'cb-inline-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('focusable', 'false');
+        svg.innerHTML = inlineIcons[match[0]];
+        icon.appendChild(svg);
+        fragment.appendChild(icon);
+        offset = match.index + match[0].length;
+      });
+      fragment.appendChild(document.createTextNode(node.textContent.slice(offset)));
+      node.replaceWith(fragment);
+    });
+  }
+
   let conversationId = null;
   let conversationsLoaded = false;
   let busy = false;
@@ -146,6 +182,7 @@
     if (role === 'assistant' && isSafeHtml) {
       // The server converts model Markdown to sanitized HTML before returning it.
       bubble.innerHTML = content;
+      renderInlineIcons(bubble);
     } else {
       bubble.textContent = content;
     }
