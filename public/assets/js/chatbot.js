@@ -11,19 +11,18 @@
   toggle.setAttribute('aria-label', 'Abrir asistente');
   toggle.setAttribute('aria-controls', 'chatbot-widget');
   toggle.setAttribute('aria-expanded', 'false');
-  toggle.textContent = '💬';
+  toggle.innerHTML = '<span aria-hidden="true">💬</span><span>Abrir asistente</span>';
 
   const widget = document.createElement('section');
   widget.id = 'chatbot-widget';
   widget.setAttribute('aria-label', 'Asistente de AcerosEra');
   widget.innerHTML = `
     <header class="cb-header">
-      <div class="cb-heading"><strong class="cb-title">Asistente</strong><span class="cb-subtitle">Consultas del sistema</span></div>
+      <div class="cb-heading"><strong class="cb-title">Asistente de AcerosEra</strong><span class="cb-subtitle">Escriba su pregunta con sus propias palabras</span></div>
       <div class="cb-actions">
-        <button class="cb-iconbtn" type="button" id="cb-history" aria-label="Ver conversaciones anteriores" title="Conversaciones">☷</button>
-        <button class="cb-iconbtn" type="button" id="cb-new" aria-label="Nueva conversación" title="Nueva conversación">＋</button>
-        <button class="cb-iconbtn" type="button" id="cb-min" aria-label="Minimizar chat" title="Minimizar">−</button>
-        <button class="cb-iconbtn" type="button" id="cb-close" aria-label="Cerrar chat" title="Cerrar">×</button>
+        <button class="cb-iconbtn" type="button" id="cb-history" aria-label="Ver conversaciones anteriores"><span aria-hidden="true">☷</span><span>Historial</span></button>
+        <button class="cb-iconbtn" type="button" id="cb-new" aria-label="Empezar una conversación nueva"><span aria-hidden="true">＋</span><span>Nuevo</span></button>
+        <button class="cb-iconbtn" type="button" id="cb-close" aria-label="Cerrar el asistente"><span aria-hidden="true">×</span><span>Cerrar</span></button>
       </div>
     </header>
     <div class="cb-history" id="cb-history-panel" hidden aria-label="Conversaciones anteriores"></div>
@@ -31,8 +30,8 @@
     <div class="cb-typing" id="cb-typing" hidden>Buscando en el sistema…</div>
     <form class="cb-input" id="cb-form">
       <label class="visually-hidden" for="cb-text">Escribe tu consulta</label>
-      <textarea id="cb-text" rows="1" maxlength="2000" placeholder="Pregunta por clientes, facturas o montos…"></textarea>
-      <button id="cb-send" type="submit">Enviar</button>
+      <textarea id="cb-text" rows="2" maxlength="2000" placeholder="Por ejemplo: ¿Qué facturas vencen este año?"></textarea>
+      <div class="cb-submit-group"><span>Escriba aquí y presione Enviar</span><button id="cb-send" type="submit">Enviar</button></div>
     </form>
   `;
 
@@ -85,7 +84,7 @@
 
   function showWelcome() {
     messages.replaceChildren();
-    addMessage('Hola. Puedo buscar clientes, proveedores, facturas, montos y texto de PDFs procesados.');
+    addMessage('Hola. Puedo ayudarle a buscar facturas, clientes, proveedores y cotizaciones. Por ejemplo: “¿Qué facturas están vencidas este año?”');
   }
 
   function setBusy(value) {
@@ -218,7 +217,6 @@
     showWelcome();
     input.focus();
   });
-  widget.querySelector('#cb-min').addEventListener('click', () => widget.classList.toggle('is-minimized'));
   widget.querySelector('#cb-close').addEventListener('click', () => {
     widget.classList.remove('is-open');
     toggle.setAttribute('aria-expanded', 'false');

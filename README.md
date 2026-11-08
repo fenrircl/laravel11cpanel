@@ -84,7 +84,7 @@ El widget queda apagado por defecto. Para activarlo en el `.env` del servidor, c
 
 La sección **Auditoría de uso del chatbot** de esa misma pantalla registra usuario, mensajes, modelo, tokens de entrada/salida, llamadas a funciones, duración y estado. Para la Action de ChatGPT, el servidor registra las consultas de datos pero no puede conocer los tokens que ChatGPT factura al usuario.
 
-El asistente puede buscar clientes, proveedores, facturas y cotizaciones; listar las facturas/cotizaciones de un cliente; consultar el detalle completo de una factura o cotización; encontrar facturas que vencen este mes o que ya están atrasadas; y sumar saldos pendientes por proveedor. Los resúmenes permiten filtrar por fecha de emisión, vencimiento o pago. Estas herramientas son de solo lectura y devuelven resultados acotados.
+El asistente puede buscar clientes, proveedores, facturas y cotizaciones; listar las facturas/cotizaciones de un cliente; consultar el detalle completo de una factura o cotización; encontrar facturas que vencen este mes o que ya están atrasadas (por defecto, del año actual; puede consultarse otro año si el usuario lo pide); y sumar saldos pendientes por proveedor. Los resúmenes permiten filtrar por fecha de emisión, vencimiento o pago. Estas herramientas son de solo lectura y devuelven resultados acotados.
 
 La búsqueda y comparación histórica de precios de productos depende de que el workflow PDF de n8n extraiga las líneas de producto con descripción, cantidad y precio unitario. Hoy el sistema permite buscar texto dentro del Markdown recibido, pero no mantiene un catálogo normalizado de líneas de compra para comparar precios con fiabilidad. La conexión al correo electrónico tampoco está configurada todavía.
 

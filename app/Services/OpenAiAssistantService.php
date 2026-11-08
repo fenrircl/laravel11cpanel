@@ -242,16 +242,17 @@ class OpenAiAssistantService
             [
                 'type' => 'function',
                 'name' => 'invoice_schedule',
-                'description' => 'Encuentra facturas pendientes que vencen antes de fin de mes, vencidas o pendientes en general. Incluye fecha y días de atraso.',
+                'description' => 'Busca facturas pendientes del año actual por defecto. Para otro año solicitado expresamente, pasa ese year. Encuentra vencimientos antes de fin de mes, atrasos o pendientes. Incluye fecha y días de atraso.',
                 'strict' => true,
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
                         'mode' => ['type' => 'string', 'enum' => ['due_before_month_end', 'overdue', 'pending']],
                         'party_name' => ['type' => ['string', 'null'], 'maxLength' => 120],
+                        'year' => ['type' => ['integer', 'null'], 'minimum' => 2000, 'maximum' => 2100],
                         'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20],
                     ],
-                    'required' => ['mode', 'party_name', 'limit'],
+                    'required' => ['mode', 'party_name', 'year', 'limit'],
                     'additionalProperties' => false,
                 ],
             ],

@@ -280,18 +280,29 @@ class AssistantDataService
         $validated = Validator::make($arguments, [
             'mode' => ['required', Rule::in(['due_before_month_end', 'overdue', 'pending'])],
             'party_name' => ['nullable', 'string', 'max:120'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'limit' => ['required', 'integer', 'min:1', 'max:20'],
         ])->validate();
 
         $today = now()->toDateString();
+        $year = (int) ($validated['year'] ?? now()->year);
+        $startOfYear = now()->setDate($year, 1, 1)->startOfYear();
+        $endOfYear = $startOfYear->copy()->endOfYear();
         $query = Factura::query()->with(['cliente:id,name', 'proveedor:id,name'])
             ->where('status', 0);
 
         if ($validated['mode'] === 'due_before_month_end') {
-            $query->whereNotNull('expiry')->whereDate('expiry', '>=', $today)
-                ->whereDate('expiry', '<=', now()->endOfMonth()->toDateString());
+            $monthStart = $year === now()->year
+                ? now()->startOfDay()
+                : $startOfYear->copy()->month(now()->month)->startOfMonth();
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $query->whereBetween('expiry', [$monthStart->toDateString(), $monthEnd->toDateString()]);
         } elseif ($validated['mode'] === 'overdue') {
-            $query->whereNotNull('expiry')->whereDate('expiry', '<', $today);
+            $query->whereNotNull('expiry')->whereYear('expiry', $year)->whereDate('expiry', '<', $today);
+        } else {
+            $query->where(fn ($q) => $q
+                ->whereYear('expiry', $year)
+                ->orWhere(fn ($q) => $q->whereNull('expiry')->whereYear('date', $year)));
         }
 
         $partyName = trim((string) ($validated['party_name'] ?? ''));
@@ -316,7 +327,7 @@ class AssistantDataService
                     ? (int) $invoice->expiry->diffInDays(now()->startOfDay()) : 0,
             ])->all();
 
-        return ['mode' => $validated['mode'], 'as_of' => $today, 'count' => count($records), 'records' => $records];
+        return ['mode' => $validated['mode'], 'year' => $year, 'as_of' => $today, 'count' => count($records), 'records' => $records];
     }
 
     /** Aggregate unpaid invoice amounts by provider, including overdue portions. */

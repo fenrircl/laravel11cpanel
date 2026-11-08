@@ -166,6 +166,7 @@ paths:
               properties:
                 mode: { type: string, enum: [due_before_month_end, overdue, pending] }
                 party_name: { type: [string, 'null'], maxLength: 120 }
+                year: { type: [integer, 'null'], minimum: 2000, maximum: 2100, description: Defaults to the current year; set only when the user asks for another year. }
                 limit: { type: integer, minimum: 1, maximum: 20, default: 20 }
       responses:
         '200': { description: Pending invoice list with calculated overdue status }

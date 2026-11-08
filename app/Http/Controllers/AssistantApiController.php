@@ -69,6 +69,7 @@ class AssistantApiController extends Controller
         $arguments = $request->validate([
             'mode' => ['required', 'in:due_before_month_end,overdue,pending'],
             'party_name' => ['nullable', 'string', 'max:120'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:20'],
         ]);
         $arguments['limit'] = (int) ($arguments['limit'] ?? 20);

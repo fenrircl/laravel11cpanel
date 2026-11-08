@@ -32,7 +32,7 @@
     <link href="{{ asset('assets/css/principal/layout.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/tablas.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/buscador.css') }}" rel="stylesheet">
-    <link href="{{ asset('assets/css/chatbot.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/chatbot.css') }}?v={{ filemtime(public_path('assets/css/chatbot.css')) }}" rel="stylesheet">
 
     <!-- Cargar CSS específicos dinámicamente -->
     @if(isset($asset_css))
@@ -123,7 +123,7 @@
 
     @stack('scripts')
 @if(auth()->check() && config('services.openai.enabled'))
-<script src="{{ asset('assets/js/chatbot.js') }}?v={{ assets_version() }}"></script>
+<script src="{{ asset('assets/js/chatbot.js') }}?v={{ filemtime(public_path('assets/js/chatbot.js')) }}"></script>
 @endif
 
 
