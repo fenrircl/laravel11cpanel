@@ -35,6 +35,78 @@
     </form>
   `;
 
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'cb-resize-handle';
+  resizeHandle.setAttribute('role', 'separator');
+  resizeHandle.setAttribute('aria-orientation', 'vertical');
+  resizeHandle.setAttribute('aria-label', 'Ajustar ancho del chat');
+  resizeHandle.setAttribute('aria-valuemin', '420');
+  resizeHandle.setAttribute('aria-valuemax', '900');
+  resizeHandle.tabIndex = 0;
+  resizeHandle.title = 'Arrastre el borde para ajustar el ancho. Use las flechas del teclado o haga doble clic para volver al ancho inicial.';
+  resizeHandle.textContent = '↔';
+  widget.appendChild(resizeHandle);
+
+  const defaultChatWidth = 640;
+  const chatWidthKey = 'assistant-chat-width';
+  const maxChatWidth = () => Math.max(420, Math.min(900, window.innerWidth - 48));
+  let chatWidth = defaultChatWidth;
+  try {
+    const savedWidth = Number(window.localStorage.getItem(chatWidthKey));
+    if (Number.isFinite(savedWidth) && savedWidth >= 420) chatWidth = savedWidth;
+  } catch (_) {
+    // The chat still works when local storage is unavailable.
+  }
+
+  function setChatWidth(width, persist = true) {
+    chatWidth = Math.min(maxChatWidth(), Math.max(420, Math.round(width)));
+    widget.style.setProperty('--cb-widget-width', `${chatWidth}px`);
+    resizeHandle.setAttribute('aria-valuenow', String(chatWidth));
+    if (persist) {
+      try {
+        window.localStorage.setItem(chatWidthKey, String(chatWidth));
+      } catch (_) {
+        // Width remains adjustable for the current page session.
+      }
+    }
+  }
+
+  setChatWidth(chatWidth, false);
+  let resizeStart = null;
+  resizeHandle.addEventListener('pointerdown', (event) => {
+    if (window.matchMedia('(max-width: 700px)').matches) return;
+    event.preventDefault();
+    resizeStart = { x: event.clientX, width: chatWidth, pointerId: event.pointerId };
+    resizeHandle.setPointerCapture(event.pointerId);
+  });
+  resizeHandle.addEventListener('pointermove', (event) => {
+    if (!resizeStart || event.pointerId !== resizeStart.pointerId) return;
+    setChatWidth(resizeStart.width + resizeStart.x - event.clientX, false);
+  });
+  const finishResize = (event) => {
+    if (!resizeStart || event.pointerId !== resizeStart.pointerId) return;
+    resizeStart = null;
+    setChatWidth(chatWidth);
+  };
+  resizeHandle.addEventListener('pointerup', finishResize);
+  resizeHandle.addEventListener('pointercancel', finishResize);
+  resizeHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setChatWidth(chatWidth + 32);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setChatWidth(chatWidth - 32);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setChatWidth(420);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setChatWidth(maxChatWidth());
+    }
+  });
+  resizeHandle.addEventListener('dblclick', () => setChatWidth(defaultChatWidth));
+
   document.body.append(toggle, widget);
 
   const messages = widget.querySelector('#cb-messages');
