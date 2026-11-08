@@ -52,7 +52,7 @@ En el reporte de error compartido desde producción, Laravel informó **12.71.0*
 - Las respuestas se muestran como Markdown convertido a HTML seguro, con formato para tablas, listas, encabezados y negritas. Emojis funcionales seleccionados se presentan como iconos SVG consistentes.
 - El ancho y alto del chat se ajustan arrastrando zonas transparentes en los bordes izquierdo y superior. El tamaño elegido queda guardado en el navegador.
 - Configuración del modelo, prompt y límites del asistente en la base de datos; clave de OpenAI y habilitación del chat mediante `.env`.
-- Integración de lectura para ChatGPT Actions con tokens Bearer revocables asociados a usuarios.
+- Integración de lectura para ChatGPT Actions con tokens Bearer revocables: su gestión y uso quedan restringidos a usuarios con el rol `admin`.
 - Auditoría del chat y de la API con usuario, mensajes, modelo, tokens informados, llamadas a funciones, duración y resultado.
 - Endpoints preparados para recibir Markdown y metadatos del procesamiento de PDFs con n8n. La aplicación identifica PDFs adjuntos y PDFs procesados.
 - Pantalla **Administración → Información del sistema** con versiones de entorno y dependencias, estado de tablas e información de auditoría.

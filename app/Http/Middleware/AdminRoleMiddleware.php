@@ -14,11 +14,10 @@ class AdminRoleMiddleware
             abort(403, 'No tienes permisos para acceder a administración.');
         }
 
-        $isAdmin = $request->session()->get('is_admin');
-        if ($isAdmin === null) {
-            $isAdmin = $user->hasRole('admin');
-            $request->session()->put('is_admin', $isAdmin);
-        }
+        // Re-check the role in the database so a demoted user cannot keep
+        // administrative access through a stale session flag.
+        $isAdmin = $user->hasRole('admin');
+        $request->session()->put('is_admin', $isAdmin);
 
         if (!$isAdmin) {
             abort(403, 'No tienes permisos para acceder a administración.');

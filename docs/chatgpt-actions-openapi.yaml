@@ -3,8 +3,9 @@ info:
   title: AcerosEra Read-only Assistant API
   version: 1.0.0
   description: >-
-    Read-only customer, supplier, invoice, quotation and invoice-document queries. Every
-    request runs with the permissions of the user who owns the Bearer token.
+    Read-only customer, supplier, invoice, quotation and invoice-document queries. Only
+    administrators can create tokens; each request runs with the permissions of that
+    administrator. Tokens for users without the admin role are rejected.
 servers:
   - url: https://YOUR-DOMAIN.example
     description: Replace with the public HTTPS origin of the cPanel application.
@@ -52,6 +53,7 @@ paths:
                       count: { type: integer }
                       records: { type: array, items: { type: object } }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/party/records:
     post:
@@ -73,6 +75,7 @@ paths:
       responses:
         '200': { description: Matching invoice and quotation summaries }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/invoices/details:
     post:
@@ -95,6 +98,7 @@ paths:
       responses:
         '200': { description: Invoice details and attached PDF processing status }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/quotations/details:
     post:
@@ -113,6 +117,7 @@ paths:
       responses:
         '200': { description: Quotation, client, line items, totals and attached files }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/invoices/summary:
     post:
@@ -150,6 +155,7 @@ paths:
                       currency: { type: string, const: CLP }
                       filters: { type: object }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/invoices/schedule:
     post:
@@ -171,6 +177,7 @@ paths:
       responses:
         '200': { description: Pending invoice list with calculated overdue status }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/providers/balances:
     post:
@@ -188,6 +195,7 @@ paths:
       responses:
         '200': { description: Pending invoice balances grouped by provider }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
   /api/v1/assistant/invoice-documents/search:
     post:
@@ -220,10 +228,11 @@ paths:
                       count: { type: integer }
                       documents: { type: array, items: { type: object } }
         '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: User API token
+      bearerFormat: Administrator API token

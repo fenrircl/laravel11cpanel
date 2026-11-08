@@ -52,13 +52,6 @@ return [
                 'auth_required' => true
             ],
             [
-                'title' => 'Acceso API',
-                'icon' => 'fas fa-key',
-                'route' => 'account.api-tokens',
-                'tooltip' => 'Tokens para integrar la API',
-                'auth_required' => true
-            ],
-            [
                 'title' => 'Cotizaciones',
                 'icon' => 'fas fa-file-alt',
                 'route' => 'cotizaciones.index',
@@ -102,6 +95,13 @@ return [
     [
         'section' => 'ADMINISTRACIÓN',
         'items' => [
+            [
+                'title' => 'Acceso API',
+                'icon' => 'fas fa-key',
+                'route' => 'account.api-tokens',
+                'tooltip' => 'Tokens de lectura para administradores',
+                'auth_required' => true
+            ],
             [
                 'title' => 'Usuarios',
                 'icon' => 'fas fa-user-shield',

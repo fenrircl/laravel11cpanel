@@ -9,7 +9,7 @@
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                 <div>
                     <h1 class="h3 mb-1">Acceso a la API</h1>
-                    <p class="text-muted mb-0">Crea un Bearer para conectar tu usuario con una Action de ChatGPT.</p>
+                    <p class="text-muted mb-0">Solo administradores. Crea un Bearer de solo lectura para conectar una Action de ChatGPT con tu cuenta.</p>
                 </div>
             </div>
 
@@ -80,7 +80,7 @@
                 </div>
             </div>
 
-            <p class="small text-muted mt-3">El token permite consultar clientes, proveedores y facturas en nombre de tu usuario. Trátalo como una contraseña y revócalo si deja de ser necesario.</p>
+            <p class="small text-muted mt-3">La API solo acepta tokens cuyo usuario asociado conserve el rol de administrador. El token permite consultas de lectura. Trátalo como una contraseña y revócalo si deja de ser necesario.</p>
         </div>
     </div>
 </div>

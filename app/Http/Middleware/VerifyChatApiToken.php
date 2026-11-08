@@ -25,6 +25,13 @@ class VerifyChatApiToken
             return $this->unauthorized();
         }
 
+        if (!$token->user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El usuario asociado al token no tiene permisos de administrador.',
+            ], 403);
+        }
+
         $token->forceFill(['last_used_at' => now()])->save();
         $request->attributes->set('chat_api_token', $token);
 

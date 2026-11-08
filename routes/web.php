@@ -53,11 +53,13 @@ Route::middleware(['auth', 'assistant.enabled'])->group(function () {
     Route::post('/chat/messages', [AssistantChatController::class, 'send'])->middleware('throttle:20,1')->name('chat.messages.store');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'admin.role'])->group(function () {
     Route::get('/account/api-tokens', [ChatApiTokensController::class, 'index'])->name('account.api-tokens');
     Route::post('/account/api-tokens', [ChatApiTokensController::class, 'store'])->name('account.api-tokens.store');
     Route::delete('/account/api-tokens/{token}', [ChatApiTokensController::class, 'destroy'])->name('account.api-tokens.destroy');
+});
 
+Route::middleware(['auth'])->group(function () {
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
