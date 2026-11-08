@@ -58,6 +58,43 @@ class Factura extends Model
         return $this->hasOne(FilesRegistry::class, 'model_id', 'id')
                     ->where('model_type', 'App\\Invoice');
     }
+
+    public function archivos()
+    {
+        return $this->hasMany(FilesRegistry::class, 'model_id', 'id')
+                    ->where('model_type', 'App\\Invoice');
+    }
+
+    public function documentContexts()
+    {
+        return $this->hasMany(InvoiceDocumentContext::class, 'invoice_id');
+    }
+
+    public function getHasPdfAttribute(): bool
+    {
+        return $this->pdfFiles()->isNotEmpty();
+    }
+
+    public function getPdfProcessedAttribute(): bool
+    {
+        $pdfIds = $this->pdfFiles()->pluck('id');
+        if ($pdfIds->isEmpty()) {
+            return false;
+        }
+
+        return $this->documentContexts->contains(
+            fn (InvoiceDocumentContext $context) => $pdfIds->contains((int) $context->file_registry_id)
+                && !empty($context->processed_at)
+        );
+    }
+
+    private function pdfFiles()
+    {
+        return $this->archivos->filter(function (FilesRegistry $file) {
+            $extension = strtolower((string) pathinfo($file->file_name ?: $file->path, PATHINFO_EXTENSION));
+            return $extension === 'pdf' || strtolower((string) $file->mime_type) === 'application/pdf';
+        });
+    }
     
     // Scopes
     public function scopeByClient($query, $clientId)

@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="base-url" content="{{ url('/') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="mcp-webhook" content="{{ env('N8N_WEBHOOK_URL') }}">
+    <meta name="assistant-chat-url" content="{{ url('/chat') }}">
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
     <!-- Bootstrap CSS -->
@@ -122,9 +122,9 @@
     @endif
 
     @stack('scripts')
-{{-- @if(Auth::check())
-<script src="{{ asset('assets/js/chatbot.js') }}"></script>
-@endif --}}
+@if(auth()->check() && config('services.openai.enabled'))
+<script src="{{ asset('assets/js/chatbot.js') }}?v={{ assets_version() }}"></script>
+@endif
 
 
 </body>

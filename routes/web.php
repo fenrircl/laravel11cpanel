@@ -12,6 +12,8 @@ use App\Http\Controllers\CotizacionesController;
 use App\Http\Controllers\Admin\AuditLogsController;
 use App\Http\Controllers\BackupController; // añadido
 use App\Http\Controllers\HomeController; // añadido
+use App\Http\Controllers\AssistantChatController;
+use App\Http\Controllers\ChatApiTokensController;
 
 Route::controller(LoginRegisterController::class)->group(function() {
     // Route::get('/register', 'register')->name('register');
@@ -44,7 +46,18 @@ Route::get('/clear-laravel-11-caches', function () {
 Route::get('/backup-db', [BackupController::class, 'download']);
 
 // Rutas protegidas (requieren autenticación)
+Route::middleware(['auth', 'assistant.enabled'])->group(function () {
+    Route::get('/chat/conversations', [AssistantChatController::class, 'index'])->name('chat.conversations.index');
+    Route::get('/chat/conversations/{conversation}', [AssistantChatController::class, 'show'])->name('chat.conversations.show');
+    Route::delete('/chat/conversations/{conversation}', [AssistantChatController::class, 'destroy'])->name('chat.conversations.destroy');
+    Route::post('/chat/messages', [AssistantChatController::class, 'send'])->middleware('throttle:20,1')->name('chat.messages.store');
+});
+
 Route::middleware(['auth'])->group(function () {
+    Route::get('/account/api-tokens', [ChatApiTokensController::class, 'index'])->name('account.api-tokens');
+    Route::post('/account/api-tokens', [ChatApiTokensController::class, 'store'])->name('account.api-tokens.store');
+    Route::delete('/account/api-tokens/{token}', [ChatApiTokensController::class, 'destroy'])->name('account.api-tokens.destroy');
+
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -141,6 +154,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/roles/{role}', [\App\Http\Controllers\Admin\RolesController::class, 'destroy'])->name('roles.destroy');
         Route::get('/audit', [\App\Http\Controllers\Admin\AuditLogsController::class, 'index'])->name('audit.index');
         Route::post('/audit/{log}/restore', [AuditLogsController::class, 'restore'])->name('audit.restore');
+        Route::get('/system-info', [\App\Http\Controllers\Admin\SystemInfoController::class, 'index'])->name('system-info.index');
+        Route::put('/system-info/assistant', [\App\Http\Controllers\Admin\SystemInfoController::class, 'updateAssistantSettings'])->name('system-info.assistant.update');
     });
 
     // Charts

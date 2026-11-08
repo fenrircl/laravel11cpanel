@@ -22,6 +22,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.role' => \App\Http\Middleware\AdminRoleMiddleware::class,
             'auth.bearer' => \App\Http\Middleware\VerifyApiBearerToken::class,
+            'auth.chat-api' => \App\Http\Middleware\VerifyChatApiToken::class,
+            'auth.n8n' => \App\Http\Middleware\VerifyN8nBearer::class,
+            'assistant.enabled' => \App\Http\Middleware\EnsureAssistantEnabled::class,
+            'assistant.api.audit' => \App\Http\Middleware\AuditAssistantApiUsage::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -1,164 +1,235 @@
-(function(){
-  if(!document.body) return;
+(function () {
+  if (!document.body || document.getElementById('chatbot-widget')) return;
 
-  // Elements
-  const toggleBtn = document.createElement('button');
-  toggleBtn.id = 'chatbot-toggle';
-  toggleBtn.title = 'Abrir chat';
-  toggleBtn.innerHTML = '💬';
+  const chatBase = document.querySelector('meta[name="assistant-chat-url"]')?.content?.replace(/\/$/, '');
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  if (!chatBase) return;
 
-  const widget = document.createElement('div');
+  const toggle = document.createElement('button');
+  toggle.id = 'chatbot-toggle';
+  toggle.type = 'button';
+  toggle.setAttribute('aria-label', 'Abrir asistente');
+  toggle.setAttribute('aria-controls', 'chatbot-widget');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.textContent = '💬';
+
+  const widget = document.createElement('section');
   widget.id = 'chatbot-widget';
+  widget.setAttribute('aria-label', 'Asistente de AcerosEra');
   widget.innerHTML = `
-    <div class="cb-header">
-      <div class="cb-title">Asistente</div>
+    <header class="cb-header">
+      <div class="cb-heading"><strong class="cb-title">Asistente</strong><span class="cb-subtitle">Consultas del sistema</span></div>
       <div class="cb-actions">
-        <button class="cb-iconbtn" id="cb-min">_</button>
-        <button class="cb-iconbtn" id="cb-close">×</button>
+        <button class="cb-iconbtn" type="button" id="cb-history" aria-label="Ver conversaciones anteriores" title="Conversaciones">☷</button>
+        <button class="cb-iconbtn" type="button" id="cb-new" aria-label="Nueva conversación" title="Nueva conversación">＋</button>
+        <button class="cb-iconbtn" type="button" id="cb-min" aria-label="Minimizar chat" title="Minimizar">−</button>
+        <button class="cb-iconbtn" type="button" id="cb-close" aria-label="Cerrar chat" title="Cerrar">×</button>
       </div>
-    </div>
-    <div class="cb-messages" id="cb-messages"></div>
-    <div class="cb-typing" id="cb-typing" style="display:none;">Escribiendo…</div>
-    <div class="cb-input">
-      <input type="text" id="cb-text" placeholder="Escribe tu mensaje..." />
-      <button id="cb-send">Enviar</button>
-    </div>
+    </header>
+    <div class="cb-history" id="cb-history-panel" hidden aria-label="Conversaciones anteriores"></div>
+    <div class="cb-messages" id="cb-messages" role="log" aria-live="polite" aria-relevant="additions text"></div>
+    <div class="cb-typing" id="cb-typing" hidden>Buscando en el sistema…</div>
+    <form class="cb-input" id="cb-form">
+      <label class="visually-hidden" for="cb-text">Escribe tu consulta</label>
+      <textarea id="cb-text" rows="1" maxlength="2000" placeholder="Pregunta por clientes, facturas o montos…"></textarea>
+      <button id="cb-send" type="submit">Enviar</button>
+    </form>
   `;
 
-  document.body.appendChild(toggleBtn);
-  document.body.appendChild(widget);
+  document.body.append(toggle, widget);
 
   const messages = widget.querySelector('#cb-messages');
-  const typing = widget.querySelector('#cb-typing');
+  const historyPanel = widget.querySelector('#cb-history-panel');
   const input = widget.querySelector('#cb-text');
-  const sendBtn = widget.querySelector('#cb-send');
-  const minBtn = widget.querySelector('#cb-min');
-  const closeBtn = widget.querySelector('#cb-close');
+  const form = widget.querySelector('#cb-form');
+  const sendButton = widget.querySelector('#cb-send');
+  const typing = widget.querySelector('#cb-typing');
+  let conversationId = null;
+  let conversationsLoaded = false;
+  let busy = false;
 
-  // Base URL desde meta o fallback al origen actual
-  const BASE = (document.querySelector('meta[name="base-url"]')?.content || window.location.origin || '').replace(/\/$/, '');
-  // Proxy local que usa N8N_WEBHOOK_URL del .env en el servidor
-  const LOCAL_PROXY = BASE + '/api/mcp/webhook';
+  async function request(path, options = {}) {
+    const headers = {
+      Accept: 'application/json',
+      'X-CSRF-TOKEN': csrf,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    };
+    const response = await fetch(`${chatBase}${path}`, {
+      credentials: 'same-origin',
+      ...options,
+      headers,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.message || 'No se pudo completar la consulta.');
+    }
+    return payload;
+  }
 
-  // Ajustes para esperar más la respuesta y reintentar si falla
-  const MAX_RETRIES = 2; // número de reintentos adicionales
-  const RETRY_DELAY_MS = 3000; // espera entre reintentos
-
-  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-  function addMessage(text, from='bot'){
-    const wrap = document.createElement('div');
-    wrap.className = `msg ${from}`;
+  function addMessage(content, role = 'assistant', isSafeHtml = false) {
+    const row = document.createElement('div');
+    row.className = `msg ${role === 'user' ? 'user' : 'bot'}`;
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.textContent = text;
-    wrap.appendChild(bubble);
-    messages.appendChild(wrap);
+    if (role === 'assistant' && isSafeHtml) {
+      // The server converts model Markdown to sanitized HTML before returning it.
+      bubble.innerHTML = content;
+    } else {
+      bubble.textContent = content;
+    }
+    row.appendChild(bubble);
+    messages.appendChild(row);
     messages.scrollTop = messages.scrollHeight;
   }
 
-  function setTyping(v){ typing.style.display = v ? 'block' : 'none'; }
-
-  function toggleWidget(){
-    widget.style.display = widget.style.display === 'none' || !widget.style.display ? 'flex' : 'none';
+  function showWelcome() {
+    messages.replaceChildren();
+    addMessage('Hola. Puedo buscar clientes, proveedores, facturas, montos y texto de PDFs procesados.');
   }
 
-  function minimizeWidget(){
-    if(widget.style.display === 'none') return;
-    const msgArea = widget.querySelector('.cb-messages');
-    const inputArea = widget.querySelector('.cb-input');
-    const typingEl = widget.querySelector('#cb-typing');
-    const isMin = widget.dataset.min === '1';
-    if(isMin){
-      msgArea.style.display = '';
-      inputArea.style.display = '';
-      typingEl.style.display = 'none';
-      widget.dataset.min = '0';
-    } else {
-      msgArea.style.display = 'none';
-      inputArea.style.display = 'none';
-      typingEl.style.display = 'none';
-      widget.dataset.min = '1';
+  function setBusy(value) {
+    busy = value;
+    input.disabled = value;
+    sendButton.disabled = value;
+    widget.setAttribute('aria-busy', value ? 'true' : 'false');
+    typing.hidden = !value;
+  }
+
+  async function openConversation(id) {
+    const result = await request(`/conversations/${encodeURIComponent(id)}`);
+    conversationId = result.conversation.id;
+    messages.replaceChildren();
+    result.data.forEach((message) => {
+      addMessage(message.content, message.role, message.role === 'assistant');
+    });
+    historyPanel.hidden = true;
+    input.focus();
+  }
+
+  async function refreshHistory(selectLatest = false) {
+    const result = await request('/conversations');
+    conversationsLoaded = true;
+    historyPanel.replaceChildren();
+
+    if (!result.data.length) {
+      const empty = document.createElement('p');
+      empty.className = 'cb-history-empty';
+      empty.textContent = 'Tus conversaciones aparecerán aquí.';
+      historyPanel.appendChild(empty);
+      if (selectLatest) showWelcome();
+      return;
+    }
+
+    result.data.forEach((conversation) => {
+      const row = document.createElement('div');
+      row.className = 'cb-history-row';
+      const select = document.createElement('button');
+      select.type = 'button';
+      select.className = 'cb-history-select';
+      select.textContent = conversation.title || 'Conversación';
+      select.title = conversation.title || 'Conversación';
+      select.addEventListener('click', () => openConversation(conversation.id).catch(showError));
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'cb-history-delete';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `Eliminar ${conversation.title || 'conversación'}`);
+      remove.addEventListener('click', async () => {
+        try {
+          await request(`/conversations/${encodeURIComponent(conversation.id)}`, { method: 'DELETE' });
+          if (conversationId === conversation.id) {
+            conversationId = null;
+            showWelcome();
+          }
+          await refreshHistory(false);
+        } catch (error) {
+          showError(error);
+        }
+      });
+
+      row.append(select, remove);
+      historyPanel.appendChild(row);
+    });
+
+    if (selectLatest && !conversationId) {
+      await openConversation(result.data[0].id);
     }
   }
 
-  async function send(){
-    const text = input.value.trim();
-    if(!text) return;
-    addMessage(text, 'user');
+  function showError(error) {
+    addMessage(error?.message || 'No se pudo completar la consulta.', 'assistant');
+  }
+
+  async function sendMessage(event) {
+    event.preventDefault();
+    if (busy) return;
+    const message = input.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user');
     input.value = '';
-    setTyping(true);
+    setBusy(true);
+    try {
+      const result = await request('/messages', {
+        method: 'POST',
+        body: JSON.stringify({ conversation_id: conversationId, message }),
+      });
+      conversationId = result.conversation_id;
+      addMessage(result.message.content, 'assistant', true);
+      conversationsLoaded = false;
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+      input.focus();
+    }
+  }
 
-    // Mantener al usuario informado si la respuesta tarda
-    const start = Date.now();
-    const typingMsgBase = 'Escribiendo…';
-    typing.textContent = typingMsgBase;
-    const typingUpdater = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - start) / 1000);
-      if(elapsed >= 10){
-        typing.textContent = `Procesando (${elapsed}s)…`;
-      }
-    }, 1000);
-
-    try{
-      let lastError;
-      for(let attempt = 0; attempt <= MAX_RETRIES; attempt++){
-        try{
-          const res = await fetch(LOCAL_PROXY, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: text }) // El servidor usará N8N_WEBHOOK_URL del .env
-          });
-
-          // Leer contenido con tolerancia (JSON o texto plano)
-          const contentType = res.headers.get('content-type') || '';
-          let data;
-          if(contentType.includes('application/json')){
-            data = await res.json().catch(() => ({}));
-          } else {
-            const raw = await res.text().catch(() => '');
-            data = { message: raw };
-          }
-
-          if(!res.ok){
-            // Para errores 5xx/429 reintentamos, otros se muestran directo
-            const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
-            if([429].includes(res.status) || (res.status >= 500 && res.status <= 599)){
-              throw new Error(msg || 'Error temporal del servidor');
-            } else {
-              addMessage(msg || 'Error en la respuesta del servidor', 'bot');
-              return;
-            }
-          }
-
-          const reply = (data && (data.respuesta || data.message || data.error)) || 'Sin respuesta del servidor';
-          addMessage(reply, 'bot');
-          return; // éxito, salir de la función
-        }catch(err){
-          lastError = err;
-          if(attempt < MAX_RETRIES){
-            // Informar que seguimos esperando y reintentaremos
-            typing.textContent = `El servidor tarda, reintentando… (${attempt + 1}/${MAX_RETRIES})`;
-            await sleep(RETRY_DELAY_MS * (attempt + 1));
-            continue;
-          }
+  toggle.addEventListener('click', async () => {
+    const open = widget.classList.toggle('is-open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      if (!conversationsLoaded) {
+        try {
+          await refreshHistory(!conversationId);
+        } catch (error) {
+          showError(error);
         }
       }
-      // Si agotamos reintentos
-      addMessage('El servidor está tardando más de lo esperado o no responde. Inténtalo nuevamente.', 'bot');
-      if(lastError) console.error(lastError);
-    }catch(err){
-      addMessage('Error al conectar con el servidor', 'bot');
-      console.error(err);
-    }finally{
-      clearInterval(typingUpdater);
-      setTyping(false);
+      input.focus();
     }
-  }
+  });
 
-  toggleBtn.addEventListener('click', toggleWidget);
-  minBtn.addEventListener('click', minimizeWidget);
-  closeBtn.addEventListener('click', () => { widget.style.display = 'none'; });
-  sendBtn.addEventListener('click', send);
-  input.addEventListener('keypress', e => { if(e.key === 'Enter') send(); });
+  widget.querySelector('#cb-history').addEventListener('click', async () => {
+    historyPanel.hidden = !historyPanel.hidden;
+    if (!historyPanel.hidden) {
+      try {
+        await refreshHistory(false);
+      } catch (error) {
+        showError(error);
+      }
+    }
+  });
+  widget.querySelector('#cb-new').addEventListener('click', () => {
+    conversationId = null;
+    historyPanel.hidden = true;
+    showWelcome();
+    input.focus();
+  });
+  widget.querySelector('#cb-min').addEventListener('click', () => widget.classList.toggle('is-minimized'));
+  widget.querySelector('#cb-close').addEventListener('click', () => {
+    widget.classList.remove('is-open');
+    toggle.setAttribute('aria-expanded', 'false');
+  });
+  form.addEventListener('submit', sendMessage);
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  showWelcome();
 })();

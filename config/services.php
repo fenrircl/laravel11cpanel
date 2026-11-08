@@ -45,9 +45,21 @@ return [
         'bearer' => env('MCP_BEARER'),
     ],
 
+    'openai' => [
+        'enabled' => env('ASSISTANT_CHAT_ENABLED', false),
+        'api_key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-6-luna'),
+        'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'medium'),
+        'max_output_tokens' => (int) env('OPENAI_MAX_OUTPUT_TOKENS', 700),
+        'timeout' => (int) env('OPENAI_TIMEOUT', 35),
+    ],
+
     // n8n webhook endpoint
     'n8n' => [
         'webhook_url' => env('N8N_WEBHOOK_URL'),
+        'ingest_bearer' => env('N8N_INGEST_BEARER'),
+        'pdf_webhook_url' => env('N8N_PDF_PROCESS_WEBHOOK_URL'),
+        'pdf_webhook_bearer' => env('N8N_PDF_WEBHOOK_BEARER'),
     ],
 
 ];

@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: AcerosEra Read-only Assistant API
+  version: 1.0.0
+  description: >-
+    Read-only customer, supplier, invoice, quotation and invoice-document queries. Every
+    request runs with the permissions of the user who owns the Bearer token.
+servers:
+  - url: https://YOUR-DOMAIN.example
+    description: Replace with the public HTTPS origin of the cPanel application.
+security:
+  - BearerAuth: []
+paths:
+  /api/v1/assistant/search:
+    post:
+      operationId: searchSystemRecords
+      summary: Search clients, providers, invoices or quotations
+      description: Returns at most five matching records. Use the returned client/provider id to list associated documents, then retrieve full invoice or quotation details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [entity]
+              properties:
+                entity:
+                  type: string
+                  enum: [clients, providers, invoices, quotations]
+                term:
+                  type: [string, 'null']
+                  maxLength: 120
+                  description: Name, RUT, email, phone, invoice number or exact amount. Null returns recent records.
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  default: 5
+      responses:
+        '200':
+          description: Matching records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      entity: { type: string }
+                      count: { type: integer }
+                      records: { type: array, items: { type: object } }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/party/records:
+    post:
+      operationId: listPartyRecords
+      summary: List a client's invoices and quotations or a provider's invoices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [party_type, party_id, record_type]
+              properties:
+                party_type: { type: string, enum: [client, provider] }
+                party_id: { type: integer, minimum: 1 }
+                record_type: { type: string, enum: [all, invoices, quotations] }
+                limit: { type: integer, minimum: 1, maximum: 10, default: 10 }
+      responses:
+        '200': { description: Matching invoice and quotation summaries }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/invoices/details:
+    post:
+      operationId: getInvoiceDetails
+      summary: Get complete invoice information
+      description: Use invoice_id for an unambiguous lookup. invoice_number can return multiple records if numbers are reused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                invoice_id: { type: [integer, 'null'], minimum: 1 }
+                invoice_number: { type: [string, 'null'], maxLength: 80 }
+              anyOf:
+                - required: [invoice_id]
+                - required: [invoice_number]
+      responses:
+        '200': { description: Invoice details and attached PDF processing status }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/quotations/details:
+    post:
+      operationId: getQuotationDetails
+      summary: Get complete quotation information and line items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [quotation_id]
+              properties:
+                quotation_id: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Quotation, client, line items, totals and attached files }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/invoices/summary:
+    post:
+      operationId: summarizeInvoices
+      summary: Get invoice counts and totals
+      description: Returns only aggregate values; filters can restrict party, status and invoice date range.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [party_type, status]
+              properties:
+                party_type: { type: string, enum: [all, client, provider] }
+                party_name: { type: [string, 'null'], maxLength: 120 }
+                status: { type: string, enum: [all, paid, pending, overdue] }
+                start_date: { type: [string, 'null'], format: date }
+                end_date: { type: [string, 'null'], format: date }
+                date_basis: { type: string, enum: [invoice, due, payment], default: invoice }
+      responses:
+        '200':
+          description: Aggregate invoice totals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      amount_total: { type: integer }
+                      currency: { type: string, const: CLP }
+                      filters: { type: object }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/invoices/schedule:
+    post:
+      operationId: findInvoicesByDueStatus
+      summary: Find invoices due this month, overdue or pending
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode: { type: string, enum: [due_before_month_end, overdue, pending] }
+                party_name: { type: [string, 'null'], maxLength: 120 }
+                limit: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        '200': { description: Pending invoice list with calculated overdue status }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/providers/balances:
+    post:
+      operationId: summarizeProviderBalances
+      summary: Get pending and overdue balance by provider
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                limit: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        '200': { description: Pending invoice balances grouped by provider }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+  /api/v1/assistant/invoice-documents/search:
+    post:
+      operationId: searchInvoiceDocumentText
+      summary: Search processed invoice PDF text
+      description: Returns at most three short excerpts from Markdown produced by the n8n PDF workflow.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [term]
+              properties:
+                term: { type: string, minLength: 2, maxLength: 120 }
+                invoice_number: { type: [string, 'null'], maxLength: 80 }
+                limit: { type: integer, minimum: 1, maximum: 3, default: 3 }
+      responses:
+        '200':
+          description: Matching document excerpts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      documents: { type: array, items: { type: object } }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '422': { description: Invalid query parameters }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User API token

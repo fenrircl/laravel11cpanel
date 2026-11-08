@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use App\Models\FilesRegistry;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogger;
@@ -465,6 +466,11 @@ class R2Controller extends Controller
                     'created_at' => now()
                 ]);
 
+                if (strtolower((string) $file->getClientOriginalExtension()) === 'pdf'
+                    || strtolower((string) $file->getMimeType()) === 'application/pdf') {
+                    $this->notifyN8nAboutInvoicePdf((int) $factura->id, (int) $fileRegistry->id);
+                }
+
                 \Log::info('Archivo registrado en base de datos:', [
                     'file_registry_id' => $fileRegistry->id,
                     'model_type' => $fileRegistry->model_type,
@@ -574,6 +580,12 @@ class R2Controller extends Controller
                 'created_at' => now()
             ]);
 
+            if ($modelType === 'App\\Invoice'
+                && (strtolower((string) $file->getClientOriginalExtension()) === 'pdf'
+                    || strtolower((string) $file->getMimeType()) === 'application/pdf')) {
+                $this->notifyN8nAboutInvoicePdf((int) $modelId, (int) $fileRegistry->id);
+            }
+
             // Auditoría
             AuditLogger::log($request, 'upload', 'archivos', $modelId, 'Subió archivo a ' . $modelType . ' #' . $modelId);
 
@@ -609,6 +621,81 @@ class R2Controller extends Controller
                 'message' => $errorMessage
             ], 500);
         }
+    }
+
+    /** Notify n8n after the upload response is sent; a webhook outage must not fail the upload. */
+    private function notifyN8nAboutInvoicePdf(int $invoiceId, int $fileId): void
+    {
+        app()->terminating(function () use ($invoiceId, $fileId): void {
+            $url = (string) config('services.n8n.pdf_webhook_url', '');
+            $ingestBearer = (string) config('services.n8n.ingest_bearer', '');
+
+            if ($url === '' || $ingestBearer === '') {
+                return;
+            }
+
+            try {
+                $invoice = DB::table('invoices')->where('id', $invoiceId)->first();
+                $file = FilesRegistry::find($fileId);
+                if (!$invoice || !$file) {
+                    return;
+                }
+
+                $isClientInvoice = !empty($invoice->client_id);
+                $partyId = $isClientInvoice ? $invoice->client_id : $invoice->provider_id;
+                $partyTable = $isClientInvoice ? 'clients' : 'providers';
+                $party = $partyId ? DB::table($partyTable)->where('id', $partyId)->value('name') : null;
+                $callback = url("/api/v1/automation/invoices/{$invoiceId}/documents/{$fileId}/markdown");
+
+                $headers = [];
+                $webhookBearer = (string) config('services.n8n.pdf_webhook_bearer', '');
+                if ($webhookBearer !== '') {
+                    $headers['Authorization'] = 'Bearer ' . $webhookBearer;
+                }
+
+                $response = Http::acceptJson()
+                    ->withHeaders($headers)
+                    ->connectTimeout(3)
+                    ->timeout(12)
+                    ->post($url, [
+                        'invoice' => [
+                            'id' => (int) $invoice->id,
+                            'number' => (string) $invoice->invoice,
+                            'client_id' => $invoice->client_id ? (int) $invoice->client_id : null,
+                            'provider_id' => $invoice->provider_id ? (int) $invoice->provider_id : null,
+                            'party_type' => $isClientInvoice ? 'client' : 'provider',
+                            'party_id' => $partyId ? (int) $partyId : null,
+                            'party_name' => $party,
+                            'amount' => (int) $invoice->amount,
+                            'date' => $invoice->date,
+                            'due_date' => $invoice->expiry,
+                            'status' => (int) $invoice->status === 1 ? 'paid' : 'pending',
+                        ],
+                        'file' => [
+                            'id' => (int) $file->id,
+                            'r2_key' => $file->path,
+                            'file_name' => $file->file_name,
+                            'mime_type' => $file->mime_type,
+                            'size_bytes' => (int) $file->size,
+                        ],
+                        'callback_url' => $callback,
+                    ]);
+
+                if (!$response->successful()) {
+                    \Log::warning('n8n PDF workflow rejected an invoice file', [
+                        'invoice_id' => $invoiceId,
+                        'file_id' => $fileId,
+                        'status' => $response->status(),
+                    ]);
+                }
+            } catch (\Throwable $exception) {
+                \Log::warning('Could not notify n8n about an invoice PDF', [
+                    'invoice_id' => $invoiceId,
+                    'file_id' => $fileId,
+                    'exception' => get_class($exception),
+                ]);
+            }
+        });
     }
 
     /**

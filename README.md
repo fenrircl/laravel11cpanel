@@ -64,3 +64,30 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Actualización y despliegue en cPanel
+
+La aplicación se despliega desde Git en cPanel y las dependencias de PHP se publican en `vendor.zip`, porque el servidor no tiene acceso SSH ni ejecuta Composer.
+
+1. Antes de actualizar, crea una copia de seguridad de los archivos de la aplicación y de la base de datos.
+2. En cPanel, usa Git Version Control para hacer `Pull` del repositorio.
+3. En el Administrador de archivos, localiza `vendor.zip` en la raíz del proyecto y elige **Extraer** en esa misma ubicación. Confirma que se sobrescriba la carpeta `vendor` existente. El ZIP contiene la carpeta `vendor/`.
+4. Comprueba que el sitio use PHP 8.2 o superior y abre la aplicación. Si el hosting ofrece una opción para limpiar la caché de Laravel, úsala después de la actualización.
+
+`composer.json` y `composer.lock` describen las dependencias; `vendor.zip` contiene las dependencias de producción ya instaladas y optimizadas. Al actualizar dependencias en desarrollo, hay que regenerar y versionar `composer.json`, `composer.lock` y `vendor.zip` para que el despliegue por cPanel quede sincronizado.
+
+Esta actualización sube Laravel de la rama 11 a Laravel 12.71.0 para incluir las correcciones de seguridad. Conviene revisar el funcionamiento de las pantallas principales y de los flujos de autenticación después de desplegarla.
+
+## Asistente y conexión con ChatGPT
+
+El widget queda apagado por defecto. Para activarlo en el `.env` del servidor, configura `ASSISTANT_CHAT_ENABLED=true` y `OPENAI_API_KEY`; para apagarlo, cambia el flag a `false`. El prompt, modelo, razonamiento y máximo de tokens de salida se editan desde **Administración → Información del sistema** y quedan guardados en la base de datos. La API key y el interruptor de activación permanecen en `.env`. El historial completo queda en la base de datos por usuario, mientras cada llamada envía como máximo los últimos cuatro turnos para controlar tokens.
+
+La sección **Auditoría de uso del chatbot** de esa misma pantalla registra usuario, mensajes, modelo, tokens de entrada/salida, llamadas a funciones, duración y estado. Para la Action de ChatGPT, el servidor registra las consultas de datos pero no puede conocer los tokens que ChatGPT factura al usuario.
+
+El asistente puede buscar clientes, proveedores, facturas y cotizaciones; listar las facturas/cotizaciones de un cliente; consultar el detalle completo de una factura o cotización; encontrar facturas que vencen este mes o que ya están atrasadas; y sumar saldos pendientes por proveedor. Los resúmenes permiten filtrar por fecha de emisión, vencimiento o pago. Estas herramientas son de solo lectura y devuelven resultados acotados.
+
+La búsqueda y comparación histórica de precios de productos depende de que el workflow PDF de n8n extraiga las líneas de producto con descripción, cantidad y precio unitario. Hoy el sistema permite buscar texto dentro del Markdown recibido, pero no mantiene un catálogo normalizado de líneas de compra para comparar precios con fiabilidad. La conexión al correo electrónico tampoco está configurada todavía.
+
+En cPanel, importa una sola vez [`docs/sql/assistant-chat-schema.sql`](docs/sql/assistant-chat-schema.sql) desde phpMyAdmin después de respaldar la base de datos. Ese SQL crea las tablas de conversaciones, tokens, configuración, auditoría de uso y contexto de documentos. Al actualizar un despliegue ya existente, importa la versión actualizada del SQL; las instrucciones `IF NOT EXISTS` conservan las tablas y datos existentes y crean las nuevas. La guía del workflow n8n está en [`docs/n8n-invoice-pdf-workflow.md`](docs/n8n-invoice-pdf-workflow.md).
+
+Para conectar un GPT personalizado, inicia sesión y abre **Acceso API** en el menú. Crea un token con vencimiento y copia el secreto cuando se muestre. En la Action de ChatGPT configura autenticación **Bearer** e importa [`docs/chatgpt-actions-openapi.yaml`](docs/chatgpt-actions-openapi.yaml), reemplazando `YOUR-DOMAIN.example` por el dominio HTTPS de cPanel. Cada token queda asociado a un usuario y solo permite búsquedas de lectura. Revoca el token desde la misma pantalla cuando ya no lo necesites.

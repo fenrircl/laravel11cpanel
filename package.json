@@ -6,7 +6,7 @@
         "dev": "vite"
     },
     "overrides": {
-        "shell-quote": "1.8.4"
+        "shell-quote": "^1.11.0"
     },
     "devDependencies": {
         "concurrently": "^9.0.1",

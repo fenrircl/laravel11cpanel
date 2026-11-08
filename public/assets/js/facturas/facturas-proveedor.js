@@ -83,7 +83,11 @@ $(document).ready(function() {
                     const match = String(data || '').match(/\d+/);
                     return match ? parseInt(match[0], 10) : 0;
                 }
-                return data || '';
+                if (type === 'export') return data || '';
+                const label = row.pdf_processed
+                    ? '<span class="badge bg-success ms-1" title="PDF procesado y disponible como contexto">PDF procesado</span>'
+                    : (row.has_pdf ? '<span class="badge bg-warning text-dark ms-1" title="PDF adjunto; pendiente de procesamiento">PDF adjunto</span>' : '');
+                return `${$('<div>').text(data || '').html()} ${label}`;
             }
         },
         {

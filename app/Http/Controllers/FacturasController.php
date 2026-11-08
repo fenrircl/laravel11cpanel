@@ -64,7 +64,7 @@ class FacturasController extends Controller
      */
     public function getData()
     {
-        $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo'])
+        $facturas = Factura::with(['cliente:id,name', 'proveedor:id,name', 'metodoPago:id,name', 'archivo', 'archivos', 'documentContexts:id,invoice_id,file_registry_id,processed_at'])
                           ->select(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at', 'detail'])
                           ->orderBy('created_at', 'desc')
                           ->get()
@@ -74,6 +74,8 @@ class FacturasController extends Controller
                               $factura->entidad_nombre = $factura->client_id ? $factura->cliente?->name : $factura->proveedor?->name;
                               // Agregar información del archivo con codificación UTF-8 correcta
                               $factura->has_file = $factura->archivo ? true : false;
+                              $factura->has_pdf = $factura->has_pdf;
+                              $factura->pdf_processed = $factura->pdf_processed;
                               $factura->file_path = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               return $factura;
                           });
@@ -88,7 +90,7 @@ class FacturasController extends Controller
      */
     public function getClienteData()
     {
-        $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo'])
+        $facturas = Factura::with(['cliente:id,name', 'metodoPago:id,name', 'archivo', 'archivos', 'documentContexts:id,invoice_id,file_registry_id,processed_at'])
                           ->whereNotNull('client_id')
                           ->select(['id', 'invoice', 'client_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
@@ -96,6 +98,8 @@ class FacturasController extends Controller
                           ->map(function ($factura) {
                               $arr = $factura->toArray();
                               $arr['has_file'] = $factura->archivo ? true : false;
+                              $arr['has_pdf'] = $factura->has_pdf;
+                              $arr['pdf_processed'] = $factura->pdf_processed;
                               // Asegurar codificación UTF-8 correcta para la ruta del archivo
                               $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               // Forzar amount entero en la respuesta
@@ -113,7 +117,7 @@ class FacturasController extends Controller
      */
     public function getProveedorData()
     {
-        $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo'])
+        $facturas = Factura::with(['proveedor:id,name', 'metodoPago:id,name', 'archivo', 'archivos', 'documentContexts:id,invoice_id,file_registry_id,processed_at'])
                           ->whereNotNull('provider_id')
                           ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
@@ -121,6 +125,8 @@ class FacturasController extends Controller
                           ->map(function ($factura) {
                               $arr = $factura->toArray();
                               $arr['has_file'] = $factura->archivo ? true : false;
+                              $arr['has_pdf'] = $factura->has_pdf;
+                              $arr['pdf_processed'] = $factura->pdf_processed;
                               // Asegurar codificación UTF-8 correcta para la ruta del archivo
                               $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
                               // Forzar amount entero en la respuesta

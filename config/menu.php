@@ -52,6 +52,13 @@ return [
                 'auth_required' => true
             ],
             [
+                'title' => 'Acceso API',
+                'icon' => 'fas fa-key',
+                'route' => 'account.api-tokens',
+                'tooltip' => 'Tokens para integrar la API',
+                'auth_required' => true
+            ],
+            [
                 'title' => 'Cotizaciones',
                 'icon' => 'fas fa-file-alt',
                 'route' => 'cotizaciones.index',
@@ -114,6 +121,13 @@ return [
                 'icon' => 'fas fa-clipboard-list',
                 'route' => 'admin.audit.index',
                 'tooltip' => 'Logs de auditoría',
+                'auth_required' => true
+            ],
+            [
+                'title' => 'Información del sistema',
+                'icon' => 'fas fa-server',
+                'route' => 'admin.system-info.index',
+                'tooltip' => 'Versiones de PHP y dependencias instaladas',
                 'auth_required' => true
             ],
         ]
