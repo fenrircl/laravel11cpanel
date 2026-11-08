@@ -26,7 +26,7 @@ class OpenAiAssistantService
         $payload = [
             'model' => $this->settings->model(),
             'reasoning' => ['effort' => $this->settings->reasoningEffort()],
-            'instructions' => $this->settings->prompt(),
+            'instructions' => $this->settings->prompt()."\n\nFormato visual: responde con Markdown. Usa como máximo 2 emojis funcionales por respuesta (por ejemplo 📅, 🧾, 💰, ✅ o ⚠️), solo en títulos o avisos; nunca repitas emojis en cada fila. Mantén tablas cuando faciliten comparar datos.",
             'input' => $history,
             'tools' => $this->tools(),
             'tool_choice' => 'auto',
