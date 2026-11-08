@@ -91,6 +91,7 @@ class SystemInfoController extends Controller
                 'max_output_tokens' => $assistantSettings->maxOutputTokens(),
             ],
             'assistantEnabled' => (bool) config('services.openai.enabled'),
+            'usageTableExists' => $usageTableExists,
             'usageLogs' => $usageLogs,
             'usageTotals' => $usageTotals,
             'asset_css' => ['comun/tablas'],
