@@ -19,10 +19,12 @@ El nodo está configurado para observar correos nuevos no leídos y no marcar lo
 1. En n8n abre **Settings → Community Nodes → Install**.
 2. Instala el paquete `n8n-nodes-imap-ai` y espera a que n8n termine la instalación.
 3. Importa `email-search-cpanel.json`. Si ya estaba importado, recarga el editor para que resuelva el tipo `n8n-nodes-imap-ai.imap`.
-4. En ambos nodos **IMAP (AI)**, crea/selecciona una credencial de tipo **IMAP API** con los datos seguros de cPanel (host, puerto 993/TLS, correo completo y contraseña).
+4. En los cuatro nodos IMAP (**Buscar** y **Obtener correo**, para Recibidos y Enviados), selecciona la misma credencial **IMAP API** con los datos seguros de cPanel (host, puerto 993/TLS, correo completo y contraseña).
 5. En el nodo **Webhook desde Laravel**, crea/selecciona una credencial **Header Auth**: encabezado `Authorization`, valor `Bearer <secreto-largo>`. Laravel debe enviar el mismo encabezado.
 6. Confirma el nombre real de la carpeta de enviados de cPanel y cambia `Sent` en el nodo **Buscar en Enviados** si el servidor usa otro nombre, como `Sent Items` o `INBOX.Sent`.
-7. Prueba el webhook de prueba en n8n y luego activa el workflow para utilizar la URL `/webhook/assistant/email/search`.
+7. En **Buscar en Recibidos** y **Buscar en Enviados**, confirma **Search Emails → Simple Search** y `Quick Filter: All Emails`. El JSON incluido prioriza `filters.contact_email` como texto de búsqueda.
+8. Comprueba que la búsqueda pase por **Expandir UID** y luego **Obtener correo** antes de preparar la respuesta. Search Emails localiza mensajes y devuelve UID; Obtener correo usa cada UID para leer asunto, remitente, destinatarios, fecha y cuerpo.
+9. Prueba el webhook de prueba en n8n y luego activa el workflow para utilizar la URL `/webhook/assistant/email/search`.
 
 El paquete de IMAP es un nodo comunitario de terceros, no está incluido en n8n estándar y la publicación del workflow falla con `Unrecognized node type: n8n-nodes-imap-ai.imap` mientras no esté instalado. La instalación de nodos comunitarios ejecuta código de terceros dentro de n8n; revisa el paquete y la política de tu instancia antes de instalarlo. La integración documentada requiere n8n autohospedado que permita instalar ese paquete.
 
@@ -44,7 +46,11 @@ Laravel debe traducir la pregunta del usuario a filtros concretos y enviar, por 
 
 Y devolver solo coincidencias acotadas: fecha, remitente/destinatario, asunto, identificador del mensaje, nombres de adjuntos y un extracto breve. Laravel conserva la autenticación del usuario del chat y su auditoría; el secreto entre Laravel y n8n autentica la llamada de servidor a servidor.
 
-El workflow de búsqueda consulta en vivo `INBOX` y `Sent`, no cambia marcas de leído y no descarga los adjuntos. Busca texto en encabezados/cuerpo y aplica remitente, destinatario, asunto y fechas como filtros IMAP combinados. Si Laravel resuelve un contacto del CRM, el workflow aplica su correo como remitente en recibidos y como destinatario en enviados. Devuelve máximo 10 resultados entre ambas carpetas y limita cada extracto a 700 caracteres. Si la carpeta `Sent` no existe, esa búsqueda fallará hasta ajustar el nombre. La dirección de contacto se filtra en encabezados IMAP; no se envía al modelo como consulta adicional.
+El workflow de búsqueda consulta en vivo `INBOX` y `Sent`, no cambia marcas de leído y no descarga adjuntos. En **Simple Search**, usa el correo del contacto como texto de búsqueda. Luego recupera los mensajes por UID antes de preparar la respuesta: esto evita devolver `{}` cuando solo se entregan identificadores. Si Laravel resuelve un contacto del CRM, `contact_email` tiene prioridad sobre el nombre. Recupera hasta `limit` mensajes por carpeta y limita cada extracto a 700 caracteres. Si la carpeta `Sent` no existe, cambia el nombre según la configuración IMAP de cPanel.
+
+Para combinar varios criterios (por ejemplo, remitente, asunto y fechas), usa **Advanced Search** y configura los filtros en `advancedCriteria`. El JSON incluido usa Simple Search para resolver primero la búsqueda habitual por correo de contacto con el nodo comunitario instalado.
+
+Si el webhook devuelve elementos `{}`, revisa que los nodos **Obtener correo recibido/enviado** estén conectados después de **Expandir UID** y tengan seleccionada la misma credencial IMAP.
 
 El webhook **no interpreta texto libre ni llama a OpenAI**: Laravel debe extraer los filtros de la pregunta y enviar el JSON estructurado. Esto evita otra llamada de modelo y mantiene la autorización/auditoría en Laravel. El workflow no procesa el contenido de los PDF; esa tarea sigue en el workflow separado de facturas.
 
