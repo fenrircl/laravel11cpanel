@@ -29,6 +29,8 @@ class AssistantApiController extends Controller
             'start_date' => ['nullable', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'date_basis' => ['sometimes', 'in:invoice,due,payment'],
+            'group_by' => ['sometimes', 'in:none,month'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ]);
 
         return response()->json(['data' => $data->summarizeInvoices($arguments)]);

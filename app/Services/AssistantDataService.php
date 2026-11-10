@@ -276,7 +276,64 @@ class AssistantDataService
         ]];
     }
 
-    /** Return count and amount totals without sending invoice rows to the model. */
+    /** Aggregate quotation count and gross totals by month for a complete calendar year. */
+    public function summarizeQuotations(array $arguments): array
+    {
+        $validated = Validator::make($arguments, [
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'client_name' => ['nullable', 'string', 'max:120'],
+        ])->validate();
+
+        $timezone = config('assistant.quota_timezone', 'America/Santiago');
+        $year = (int) ($validated['year'] ?? CarbonImmutable::now($timezone)->year);
+        $startDate = sprintf('%04d-01-01', $year);
+        $endDate = sprintf('%04d-01-01', $year + 1);
+        $clientName = trim((string) ($validated['client_name'] ?? ''));
+
+        $query = Cotizacion::query()
+            ->where('date', '>=', $startDate)
+            ->where('date', '<', $endDate);
+        if ($clientName !== '') {
+            $like = $this->likePattern($clientName);
+            $query->whereHas('cliente', fn ($client) => $client->where('name', 'like', $like));
+        }
+
+        $aggregates = $query
+            ->selectRaw('MONTH(date) as month_number, COUNT(*) as quotation_count, COALESCE(SUM(total), 0) as amount_total')
+            ->groupByRaw('MONTH(date)')
+            ->orderByRaw('MONTH(date)')
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->month_number);
+
+        $monthNames = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+        ];
+        $monthly = [];
+        $yearCount = 0;
+        $yearTotal = 0;
+        foreach ($monthNames as $month => $name) {
+            $row = $aggregates->get($month);
+            $count = (int) ($row->quotation_count ?? 0);
+            $total = (int) ($row->amount_total ?? 0);
+            $yearCount += $count;
+            $yearTotal += $total;
+            $monthly[] = ['month' => $month, 'label' => $name, 'count' => $count, 'total' => $total];
+        }
+
+        return [
+            'year' => $year,
+            'client_name' => $clientName !== '' ? $clientName : null,
+            'currency' => 'CLP',
+            'total_quotations' => $yearCount,
+            'year_total' => $yearTotal,
+            'monthly' => $monthly,
+            'total_basis' => 'quotations.total (total con IVA)',
+        ];
+    }
+
+    /** Return invoice sums, averages, and optional monthly aggregates without sending rows to the model. */
     public function summarizeInvoices(array $arguments): array
     {
         $validated = Validator::make($arguments, [
@@ -286,6 +343,8 @@ class AssistantDataService
             'start_date' => ['nullable', 'date_format:Y-m-d'],
             'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'date_basis' => ['sometimes', Rule::in(['invoice', 'due', 'payment'])],
+            'group_by' => ['sometimes', Rule::in(['none', 'month'])],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
         ])->validate();
 
         $query = Factura::query();
@@ -323,28 +382,91 @@ class AssistantDataService
         $dateColumn = match ($validated['date_basis'] ?? 'invoice') {
             'due' => 'expiry', 'payment' => 'pay_date', default => 'date',
         };
-        if (!empty($validated['start_date'])) {
-            $query->whereDate($dateColumn, '>=', $validated['start_date']);
-        }
-        if (!empty($validated['end_date'])) {
-            $query->whereDate($dateColumn, '<=', $validated['end_date']);
+        $groupBy = $validated['group_by'] ?? 'none';
+        $startDate = $validated['start_date'] ?? null;
+        $endDate = $validated['end_date'] ?? null;
+        $year = $validated['year'] ?? null;
+        if ($groupBy === 'month') {
+            $timezone = config('assistant.quota_timezone', 'America/Santiago');
+            $year ??= (int) CarbonImmutable::parse($startDate ?? $endDate ?? CarbonImmutable::now($timezone)->toDateString())->year;
+            $yearStart = sprintf('%04d-01-01', $year);
+            $yearEnd = sprintf('%04d-01-01', $year + 1);
+            $startDate ??= $yearStart;
+            $endDate ??= sprintf('%04d-12-31', CarbonImmutable::parse($startDate)->year);
+            $query->whereDate($dateColumn, '>=', $startDate)
+                ->whereDate($dateColumn, '<=', $endDate)
+                ->whereNotNull($dateColumn);
+        } else {
+            if ($startDate !== null) {
+                $query->whereDate($dateColumn, '>=', $startDate);
+            }
+            if ($endDate !== null) {
+                $query->whereDate($dateColumn, '<=', $endDate);
+            }
+            if ($year !== null) {
+                $query->whereYear($dateColumn, $year);
+            }
         }
 
-        $summary = $query->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as amount_total')->first();
+        $summary = (clone $query)->selectRaw(
+            'COUNT(*) as count, COALESCE(SUM(amount), 0) as amount_total, COALESCE(AVG(amount), 0) as average_amount'
+        )->first();
 
-        return [
+        $result = [
             'count' => (int) $summary->count,
             'amount_total' => (int) $summary->amount_total,
+            'average_amount' => round((float) $summary->average_amount, 2),
             'currency' => 'CLP',
             'filters' => [
                 'party_type' => $validated['party_type'],
                 'party_name' => $partyName !== '' ? $partyName : null,
                 'status' => $validated['status'],
                 'date_basis' => $dateColumn,
-                'start_date' => $validated['start_date'] ?? null,
-                'end_date' => $validated['end_date'] ?? null,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'year' => $year,
             ],
         ];
+
+        if ($groupBy === 'month') {
+            $grouped = (clone $query)
+                ->selectRaw("YEAR({$dateColumn}) as year_number, MONTH({$dateColumn}) as month_number, COUNT(*) as count, COALESCE(SUM(amount), 0) as amount_total, COALESCE(AVG(amount), 0) as average_amount")
+                ->groupByRaw("YEAR({$dateColumn}), MONTH({$dateColumn})")
+                ->orderByRaw("YEAR({$dateColumn}), MONTH({$dateColumn})")
+                ->get()
+                ->keyBy(fn ($row) => sprintf('%04d-%02d', $row->year_number, $row->month_number));
+
+            $monthNames = [
+                1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+                5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+                9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre',
+            ];
+            $monthly = [];
+            $monthCursor = CarbonImmutable::parse($startDate)->startOfMonth();
+            $lastMonth = CarbonImmutable::parse($endDate)->startOfMonth();
+            while ($monthCursor <= $lastMonth) {
+                $period = $monthCursor->format('Y-m');
+                $row = $grouped->get($period);
+                $label = $monthNames[(int) $monthCursor->format('n')];
+                if ($monthCursor->year !== CarbonImmutable::parse($startDate)->year
+                    || $monthCursor->year !== CarbonImmutable::parse($endDate)->year) {
+                    $label .= ' '.$monthCursor->year;
+                }
+                $monthly[] = [
+                    'year' => $monthCursor->year,
+                    'month' => (int) $monthCursor->format('n'),
+                    'period' => $period,
+                    'label' => $label,
+                    'count' => (int) ($row->count ?? 0),
+                    'amount_total' => (int) ($row->amount_total ?? 0),
+                    'average_amount' => round((float) ($row->average_amount ?? 0), 2),
+                ];
+                $monthCursor = $monthCursor->addMonth();
+            }
+            $result['monthly'] = $monthly;
+        }
+
+        return $result;
     }
 
     /** Search invoices by any combination of number, party, amount, date, and status. */

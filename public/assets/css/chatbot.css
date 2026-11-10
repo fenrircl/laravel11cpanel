@@ -307,17 +307,18 @@
   border-radius: 12px;
   background: #fff;
 }
-.cb-chart-title {
-  margin: 0 0 8px;
-  color: #173f52;
-  font-size: 16px;
-  line-height: 1.35;
-}
-.cb-chart-canvas {
-  display: block;
+.cb-chart-echarts {
   width: 100%;
-  height: auto;
+  height: 330px;
   border-radius: 7px;
+}
+.cb-chart-error {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  padding: 16px;
+  color: var(--cb-muted);
+  text-align: center;
 }
 .cb-chart-download {
   min-height: 38px;

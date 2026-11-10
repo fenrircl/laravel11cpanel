@@ -122,8 +122,8 @@ paths:
   /api/v1/assistant/invoices/summary:
     post:
       operationId: summarizeInvoices
-      summary: Get invoice counts and totals
-      description: Returns only aggregate values; filters can restrict party, status and invoice date range.
+      summary: Get invoice counts, totals, averages and monthly aggregates
+      description: Returns aggregate values without invoice rows. Filters can restrict client/provider, status, date range and date basis. Set group_by to month for full monthly totals and averages; year defaults to the current calendar year when no range is supplied.
       requestBody:
         required: true
         content:
@@ -139,6 +139,8 @@ paths:
                 start_date: { type: [string, 'null'], format: date }
                 end_date: { type: [string, 'null'], format: date }
                 date_basis: { type: string, enum: [invoice, due, payment], default: invoice }
+                group_by: { type: string, enum: [none, month], default: none }
+                year: { type: [integer, 'null'], minimum: 2000, maximum: 2100 }
       responses:
         '200':
           description: Aggregate invoice totals
@@ -152,6 +154,8 @@ paths:
                     properties:
                       count: { type: integer }
                       amount_total: { type: integer }
+                      average_amount: { type: number }
+                      monthly: { type: array, items: { type: object } }
                       currency: { type: string, const: CLP }
                       filters: { type: object }
         '401': { description: Missing, invalid or expired Bearer token }
