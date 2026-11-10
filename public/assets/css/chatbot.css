@@ -346,6 +346,17 @@
 }
 .cb-input button:hover { background: var(--cb-primary-hover); }
 .cb-input button:disabled, .cb-input textarea:disabled { opacity: .65; cursor: wait; }
+.cb-quota {
+  flex: 0 0 auto;
+  padding: 8px 16px 10px;
+  border-top: 1px solid #e1e9ec;
+  background: #f7fafb;
+  color: var(--cb-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+.cb-quota[hidden] { display: none !important; }
 
 @media (max-width: 700px) {
   #chatbot-widget {

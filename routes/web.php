@@ -47,6 +47,7 @@ Route::get('/backup-db', [BackupController::class, 'download']);
 
 // Rutas protegidas (requieren autenticación)
 Route::middleware(['auth', 'assistant.enabled'])->group(function () {
+    Route::get('/chat/quota', [AssistantChatController::class, 'quota'])->name('chat.quota');
     Route::get('/chat/conversations', [AssistantChatController::class, 'index'])->name('chat.conversations.index');
     Route::get('/chat/conversations/{conversation}', [AssistantChatController::class, 'show'])->name('chat.conversations.show');
     Route::delete('/chat/conversations/{conversation}', [AssistantChatController::class, 'destroy'])->name('chat.conversations.destroy');

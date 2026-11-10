@@ -6,6 +6,8 @@ use App\Models\AssistantConversation;
 use App\Models\AssistantUsageLog;
 use App\Services\OpenAiAssistantService;
 use App\Services\AssistantSettingsService;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,6 +15,13 @@ use Throwable;
 
 class AssistantChatController extends Controller
 {
+    private const DAILY_MESSAGE_LIMIT = 5;
+
+    public function quota(Request $request): JsonResponse
+    {
+        return response()->json(['quota' => $this->quotaFor($request->user())]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $conversations = $request->user()->assistantConversations()
@@ -59,19 +68,57 @@ class AssistantChatController extends Controller
         ]);
 
         $user = $request->user();
-        if (!empty($validated['conversation_id'])) {
-            $conversation = $user->assistantConversations()->findOrFail($validated['conversation_id']);
-        } else {
-            $conversation = $user->assistantConversations()->create([
-                'title' => Str::limit(trim($validated['message']), 100),
-            ]);
-        }
-
         $userMessage = trim($validated['message']);
-        $conversation->messages()->create([
-            'role' => 'user',
-            'content' => $userMessage,
-        ]);
+        $startedAt = microtime(true);
+
+        // Lock the user row so simultaneous requests cannot exceed the daily limit.
+        [$conversation, $quota, $usageLog] = DB::transaction(function () use ($user, $validated, $userMessage, $startedAt) {
+            $lockedUser = $user->newQuery()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $quota = $this->quotaFor($lockedUser);
+
+            if (!$quota['is_admin'] && $quota['remaining'] < 1) {
+                return [null, $quota, null];
+            }
+
+            if (!empty($validated['conversation_id'])) {
+                $conversation = $lockedUser->assistantConversations()->findOrFail($validated['conversation_id']);
+            } else {
+                $conversation = $lockedUser->assistantConversations()->create([
+                    'title' => Str::limit($userMessage, 100),
+                ]);
+            }
+
+            $conversation->messages()->create([
+                'role' => 'user',
+                'content' => $userMessage,
+            ]);
+
+            // Reserve this request in the audit log before calling OpenAI. This
+            // makes the limit atomic and independent of conversation deletion.
+            $usageLog = AssistantUsageLog::query()->create([
+                'user_id' => $lockedUser->id,
+                'user_name' => $lockedUser->name,
+                'conversation_id' => $conversation->id,
+                'user_message' => $userMessage,
+                'model' => app(AssistantSettingsService::class)->model(),
+                'status' => 'processing',
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
+            if (!$quota['is_admin']) {
+                $quota['used']++;
+                $quota['remaining'] = max(0, $quota['limit'] - $quota['used']);
+            }
+
+            return [$conversation, $quota, $usageLog];
+        });
+
+        if (!$conversation) {
+            return response()->json([
+                'message' => 'Ya utilizaste tus 5 consultas de hoy. Podrás volver a escribir cuando se reinicie el contador.',
+                'quota' => $quota,
+            ], 429);
+        }
 
         // Keep the full transcript in the database, but send only the last four turns.
         $history = $conversation->messages()
@@ -86,7 +133,6 @@ class AssistantChatController extends Controller
             ->values()
             ->all();
 
-        $startedAt = microtime(true);
         try {
             $result = $assistant->answer($history);
         } catch (Throwable $exception) {
@@ -96,13 +142,7 @@ class AssistantChatController extends Controller
                 'exception' => get_class($exception),
             ]);
 
-            $this->writeUsageLog([
-                'user_id' => $user->id,
-                'user_name' => $user->name,
-                'conversation_id' => $conversation->id,
-                'user_message' => $userMessage,
-                'assistant_message' => null,
-                'model' => app(AssistantSettingsService::class)->model(),
+            $this->updateUsageLog($usageLog, [
                 'status' => 'failed',
                 'error_type' => class_basename($exception),
                 'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
@@ -111,6 +151,7 @@ class AssistantChatController extends Controller
             return response()->json([
                 'message' => 'No se pudo consultar el asistente. Revisa su configuración e inténtalo nuevamente.',
                 'conversation_id' => $conversation->id,
+                'quota' => $quota,
             ], 502);
         }
 
@@ -122,11 +163,7 @@ class AssistantChatController extends Controller
         ]);
         $conversation->touch();
 
-        $this->writeUsageLog([
-            'user_id' => $user->id,
-            'user_name' => $user->name,
-            'conversation_id' => $conversation->id,
-            'user_message' => $userMessage,
+        $this->updateUsageLog($usageLog, [
             'assistant_message' => $answer,
             'model' => $result['model'] ?? app(AssistantSettingsService::class)->model(),
             'input_tokens' => (int) ($result['usage']['input_tokens'] ?? 0),
@@ -139,6 +176,7 @@ class AssistantChatController extends Controller
 
         return response()->json([
             'conversation_id' => $conversation->id,
+            'quota' => $quota,
             'message' => [
                 'id' => $saved->id,
                 'role' => 'assistant',
@@ -156,14 +194,40 @@ class AssistantChatController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function writeUsageLog(array $data): void
+    private function updateUsageLog(AssistantUsageLog $log, array $data): void
     {
         try {
-            AssistantUsageLog::query()->create($data);
+            $log->update($data);
         } catch (Throwable $exception) {
             logger()->warning('Assistant usage audit could not be saved', [
                 'exception' => get_class($exception),
             ]);
         }
+    }
+
+    private function quotaFor($user): array
+    {
+        if ($user->hasRole('admin')) {
+            return ['is_admin' => true, 'limit' => null, 'used' => null, 'remaining' => null, 'reset_at' => null];
+        }
+
+        $timezone = config('assistant.quota_timezone', 'America/Santiago');
+        $localNow = CarbonImmutable::now($timezone);
+        $startUtc = $localNow->startOfDay()->utc();
+        $endUtc = $localNow->addDay()->startOfDay()->utc();
+        $used = AssistantUsageLog::query()
+            ->where('user_id', $user->id)
+            ->where('created_at', '>=', $startUtc)
+            ->where('created_at', '<', $endUtc)
+            ->count();
+
+        return [
+            'is_admin' => false,
+            'limit' => self::DAILY_MESSAGE_LIMIT,
+            'used' => (int) $used,
+            'remaining' => max(0, self::DAILY_MESSAGE_LIMIT - $used),
+            'reset_at' => $endUtc->toIso8601String(),
+            'reset_time' => $endUtc->setTimezone($timezone)->format('H:i'),
+        ];
     }
 }

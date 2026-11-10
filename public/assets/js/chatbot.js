@@ -33,6 +33,7 @@
       <textarea id="cb-text" rows="2" maxlength="2000" placeholder="Por ejemplo: ¿Qué facturas vencen este año?"></textarea>
       <div class="cb-submit-group"><span>Escriba aquí y presione Enviar</span><button id="cb-send" type="submit">Enviar</button></div>
     </form>
+    <div class="cb-quota" id="cb-quota" hidden aria-live="polite"></div>
   `;
 
   const resizeHandle = document.createElement('div');
@@ -177,6 +178,9 @@
   const form = widget.querySelector('#cb-form');
   const sendButton = widget.querySelector('#cb-send');
   const typing = widget.querySelector('#cb-typing');
+  const quotaCounter = widget.querySelector('#cb-quota');
+  let currentQuota = null;
+  let quotaRefreshTimer = null;
   const inlineIcons = {
     '📅': '<rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 11h18"></path>',
     '🧾': '<path d="M4 3h16v18l-3-2-3 2-3-2-3 2-4-2z"></path><path d="M8 8h8M8 12h8M8 16h4"></path>',
@@ -231,9 +235,47 @@
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.message || 'No se pudo completar la consulta.');
+      const error = new Error(payload.message || 'No se pudo completar la consulta.');
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
     return payload;
+  }
+
+  function applyQuota(quota) {
+    currentQuota = quota || null;
+    window.clearTimeout(quotaRefreshTimer);
+    if (!currentQuota || currentQuota.is_admin) {
+      quotaCounter.hidden = true;
+      input.disabled = busy;
+      sendButton.disabled = busy;
+      return;
+    }
+
+    quotaCounter.hidden = false;
+    const resetTime = currentQuota.reset_time || '00:00';
+    const resetTimestamp = Date.parse(currentQuota.reset_at || '');
+    if (Number.isFinite(resetTimestamp)) {
+      quotaRefreshTimer = window.setTimeout(
+        () => refreshQuota().catch(() => {}),
+        Math.max(1000, resetTimestamp - Date.now() + 1000),
+      );
+    }
+    quotaCounter.textContent = currentQuota.remaining > 0
+      ? `Consultas de hoy: ${currentQuota.used} de ${currentQuota.limit}. Se reinician a las ${resetTime}.`
+      : `Ya utilizaste tus ${currentQuota.limit} consultas de hoy. Se reinician a las ${resetTime}.`;
+    const reachedLimit = currentQuota.remaining < 1;
+    input.disabled = busy || reachedLimit;
+    sendButton.disabled = busy || reachedLimit;
+    input.placeholder = reachedLimit
+      ? 'El límite diario se reinicia a las ' + resetTime
+      : 'Por ejemplo: ¿Qué facturas vencen este año?';
+  }
+
+  async function refreshQuota() {
+    const result = await request('/quota');
+    applyQuota(result.quota);
   }
 
   function addMessage(content, role = 'assistant', isSafeHtml = false) {
@@ -270,8 +312,9 @@
 
   function setBusy(value) {
     busy = value;
-    input.disabled = value;
-    sendButton.disabled = value;
+    const reachedLimit = currentQuota && !currentQuota.is_admin && currentQuota.remaining < 1;
+    input.disabled = value || reachedLimit;
+    sendButton.disabled = value || reachedLimit;
     widget.setAttribute('aria-busy', value ? 'true' : 'false');
     typing.hidden = !value;
   }
@@ -356,10 +399,12 @@
         method: 'POST',
         body: JSON.stringify({ conversation_id: conversationId, message }),
       });
+      applyQuota(result.quota);
       conversationId = result.conversation_id;
       addMessage(result.message.content, 'assistant', true);
       conversationsLoaded = false;
     } catch (error) {
+      if (error?.payload?.quota) applyQuota(error.payload.quota);
       showError(error);
     } finally {
       setBusy(false);
@@ -371,6 +416,11 @@
     const open = widget.classList.toggle('is-open');
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) {
+      try {
+        await refreshQuota();
+      } catch (error) {
+        console.warn('No se pudo actualizar el contador diario del asistente.');
+      }
       if (!conversationsLoaded) {
         try {
           await refreshHistory(!conversationId);
