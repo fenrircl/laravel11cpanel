@@ -244,6 +244,16 @@
     if (role === 'assistant' && isSafeHtml) {
       // The server converts model Markdown to sanitized HTML before returning it.
       bubble.innerHTML = content;
+      bubble.querySelectorAll('table').forEach((table) => {
+        if (table.parentElement?.classList.contains('cb-table-scroll')) return;
+        const scroller = document.createElement('div');
+        scroller.className = 'cb-table-scroll';
+        scroller.tabIndex = 0;
+        scroller.setAttribute('role', 'region');
+        scroller.setAttribute('aria-label', 'Tabla; puede desplazarse horizontalmente');
+        table.parentNode.insertBefore(scroller, table);
+        scroller.appendChild(table);
+      });
       renderInlineIcons(bubble);
     } else {
       bubble.textContent = content;
