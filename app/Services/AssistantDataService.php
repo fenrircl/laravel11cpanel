@@ -16,6 +16,75 @@ use Illuminate\Validation\ValidationException;
 
 class AssistantDataService
 {
+    /** Resolve a CRM name to one unambiguous email address for mailbox searches. */
+    public function resolveEmailContact(string $name, string $partyType = 'all'): array
+    {
+        $name = trim($name);
+        if (mb_strlen($name) < 2 || !in_array($partyType, ['all', 'client', 'provider'], true)) {
+            return ['status' => 'not_found', 'matches' => []];
+        }
+
+        $like = $this->likePattern($name);
+        $matches = [];
+
+        if (in_array($partyType, ['all', 'provider'], true)) {
+            $matches = array_merge($matches, Proveedor::query()
+                ->select(['id', 'name', 'email'])
+                ->where('name', 'like', $like)
+                ->whereNotNull('email')
+                ->where('email', '<>', '')
+                ->orderBy('name')
+                ->limit(10)
+                ->get()
+                ->map(fn (Proveedor $provider) => [
+                    'id' => (int) $provider->id,
+                    'name' => (string) $provider->name,
+                    'email' => trim((string) $provider->email),
+                    'type' => 'provider',
+                ])->all());
+        }
+
+        if (in_array($partyType, ['all', 'client'], true)) {
+            $matches = array_merge($matches, Cliente::query()
+                ->select(['id', 'name', 'email'])
+                ->where('name', 'like', $like)
+                ->whereNotNull('email')
+                ->where('email', '<>', '')
+                ->orderBy('name')
+                ->limit(10)
+                ->get()
+                ->map(fn (Cliente $client) => [
+                    'id' => (int) $client->id,
+                    'name' => (string) $client->name,
+                    'email' => trim((string) $client->email),
+                    'type' => 'client',
+                ])->all());
+        }
+
+        $exactMatches = array_values(array_filter(
+            $matches,
+            fn (array $match) => mb_strtolower($match['name']) === mb_strtolower($name)
+        ));
+        if ($exactMatches !== []) {
+            $matches = $exactMatches;
+        }
+
+        $unique = [];
+        foreach ($matches as $match) {
+            $unique[mb_strtolower($match['email'])] = $match;
+        }
+        $matches = array_values($unique);
+
+        if (count($matches) === 1) {
+            return ['status' => 'matched', 'contact' => $matches[0], 'matches' => $matches];
+        }
+
+        return [
+            'status' => $matches === [] ? 'not_found' : 'ambiguous',
+            'matches' => array_slice($matches, 0, 5),
+        ];
+    }
+
     /**
      * Return a small, allow-listed result set for the assistant.
      * The model never receives a database connection or arbitrary SQL access.

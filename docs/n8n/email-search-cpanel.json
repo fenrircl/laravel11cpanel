@@ -21,7 +21,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const incoming = $input.first()?.json ?? {};\nlet body = incoming.body ?? incoming;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch { throw new Error('El body debe ser JSON válido.'); }\n}\nif (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('El body debe ser un objeto JSON.');\nconst direction = String(body.direction ?? 'both').toLowerCase();\nif (!['inbound', 'sent', 'both'].includes(direction)) throw new Error('direction debe ser inbound, sent o both.');\nconst clean = (value, max = 180) => {\n  if (value === undefined || value === null) return '';\n  if (typeof value !== 'string' && typeof value !== 'number') throw new Error('Los filtros deben ser texto.');\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, max);\n};\nconst isoDate = (value, name) => {\n  const v = clean(value, 10);\n  if (!v) return '';\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(v) || Number.isNaN(Date.parse(v + 'T00:00:00Z'))) throw new Error(name + ' debe usar YYYY-MM-DD.');\n  return v;\n};\nconst filters = {\n  text: clean(body.query ?? body.text, 180),\n  from: clean(body.from, 180),\n  to: clean(body.to, 180),\n  subject: clean(body.subject, 180),\n  since: isoDate(body.after ?? body.since, 'after'),\n  before: isoDate(body.before, 'before'),\n};\nif (!Object.values(filters).some(Boolean)) throw new Error('Incluye al menos un filtro: query, from, to, subject, after o before.');\nif (filters.since && filters.before && filters.since > filters.before) throw new Error('after no puede ser posterior a before.');\nconst limit = Math.max(1, Math.min(10, Number.parseInt(body.limit ?? 5, 10) || 5));\nreturn [{ json: { direction, filters, limit } }];"
+        "jsCode": "const incoming = $input.first()?.json ?? {};\nlet body = incoming.body ?? incoming;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch { throw new Error('El body debe ser JSON válido.'); }\n}\nif (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('El body debe ser un objeto JSON.');\nconst direction = String(body.direction ?? 'both').toLowerCase();\nif (!['inbound', 'sent', 'both'].includes(direction)) throw new Error('direction debe ser inbound, sent o both.');\nconst clean = (value, max = 180) => {\n  if (value === undefined || value === null) return '';\n  if (typeof value !== 'string' && typeof value !== 'number') throw new Error('Los filtros deben ser texto.');\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, max);\n};\nconst isoDate = (value, name) => {\n  const v = clean(value, 10);\n  if (!v) return '';\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(v) || Number.isNaN(Date.parse(v + 'T00:00:00Z'))) throw new Error(name + ' debe usar YYYY-MM-DD.');\n  return v;\n};\nconst filters = {\n  text: clean(body.query ?? body.text, 180),\n  contact_email: clean(body.contact_email, 180),\n  from: clean(body.from, 180),\n  to: clean(body.to, 180),\n  subject: clean(body.subject, 180),\n  since: isoDate(body.after ?? body.since, 'after'),\n  before: isoDate(body.before, 'before'),\n};\nif (!Object.values(filters).some(Boolean)) throw new Error('Incluye al menos un filtro: query, from, to, subject, after o before.');\nif (filters.since && filters.before && filters.since > filters.before) throw new Error('after no puede ser posterior a before.');\nconst limit = Math.max(1, Math.min(10, Number.parseInt(body.limit ?? 5, 10) || 5));\nreturn [{ json: { direction, filters, limit } }];"
       },
       "id": "f18bb8ad-99c5-4fb1-8c65-5cc736f96b71",
       "name": "Validar y preparar filtros",
@@ -39,7 +39,7 @@
         "mailbox": "INBOX",
         "searchFilters": {
           "before": "={{ $json.filters.before }}",
-          "from": "={{ $json.filters.from }}",
+          "from": "={{ $json.filters.from || $json.filters.contact_email }}",
           "since": "={{ $json.filters.since }}",
           "subject": "={{ $json.filters.subject }}",
           "text": "={{ $json.filters.text }}",
@@ -73,7 +73,7 @@
           "since": "={{ $json.filters.since }}",
           "subject": "={{ $json.filters.subject }}",
           "text": "={{ $json.filters.text }}",
-          "to": "={{ $json.filters.to }}"
+          "to": "={{ $json.filters.to || $json.filters.contact_email }}"
         },
         "options": {
           "limit": "={{ $json.limit }}",

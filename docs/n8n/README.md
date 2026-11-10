@@ -30,19 +30,21 @@ Laravel debe traducir la pregunta del usuario a filtros concretos y enviar, por 
 
 ```json
 {
-  "direction": "inbound",
-  "sender": "proveedor@example.com",
-  "subject_or_body": "factura 10471587",
+  "direction": "both",
+  "query": "factura 10471587",
+  "contact_email": "proveedor@example.com",
+  "from": "",
+  "to": "",
+  "subject": "",
   "after": "2026-11-01",
-  "before": "2026-11-30",
-  "has_attachments": true,
+  "before": "2026-12-01",
   "limit": 5
 }
 ```
 
-Y devolver solo coincidencias acotadas: fecha, remitente/destinatario, asunto, identificador del mensaje, nombres de adjuntos y un extracto breve. Laravel conserva la autenticación del usuario, verifica el rol administrador y registra la consulta; el secreto entre Laravel y n8n autentica la llamada de servidor a servidor.
+Y devolver solo coincidencias acotadas: fecha, remitente/destinatario, asunto, identificador del mensaje, nombres de adjuntos y un extracto breve. Laravel conserva la autenticación del usuario del chat y su auditoría; el secreto entre Laravel y n8n autentica la llamada de servidor a servidor.
 
-El workflow de búsqueda consulta en vivo `INBOX` y `Sent`, no cambia marcas de leído y no descarga los adjuntos. Busca texto en encabezados/cuerpo y aplica remitente, destinatario, asunto y fechas como filtros IMAP combinados. Devuelve máximo 10 resultados entre ambas carpetas y limita cada extracto a 700 caracteres. Si la carpeta `Sent` no existe, esa búsqueda fallará hasta ajustar el nombre.
+El workflow de búsqueda consulta en vivo `INBOX` y `Sent`, no cambia marcas de leído y no descarga los adjuntos. Busca texto en encabezados/cuerpo y aplica remitente, destinatario, asunto y fechas como filtros IMAP combinados. Si Laravel resuelve un contacto del CRM, el workflow aplica su correo como remitente en recibidos y como destinatario en enviados. Devuelve máximo 10 resultados entre ambas carpetas y limita cada extracto a 700 caracteres. Si la carpeta `Sent` no existe, esa búsqueda fallará hasta ajustar el nombre. La dirección de contacto se filtra en encabezados IMAP; no se envía al modelo como consulta adicional.
 
 El webhook **no interpreta texto libre ni llama a OpenAI**: Laravel debe extraer los filtros de la pregunta y enviar el JSON estructurado. Esto evita otra llamada de modelo y mantiene la autorización/auditoría en Laravel. El workflow no procesa el contenido de los PDF; esa tarea sigue en el workflow separado de facturas.
 
@@ -82,9 +84,7 @@ La respuesta tiene esta forma:
 
 ## Límites actuales
 
-Este JSON **no crea todavía una búsqueda histórica ni un endpoint de consulta para el chatbot**. El nodo IMAP incluido es un disparador de mensajes nuevos, no una búsqueda arbitraria sobre mensajes antiguos ni sobre la carpeta `Sent`. Tampoco guarda mensajes en Laravel. La API actual de Laravel no tiene un endpoint para ingerir/indexar correos.
-
-Para que el asistente busque mensajes antiguos, enviados y recibidos de forma eficiente, el siguiente paso es sincronizar por IMAP las carpetas permitidas a una tabla/índice en Laravel (o un almacén de búsqueda dedicado), deduplicando por `Message-ID`/UID, y exponer una búsqueda autenticada para usuarios administradores. n8n puede procesar los adjuntos y enviar metadatos/texto extraído a ese endpoint. No conviene enviar el buzón completo al modelo en cada pregunta.
+`email-search-cpanel.json` busca en vivo y no mantiene una copia indexada del buzón en Laravel. `email-inbox-cpanel.json` es un workflow distinto para recibir mensajes nuevos. La búsqueda live está acotada a 10 resultados; no procesa el contenido de los PDF adjuntos. Para preguntas sobre documentos, el PDF debe pasar por el workflow PDF y su texto extraído quedar disponible en Laravel.
 
 ## Importación y credencial
 

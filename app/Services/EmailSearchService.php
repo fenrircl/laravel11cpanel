@@ -7,6 +7,10 @@ use Throwable;
 
 class EmailSearchService
 {
+    public function __construct(private readonly AssistantDataService $data)
+    {
+    }
+
     /** Search the configured cPanel IMAP mailbox through the private n8n webhook. */
     public function search(array $arguments): array
     {
@@ -20,13 +24,57 @@ class EmailSearchService
             ];
         }
 
+        $from = $this->filterText($arguments['from'] ?? null, 180);
+        $to = $this->filterText($arguments['to'] ?? null, 180);
+        $contactName = $this->filterText($arguments['contact_name'] ?? null, 120);
+
+        // Older tool calls sometimes treated a display name as an IMAP From value.
+        // Resolve those names against CRM contacts instead of sending them as an address filter.
+        if ($contactName === '' && $from !== '' && !str_contains($from, '@')) {
+            $contactName = $from;
+            $from = '';
+        } elseif ($contactName === '' && $to !== '' && !str_contains($to, '@')) {
+            $contactName = $to;
+            $to = '';
+        }
+
+        $query = $this->filterText($arguments['query'] ?? null, 180);
+        $contact = null;
+        $resolution = null;
+        if ($contactName !== '') {
+            $resolution = $this->data->resolveEmailContact(
+                $contactName,
+                in_array($arguments['contact_type'] ?? null, ['client', 'provider'], true)
+                    ? $arguments['contact_type']
+                    : 'all'
+            );
+
+            if ($resolution['status'] === 'ambiguous') {
+                return [
+                    'ok' => false,
+                    'error' => 'Hay más de un contacto con ese nombre y distintos correos. Indica si es cliente o proveedor.',
+                    'matches' => array_map(fn (array $match) => [
+                        'name' => $match['name'], 'type' => $match['type'], 'email' => $match['email'],
+                    ], $resolution['matches']),
+                ];
+            }
+
+            if ($resolution['status'] === 'matched') {
+                $contact = $resolution['contact'];
+            } elseif ($query === '') {
+                // If there is no CRM match, IMAP TEXT searches headers and body for the name.
+                $query = $contactName;
+            }
+        }
+
         $payload = [
             'direction' => in_array($arguments['direction'] ?? null, ['inbound', 'sent', 'both'], true)
                 ? $arguments['direction']
                 : 'both',
-            'query' => $this->filterText($arguments['query'] ?? null, 180),
-            'from' => $this->filterText($arguments['from'] ?? null, 180),
-            'to' => $this->filterText($arguments['to'] ?? null, 180),
+            'query' => $query,
+            'contact_email' => $contact['email'] ?? '',
+            'from' => $from,
+            'to' => $to,
             'subject' => $this->filterText($arguments['subject'] ?? null, 180),
             'after' => $this->filterDate($arguments['after'] ?? null),
             'before' => $this->filterDate($arguments['before'] ?? null),
@@ -85,6 +133,9 @@ class EmailSearchService
             'direction' => $payload['direction'],
             'count' => count($results),
             'truncated' => (bool) ($data['truncated'] ?? false),
+            'matched_contact' => $contact ? [
+                'name' => $contact['name'], 'type' => $contact['type'],
+            ] : null,
             'results' => array_map(fn (array $result) => [
                 'mailbox' => $this->filterText($result['mailbox'] ?? null, 80),
                 'date' => $this->filterText($result['date'] ?? null, 40),
