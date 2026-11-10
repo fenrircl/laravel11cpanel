@@ -12,13 +12,12 @@ class UsersController extends Controller
 {
     public function index()
     {
-        $users = User::with('roles')->orderBy('id','desc')->get();
+        $users = User::with('roles')->orderBy('name')->get();
         $roles = Role::orderBy('name')->get();
         $data = [
             'users' => $users,
             'roles' => $roles,
             'asset_css' => ['comun/tablas'],
-            'asset_js' => ['admin/users']
         ];
         return view('admin.users.index', $data);
     }
@@ -66,8 +65,24 @@ class UsersController extends Controller
 
     public function destroy(User $user)
     {
+        if (request()->user()->is($user)) {
+            return back()->withErrors(['user' => 'No puedes eliminar tu propia cuenta.']);
+        }
+
         $user->delete();
         return back()->with('success','Usuario eliminado');
+    }
+
+    public function toggleStatus(Request $request, User $user)
+    {
+        if ($request->user()->is($user)) {
+            return back()->withErrors(['user' => 'No puedes deshabilitar tu propia cuenta.']);
+        }
+
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        return back()->with('success', $user->is_active ? 'Usuario habilitado.' : 'Usuario deshabilitado.');
     }
 
     public function resetPassword(Request $request, User $user)

@@ -76,7 +76,7 @@ class LoginRegisterController extends Controller implements HasMiddleware
             'password' => 'required'
         ]);
 
-        if(Auth::attempt($credentials))
+        if (Auth::attempt($credentials + ['is_active' => true]))
         {
             $request->session()->regenerate();
             $this->putUserRolesInSession(Auth::user(), $request);

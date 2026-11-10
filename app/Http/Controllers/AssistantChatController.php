@@ -42,14 +42,19 @@ class AssistantChatController extends Controller
             ->get(['id', 'role', 'content', 'created_at'])
             ->reverse()
             ->values()
-            ->map(fn ($message) => [
-                'id' => $message->id,
-                'role' => $message->role,
-                'content' => $message->role === 'assistant'
-                    ? Str::markdown($message->content, ['html_input' => 'strip', 'allow_unsafe_links' => false])
-                    : $message->content,
-                'created_at' => $message->created_at,
-            ]);
+            ->map(function ($message) {
+                [$content, $chart] = $this->extractChartMetadata($message->content);
+
+                return [
+                    'id' => $message->id,
+                    'role' => $message->role,
+                    'content' => $message->role === 'assistant'
+                        ? Str::markdown($content, ['html_input' => 'strip', 'allow_unsafe_links' => false])
+                        : $content,
+                    'chart' => $chart,
+                    'created_at' => $message->created_at,
+                ];
+            });
 
         return response()->json([
             'conversation' => [
@@ -128,7 +133,7 @@ class AssistantChatController extends Controller
             ->reverse()
             ->map(fn ($message) => [
                 'role' => $message->role,
-                'content' => Str::limit($message->content, 2000, ''),
+                'content' => Str::limit($this->extractChartMetadata($message->content)[0], 2000, ''),
             ])
             ->values()
             ->all();
@@ -156,10 +161,11 @@ class AssistantChatController extends Controller
         }
 
         $answer = $result['content'];
+        $chart = $result['chart'] ?? null;
 
         $saved = $conversation->messages()->create([
             'role' => 'assistant',
-            'content' => $answer,
+            'content' => $this->storeChartMetadata($answer, $chart),
         ]);
         $conversation->touch();
 
@@ -181,6 +187,7 @@ class AssistantChatController extends Controller
                 'id' => $saved->id,
                 'role' => 'assistant',
                 'content' => Str::markdown($answer, ['html_input' => 'strip', 'allow_unsafe_links' => false]),
+                'chart' => $chart,
                 'created_at' => $saved->created_at,
             ],
         ]);
@@ -203,6 +210,36 @@ class AssistantChatController extends Controller
                 'exception' => get_class($exception),
             ]);
         }
+    }
+
+    private function storeChartMetadata(string $content, ?array $chart): string
+    {
+        if ($chart === null) {
+            return $content;
+        }
+
+        $json = json_encode($chart, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        if (!is_string($json)) {
+            return $content;
+        }
+
+        return rtrim($content)."\n\n<!--assistant-chart:".base64_encode($json).'-->';
+    }
+
+    /** @return array{0:string,1:?array} */
+    private function extractChartMetadata(string $content): array
+    {
+        if (!preg_match('/\\n?<!--assistant-chart:([A-Za-z0-9+\\/=]+)-->$/', $content, $matches)) {
+            return [$content, null];
+        }
+
+        $decoded = base64_decode($matches[1], true);
+        $chart = is_string($decoded) ? json_decode($decoded, true) : null;
+        if (!is_array($chart) || !isset($chart['title'], $chart['type'], $chart['labels'], $chart['series'])) {
+            return [$content, null];
+        }
+
+        return [rtrim(substr($content, 0, -strlen($matches[0]))), $chart];
     }
 
     private function quotaFor($user): array

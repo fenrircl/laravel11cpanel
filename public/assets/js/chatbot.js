@@ -278,7 +278,7 @@
     applyQuota(result.quota);
   }
 
-  function addMessage(content, role = 'assistant', isSafeHtml = false) {
+  function addMessage(content, role = 'assistant', isSafeHtml = false, chart = null) {
     const row = document.createElement('div');
     row.className = `msg ${role === 'user' ? 'user' : 'bot'}`;
     const bubble = document.createElement('div');
@@ -300,9 +300,161 @@
     } else {
       bubble.textContent = content;
     }
+    if (role === 'assistant' && chart) renderChart(bubble, chart);
     row.appendChild(bubble);
     messages.appendChild(row);
     messages.scrollTop = messages.scrollHeight;
+  }
+
+  function renderChart(bubble, chart) {
+    const labels = Array.isArray(chart.labels) ? chart.labels.slice(0, 12) : [];
+    const series = Array.isArray(chart.series) ? chart.series.slice(0, 4) : [];
+    const colors = ['#176b87', '#df8b28', '#448b61', '#8b6caf'];
+    if (!labels.length || !series.length || !series.every((item) => Array.isArray(item.data) && item.data.length === labels.length)) return;
+
+    const card = document.createElement('section');
+    card.className = 'cb-chart-card';
+    const title = document.createElement('h3');
+    title.className = 'cb-chart-title';
+    title.textContent = chart.title || 'Gráfico';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'cb-chart-canvas';
+    canvas.width = 960;
+    canvas.height = chart.type === 'doughnut' ? 540 : 560;
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', `${chart.title || 'Gráfico'}: ${labels.join(', ')}`);
+    const download = document.createElement('button');
+    download.className = 'cb-chart-download';
+    download.type = 'button';
+    download.textContent = 'Descargar imagen PNG';
+    download.addEventListener('click', () => canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${(chart.title || 'grafico').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'grafico'}.png`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, 'image/png'));
+    card.append(title, canvas, download);
+    bubble.appendChild(card);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#173f52';
+    ctx.font = 'bold 26px system-ui, sans-serif';
+    ctx.fillText(chart.title || 'Gráfico', 42, 48);
+
+    if (chart.type === 'doughnut') {
+      const values = series[0].data.map((value) => Math.max(0, Number(value) || 0));
+      const total = values.reduce((sum, value) => sum + value, 0);
+      if (total <= 0) return;
+      let angle = -Math.PI / 2;
+      values.forEach((value, index) => {
+        const next = angle + (value / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(285, 310);
+        ctx.arc(285, 310, 185, angle, next);
+        ctx.closePath();
+        ctx.fillStyle = colors[index % colors.length];
+        ctx.fill();
+        angle = next;
+      });
+      ctx.beginPath();
+      ctx.arc(285, 310, 92, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 28px system-ui, sans-serif';
+      ctx.fillStyle = '#173f52';
+      ctx.fillText(total.toLocaleString('es-CL'), 285, 320);
+      ctx.textAlign = 'left';
+      ctx.font = '19px system-ui, sans-serif';
+      labels.forEach((label, index) => {
+        const y = 145 + index * 32;
+        ctx.fillStyle = colors[index % colors.length];
+        ctx.fillRect(540, y - 15, 18, 18);
+        ctx.fillStyle = '#263d47';
+        ctx.fillText(`${label}: ${values[index].toLocaleString('es-CL')}`, 572, y, 350);
+      });
+      return;
+    }
+
+    const left = 100;
+    const right = width - 30;
+    const top = 92;
+    const bottom = height - 135;
+    const values = series.flatMap((item) => item.data.map((value) => Number(value) || 0));
+    const min = Math.min(0, ...values);
+    const max = Math.max(1, ...values);
+    const yFor = (value) => bottom - ((value - min) / (max - min || 1)) * (bottom - top);
+    const zeroY = yFor(0);
+    ctx.font = '15px system-ui, sans-serif';
+    ctx.textAlign = 'right';
+    for (let step = 0; step <= 4; step++) {
+      const value = max - (max - min) * step / 4;
+      const y = top + (bottom - top) * step / 4;
+      ctx.strokeStyle = '#e4ecef';
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+      ctx.fillStyle = '#526872';
+      ctx.fillText(value.toLocaleString('es-CL', { maximumFractionDigits: 1 }), left - 12, y + 5);
+    }
+    const slot = (right - left) / labels.length;
+    if (chart.type === 'line') {
+      series.forEach((item, seriesIndex) => {
+        ctx.strokeStyle = colors[seriesIndex % colors.length];
+        ctx.fillStyle = colors[seriesIndex % colors.length];
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        item.data.forEach((raw, index) => {
+          const x = left + slot * (index + .5);
+          const y = yFor(Number(raw) || 0);
+          if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        item.data.forEach((raw, index) => {
+          ctx.beginPath();
+          ctx.arc(left + slot * (index + .5), yFor(Number(raw) || 0), 6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+    } else {
+      const groupWidth = slot * .68;
+      const barWidth = groupWidth / series.length;
+      series.forEach((item, seriesIndex) => item.data.forEach((raw, index) => {
+        const value = Number(raw) || 0;
+        const x = left + slot * index + (slot - groupWidth) / 2 + barWidth * seriesIndex;
+        const y = yFor(value);
+        ctx.fillStyle = colors[seriesIndex % colors.length];
+        ctx.fillRect(x, Math.min(y, zeroY), Math.max(4, barWidth - 5), Math.max(1, Math.abs(zeroY - y)));
+      }));
+    }
+    labels.forEach((label, index) => {
+      ctx.save();
+      ctx.translate(left + slot * (index + .5), bottom + 22);
+      ctx.rotate(-Math.PI / 5);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#354e58';
+      ctx.font = '16px system-ui, sans-serif';
+      ctx.fillText(label, 0, 0, 145);
+      ctx.restore();
+    });
+    ctx.textAlign = 'left';
+    ctx.font = '17px system-ui, sans-serif';
+    series.forEach((item, index) => {
+      const x = left + index * 220;
+      ctx.fillStyle = colors[index % colors.length];
+      ctx.fillRect(x, height - 25, 16, 16);
+      ctx.fillStyle = '#263d47';
+      ctx.fillText(item.name, x + 24, height - 11, 180);
+    });
   }
 
   function showWelcome() {
@@ -324,7 +476,7 @@
     conversationId = result.conversation.id;
     messages.replaceChildren();
     result.data.forEach((message) => {
-      addMessage(message.content, message.role, message.role === 'assistant');
+      addMessage(message.content, message.role, message.role === 'assistant', message.chart);
     });
     historyPanel.hidden = true;
     input.focus();
@@ -401,7 +553,7 @@
       });
       applyQuota(result.quota);
       conversationId = result.conversation_id;
-      addMessage(result.message.content, 'assistant', true);
+      addMessage(result.message.content, 'assistant', true, result.message.chart);
       conversationsLoaded = false;
     } catch (error) {
       if (error?.payload?.quota) applyQuota(error.payload.quota);

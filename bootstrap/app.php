@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.chat-api' => \App\Http\Middleware\VerifyChatApiToken::class,
             'auth.n8n' => \App\Http\Middleware\VerifyN8nBearer::class,
             'assistant.enabled' => \App\Http\Middleware\EnsureAssistantEnabled::class,
+            'active.user' => \App\Http\Middleware\EnsureUserIsActive::class,
             'assistant.api.audit' => \App\Http\Middleware\AuditAssistantApiUsage::class,
         ]);
     })

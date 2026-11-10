@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Composer\InstalledVersions;
 use App\Services\AssistantSettingsService;
 use App\Models\AssistantUsageLog;
+use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -74,6 +76,30 @@ class SystemInfoController extends Controller
             'total_tokens' => (int) AssistantUsageLog::sum('total_tokens'),
             'failed' => AssistantUsageLog::where('status', 'failed')->count(),
         ] : null;
+        $quotaUsers = null;
+        if ($usageTableExists) {
+            $timezone = config('assistant.quota_timezone', 'America/Santiago');
+            $localNow = CarbonImmutable::now($timezone);
+            $startUtc = $localNow->startOfDay()->utc();
+            $endUtc = $localNow->addDay()->startOfDay()->utc();
+            $quotaUsers = User::query()
+                ->with('roles:id,name,slug')
+                ->orderBy('name')
+                ->paginate(25, ['id', 'name', 'email'], 'quota_users_page');
+            $requestsByUser = AssistantUsageLog::query()
+                ->whereIn('user_id', $quotaUsers->getCollection()->pluck('id'))
+                ->where('created_at', '>=', $startUtc)
+                ->where('created_at', '<', $endUtc)
+                ->selectRaw('user_id, COUNT(*) as request_count')
+                ->groupBy('user_id')
+                ->pluck('request_count', 'user_id');
+            $quotaUsers->getCollection()->transform(function (User $user) use ($requestsByUser) {
+                $user->assistant_requests_today = (int) ($requestsByUser[$user->id] ?? 0);
+                $user->assistant_is_admin = $user->roles->contains('slug', 'admin');
+
+                return $user;
+            });
+        }
 
         return view('admin.system-info.index', [
             'phpConstraint' => $phpConstraint,
@@ -94,6 +120,7 @@ class SystemInfoController extends Controller
             'usageTableExists' => $usageTableExists,
             'usageLogs' => $usageLogs,
             'usageTotals' => $usageTotals,
+            'quotaUsers' => $quotaUsers,
             'asset_css' => ['comun/tablas'],
         ]);
     }

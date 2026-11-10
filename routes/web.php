@@ -46,7 +46,7 @@ Route::get('/clear-laravel-11-caches', function () {
 Route::get('/backup-db', [BackupController::class, 'download']);
 
 // Rutas protegidas (requieren autenticación)
-Route::middleware(['auth', 'assistant.enabled'])->group(function () {
+Route::middleware(['auth', 'active.user', 'assistant.enabled'])->group(function () {
     Route::get('/chat/quota', [AssistantChatController::class, 'quota'])->name('chat.quota');
     Route::get('/chat/conversations', [AssistantChatController::class, 'index'])->name('chat.conversations.index');
     Route::get('/chat/conversations/{conversation}', [AssistantChatController::class, 'show'])->name('chat.conversations.show');
@@ -54,13 +54,13 @@ Route::middleware(['auth', 'assistant.enabled'])->group(function () {
     Route::post('/chat/messages', [AssistantChatController::class, 'send'])->middleware('throttle:20,1')->name('chat.messages.store');
 });
 
-Route::middleware(['auth', 'admin.role'])->group(function () {
+Route::middleware(['auth', 'active.user', 'admin.role'])->group(function () {
     Route::get('/account/api-tokens', [ChatApiTokensController::class, 'index'])->name('account.api-tokens');
     Route::post('/account/api-tokens', [ChatApiTokensController::class, 'store'])->name('account.api-tokens.store');
     Route::delete('/account/api-tokens/{token}', [ChatApiTokensController::class, 'destroy'])->name('account.api-tokens.destroy');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active.user'])->group(function () {
     Route::get('/', [HomeController::class, 'index'])->name('home');
 
     Route::get('/home', [HomeController::class, 'index'])->name('home');
@@ -149,6 +149,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/users', [\App\Http\Controllers\Admin\UsersController::class, 'store'])->name('users.store');
         Route::put('/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'destroy'])->name('users.destroy');
+        Route::patch('/users/{user}/status', [\App\Http\Controllers\Admin\UsersController::class, 'toggleStatus'])->name('users.status');
         Route::post('/users/{user}/reset-password', [\App\Http\Controllers\Admin\UsersController::class, 'resetPassword'])->name('users.reset');
 
         Route::get('/roles', [\App\Http\Controllers\Admin\RolesController::class, 'index'])->name('roles.index');

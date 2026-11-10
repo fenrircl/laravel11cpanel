@@ -162,6 +162,31 @@
             @if(!$usageTableExists)
                 <div class="alert alert-warning mb-0">Falta crear <code>assistant_usage_logs</code>. Importa el esquema actualizado <code>docs/sql/assistant-chat-schema.sql</code> desde phpMyAdmin para activar la auditoría.</div>
             @else
+                <div class="mb-4">
+                    <h3 class="h6 mb-1">Cuota y uso diario por usuario</h3>
+                    <p class="small text-muted">Consultas registradas hoy. La cuota de usuarios sin rol administrador es de 5 y se reinicia a medianoche de {{ config('assistant.quota_timezone', 'America/Santiago') }}.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Uso de hoy</th><th>Cuota</th><th>Disponibles</th></tr></thead>
+                            <tbody>
+                                @forelse($quotaUsers as $quotaUser)
+                                    <tr>
+                                        <td>{{ $quotaUser->name }}</td>
+                                        <td>{{ $quotaUser->email }}</td>
+                                        <td>{{ $quotaUser->assistant_is_admin ? 'Administrador' : 'Usuario' }}</td>
+                                        <td>{{ number_format($quotaUser->assistant_requests_today) }}</td>
+                                        <td>{{ $quotaUser->assistant_is_admin ? 'Sin límite' : '5 por día' }}</td>
+                                        <td>{{ $quotaUser->assistant_is_admin ? '—' : number_format(max(0, 5 - $quotaUser->assistant_requests_today)) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="text-muted">No hay usuarios registrados.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    {{ $quotaUsers->links('pagination::bootstrap-5') }}
+                </div>
+
                 <div class="row g-2 mb-3">
                     <div class="col-sm-6 col-lg"><div class="border rounded p-2"><div class="small text-muted">Consultas</div><strong>{{ number_format($usageTotals['requests']) }}</strong></div></div>
                     <div class="col-sm-6 col-lg"><div class="border rounded p-2"><div class="small text-muted">Tokens entrada</div><strong>{{ number_format($usageTotals['input_tokens']) }}</strong></div></div>
@@ -189,7 +214,7 @@
                                     <td class="text-nowrap">{{ number_format($log->input_tokens) }} / {{ number_format($log->output_tokens) }} / {{ number_format($log->total_tokens) }}</td>
                                     <td>{{ $log->tool_calls }}</td>
                                     <td>{{ number_format($log->duration_ms) }} ms</td>
-                                    <td><span class="badge {{ $log->status === 'success' ? 'bg-success' : 'bg-danger' }}">{{ $log->status === 'success' ? 'Correcta' : 'Fallida' }}</span></td>
+                                    <td><span class="badge {{ $log->status === 'success' ? 'bg-success' : ($log->status === 'processing' ? 'bg-warning text-dark' : 'bg-danger') }}">{{ $log->status === 'success' ? 'Correcta' : ($log->status === 'processing' ? 'En curso' : 'Fallida') }}</span></td>
                                 </tr>
                             @empty
                                 <tr><td colspan="8" class="text-muted">Aún no hay consultas registradas.</td></tr>
