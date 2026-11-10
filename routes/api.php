@@ -11,6 +11,7 @@ Route::get('/ping', fn () => response()->json(['message' => 'pong']));
 Route::prefix('v1/assistant')->middleware(['assistant.enabled', 'auth.chat-api', 'assistant.api.audit', 'throttle:30,1'])->group(function () {
     Route::post('/search', [AssistantApiController::class, 'search'])->name('api.v1.assistant.search');
     Route::post('/invoices/summary', [AssistantApiController::class, 'invoiceSummary'])->name('api.v1.assistant.invoices.summary');
+    Route::post('/invoices/search', [AssistantApiController::class, 'searchInvoices'])->name('api.v1.assistant.invoices.search');
     Route::post('/invoices/schedule', [AssistantApiController::class, 'invoiceSchedule'])->name('api.v1.assistant.invoices.schedule');
     Route::post('/providers/balances', [AssistantApiController::class, 'providerBalances'])->name('api.v1.assistant.providers.balances');
     Route::post('/party/records', [AssistantApiController::class, 'partyRecords'])->name('api.v1.assistant.party.records');

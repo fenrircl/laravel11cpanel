@@ -34,6 +34,34 @@ class AssistantApiController extends Controller
         return response()->json(['data' => $data->summarizeInvoices($arguments)]);
     }
 
+    public function searchInvoices(Request $request, AssistantDataService $data): JsonResponse
+    {
+        $amountInput = ['nullable', function ($attribute, $value, $fail): void {
+            if ((!is_string($value) && !is_int($value)) || mb_strlen((string) $value) > 30) {
+                $fail('El monto debe ser un número o texto de hasta 30 caracteres.');
+            }
+        }];
+        $arguments = $request->validate([
+            'party_type' => ['sometimes', 'in:all,client,provider'],
+            'party_name' => ['nullable', 'string', 'max:120'],
+            'invoice_number' => ['nullable', 'string', 'max:80'],
+            'amount' => $amountInput,
+            'amount_min' => $amountInput,
+            'amount_max' => $amountInput,
+            'date_from' => ['nullable', 'string', 'max:40'],
+            'date_to' => ['nullable', 'string', 'max:40'],
+            'date_basis' => ['sometimes', 'in:issued,due,payment,created,modified'],
+            'status' => ['sometimes', 'in:all,paid,pending,overdue'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:20'],
+        ]);
+        $arguments['party_type'] = $arguments['party_type'] ?? 'all';
+        $arguments['date_basis'] = $arguments['date_basis'] ?? 'issued';
+        $arguments['status'] = $arguments['status'] ?? 'all';
+        $arguments['limit'] = (int) ($arguments['limit'] ?? 20);
+
+        return response()->json(['data' => $data->searchInvoicesByFilters($arguments)]);
+    }
+
     public function partyRecords(Request $request, AssistantDataService $data): JsonResponse
     {
         $arguments = $request->validate([

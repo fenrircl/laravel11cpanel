@@ -48,6 +48,7 @@ En el reporte de error compartido desde producción, Laravel informó **12.71.0*
 
 - Asistente de chat integrado para usuarios autenticados; las conversaciones y mensajes quedan asociados al usuario.
 - Consultas sobre facturas, clientes, proveedores, cotizaciones, saldos y vencimientos mediante herramientas de datos específicas.
+- Búsqueda combinable de facturas por número, cliente/proveedor, monto exacto o rango, fecha y estado; acepta montos con/sin separadores y fechas relativas o en formatos españoles comunes.
 - El filtro de año para vencimientos usa el año actual por defecto; el usuario puede pedir otro año explícitamente.
 - Las respuestas se muestran como Markdown convertido a HTML seguro, con formato para tablas, listas, encabezados y negritas. Emojis funcionales seleccionados se presentan como iconos SVG consistentes.
 - El ancho y alto del chat se ajustan arrastrando zonas transparentes en los bordes izquierdo y superior. El tamaño elegido queda guardado en el navegador.

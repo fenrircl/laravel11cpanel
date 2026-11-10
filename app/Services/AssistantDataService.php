@@ -7,8 +7,11 @@ use App\Models\Factura;
 use App\Models\Cotizacion;
 use App\Models\InvoiceDocumentContext;
 use App\Models\Proveedor;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AssistantDataService
 {
@@ -272,6 +275,244 @@ class AssistantDataService
                 'end_date' => $validated['end_date'] ?? null,
             ],
         ];
+    }
+
+    /** Search invoices by any combination of number, party, amount, date, and status. */
+    public function searchInvoicesByFilters(array $arguments): array
+    {
+        $arguments['date_from'] = $this->normalizeInvoiceDate($arguments['date_from'] ?? null, 'date_from');
+        $arguments['date_to'] = $this->normalizeInvoiceDate($arguments['date_to'] ?? null, 'date_to');
+        $arguments['amount'] = $this->normalizeInvoiceAmount($arguments['amount'] ?? null, 'amount');
+        $arguments['amount_min'] = $this->normalizeInvoiceAmount($arguments['amount_min'] ?? null, 'amount_min');
+        $arguments['amount_max'] = $this->normalizeInvoiceAmount($arguments['amount_max'] ?? null, 'amount_max');
+
+        $validator = Validator::make($arguments, [
+            'party_type' => ['sometimes', Rule::in(['all', 'client', 'provider'])],
+            'party_name' => ['nullable', 'string', 'max:120'],
+            'invoice_number' => ['nullable', 'string', 'max:80'],
+            'amount' => ['nullable', 'integer', 'min:0'],
+            'amount_min' => ['nullable', 'integer', 'min:0'],
+            'amount_max' => ['nullable', 'integer', 'min:0'],
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d'],
+            'date_basis' => ['sometimes', Rule::in(['issued', 'due', 'payment', 'created', 'modified'])],
+            'status' => ['sometimes', Rule::in(['all', 'paid', 'pending', 'overdue'])],
+            'limit' => ['required', 'integer', 'min:1', 'max:20'],
+        ]);
+        $validator->after(function ($validator) use ($arguments): void {
+            $hasAmount = ($arguments['amount'] ?? null) !== null;
+            $hasAmountRange = ($arguments['amount_min'] ?? null) !== null || ($arguments['amount_max'] ?? null) !== null;
+            if ($hasAmount && $hasAmountRange) {
+                $validator->errors()->add('amount', 'Usa un monto exacto o un rango, no ambos.');
+            }
+            if (($arguments['amount_min'] ?? null) !== null
+                && ($arguments['amount_max'] ?? null) !== null
+                && (int) $arguments['amount_min'] > (int) $arguments['amount_max']) {
+                $validator->errors()->add('amount_max', 'El monto máximo debe ser igual o mayor al mínimo.');
+            }
+            if (($arguments['date_from'] ?? null) !== null
+                && ($arguments['date_to'] ?? null) !== null
+                && $arguments['date_to'] < $arguments['date_from']) {
+                $validator->errors()->add('date_to', 'La fecha final debe ser igual o posterior a la inicial.');
+            }
+
+            $hasCriteria = trim((string) ($arguments['party_name'] ?? '')) !== ''
+                || trim((string) ($arguments['invoice_number'] ?? '')) !== ''
+                || ($arguments['amount'] ?? null) !== null
+                || ($arguments['amount_min'] ?? null) !== null
+                || ($arguments['amount_max'] ?? null) !== null
+                || ($arguments['date_from'] ?? null) !== null
+                || ($arguments['date_to'] ?? null) !== null
+                || (($arguments['status'] ?? 'all') !== 'all');
+            if (!$hasCriteria) {
+                $validator->errors()->add('invoice_number', 'Indica número, entidad, monto, fecha o estado para buscar facturas.');
+            }
+        });
+        $validated = $validator->validate();
+
+        $partyType = $validated['party_type'] ?? 'all';
+        $dateBasis = $validated['date_basis'] ?? 'issued';
+        $dateColumn = match ($dateBasis) {
+            'due' => 'expiry',
+            'payment' => 'pay_date',
+            'created' => 'created_at',
+            'modified' => 'updated_at',
+            default => 'date',
+        };
+        $query = Factura::query()->with(['cliente:id,name', 'proveedor:id,name']);
+
+        if ($partyType === 'client') {
+            $query->whereNotNull('client_id');
+        } elseif ($partyType === 'provider') {
+            $query->whereNotNull('provider_id');
+        }
+
+        $partyName = trim((string) ($validated['party_name'] ?? ''));
+        if ($partyName !== '') {
+            $like = $this->likePattern($partyName);
+            $query->where(function ($query) use ($partyType, $like): void {
+                if ($partyType !== 'provider') {
+                    $query->whereHas('cliente', fn ($party) => $party->where('name', 'like', $like));
+                }
+                if ($partyType === 'provider') {
+                    $query->whereHas('proveedor', fn ($party) => $party->where('name', 'like', $like));
+                } elseif ($partyType === 'all') {
+                    $query->orWhereHas('proveedor', fn ($party) => $party->where('name', 'like', $like));
+                }
+            });
+        }
+
+        $invoiceNumber = trim((string) ($validated['invoice_number'] ?? ''));
+        if ($invoiceNumber !== '') {
+            $query->where('invoice', 'like', $this->likePattern($invoiceNumber));
+        }
+        if (($validated['amount'] ?? null) !== null) {
+            $query->where('amount', (int) $validated['amount']);
+        }
+        if (($validated['amount_min'] ?? null) !== null) {
+            $query->where('amount', '>=', (int) $validated['amount_min']);
+        }
+        if (($validated['amount_max'] ?? null) !== null) {
+            $query->where('amount', '<=', (int) $validated['amount_max']);
+        }
+
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+        if ($dateFrom !== null && $dateTo !== null) {
+            $query->whereDate($dateColumn, '>=', $dateFrom)->whereDate($dateColumn, '<=', $dateTo);
+        } elseif ($dateFrom !== null || $dateTo !== null) {
+            $query->whereDate($dateColumn, $dateFrom ?? $dateTo);
+        }
+
+        $status = $validated['status'] ?? 'all';
+        if ($status === 'paid') {
+            $query->where('status', 1);
+        } elseif ($status === 'pending') {
+            $query->where('status', 0);
+        } elseif ($status === 'overdue') {
+            $query->where('status', 0)->whereNotNull('expiry')->whereDate('expiry', '<', now()->toDateString());
+        }
+
+        $count = (clone $query)->count();
+        $records = $query->orderByDesc($dateColumn)->limit((int) $validated['limit'])
+            ->get(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'status', 'created_at', 'updated_at'])
+            ->map(fn (Factura $invoice) => [
+                'id' => $invoice->id,
+                'number' => $invoice->invoice,
+                'party_type' => $invoice->client_id ? 'client' : 'provider',
+                'party_name' => $invoice->client_id ? $invoice->cliente?->name : $invoice->proveedor?->name,
+                'issued_date' => $invoice->date?->toDateString(),
+                'due_date' => $invoice->expiry?->toDateString(),
+                'paid_date' => $invoice->pay_date?->toDateString(),
+                'created_at' => $invoice->created_at?->toDateTimeString(),
+                'updated_at' => $invoice->updated_at?->toDateTimeString(),
+                'amount' => (int) $invoice->amount,
+                'currency' => 'CLP',
+                'status' => $this->invoiceStatus($invoice),
+            ])->all();
+
+        return [
+            'filters' => [
+                'party_type' => $partyType,
+                'party_name' => $partyName !== '' ? $partyName : null,
+                'invoice_number' => $invoiceNumber !== '' ? $invoiceNumber : null,
+                'amount' => $validated['amount'] ?? null,
+                'amount_min' => $validated['amount_min'] ?? null,
+                'amount_max' => $validated['amount_max'] ?? null,
+                'date_basis' => $dateBasis,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'status' => $status,
+            ],
+            'count' => $count,
+            'returned' => count($records),
+            'truncated' => $count > count($records),
+            'records' => $records,
+        ];
+    }
+
+    private function normalizeInvoiceDate(mixed $value, string $field): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (!is_string($value) && !is_int($value)) {
+            throw ValidationException::withMessages([$field => 'La fecha debe enviarse como texto.']);
+        }
+        if (trim((string) $value) === '') return null;
+
+        $input = mb_strtolower(trim(str_replace(',', '', Str::ascii((string) $value))));
+        $input = preg_replace('/^(el|la)\\s+/', '', $input);
+        $today = now()->startOfDay();
+        if (in_array($input, ['hoy', 'today'], true)) {
+            return $today->toDateString();
+        }
+        if (in_array($input, ['ayer', 'yesterday'], true)) {
+            return $today->subDay()->toDateString();
+        }
+        if (in_array($input, ['anteayer'], true)) {
+            return $today->subDays(2)->toDateString();
+        }
+        if (in_array($input, ['manana', 'tomorrow'], true)) {
+            return $today->addDay()->toDateString();
+        }
+
+        $year = now()->year;
+        $day = null;
+        $month = null;
+        if (preg_match('/^(\\d{1,2})[\\/-](\\d{1,2})(?:[\\/-](\\d{2,4}))?$/', $input, $matches)) {
+            $day = (int) $matches[1];
+            $month = (int) $matches[2];
+            if (!empty($matches[3])) {
+                $year = (int) $matches[3];
+                if ($year < 100) $year += 2000;
+            }
+        } elseif (preg_match('/^(\\d{1,2})\\s+(?:de\\s+)?([a-z]+)(?:\\s+(?:(?:de|del)\\s+)?(\\d{4}))?$/', $input, $matches)) {
+            $day = (int) $matches[1];
+            $month = [
+                'ene' => 1, 'enero' => 1, 'feb' => 2, 'febrero' => 2,
+                'mar' => 3, 'marzo' => 3, 'abr' => 4, 'abril' => 4,
+                'may' => 5, 'mayo' => 5, 'jun' => 6, 'junio' => 6,
+                'jul' => 7, 'julio' => 7, 'ago' => 8, 'agosto' => 8,
+                'sep' => 9, 'sept' => 9, 'septiembre' => 9, 'setiembre' => 9,
+                'oct' => 10, 'octubre' => 10, 'nov' => 11, 'noviembre' => 11,
+                'dic' => 12, 'diciembre' => 12,
+            ][$matches[2]] ?? null;
+            if (!empty($matches[3])) $year = (int) $matches[3];
+        } elseif (preg_match('/^\\d{4}-\\d{2}-\\d{2}$/', $input)) {
+            [$isoYear, $isoMonth, $isoDay] = array_map('intval', explode('-', $input));
+            if (checkdate($isoMonth, $isoDay, $isoYear)) {
+                return CarbonImmutable::create($isoYear, $isoMonth, $isoDay)->toDateString();
+            }
+        }
+
+        if ($day !== null && $month !== null && checkdate($month, $day, $year)) {
+            return CarbonImmutable::create($year, $month, $day)->toDateString();
+        }
+
+        throw ValidationException::withMessages([
+            $field => 'Usa hoy, ayer o una fecha como 10/11, 10-11-2026 o 10 de noviembre.',
+        ]);
+    }
+
+    private function normalizeInvoiceAmount(mixed $value, string $field): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+        if (!is_string($value) && !is_int($value)) {
+            throw ValidationException::withMessages([$field => 'El monto debe enviarse como texto o número entero.']);
+        }
+        if (trim((string) $value) === '') return null;
+
+        $digits = preg_replace('/\\D/', '', (string) $value);
+        if ($digits === '' || strlen($digits) > 12) {
+            throw ValidationException::withMessages([
+                $field => 'Indica un monto en pesos, con o sin separadores de miles.',
+            ]);
+        }
+
+        return (int) $digits;
     }
 
     /** List provider invoices due this month, overdue invoices, or all pending invoices. */

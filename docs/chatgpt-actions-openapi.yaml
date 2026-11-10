@@ -157,6 +157,35 @@ paths:
         '401': { description: Missing, invalid or expired Bearer token }
         '403': { description: The token owner does not have the admin role }
         '422': { description: Invalid query parameters }
+  /api/v1/assistant/invoices/search:
+    post:
+      operationId: searchInvoicesWithCombinedFilters
+      summary: Search invoices by number, customer/provider, amount, date and status
+      description: Provide at least one search criterion. Filters are combined with AND. By default, invoice-number searches include both customer and provider invoices. Use date_basis issued, due, payment, created or modified. Dates accept today, yesterday, D/M, D-M-YYYY and Spanish month names; a missing year means the current year. One date is an exact-day filter; provide date_from and date_to for a range. CLP amount separators and currency symbols are ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                party_type: { type: string, enum: [all, client, provider], default: all }
+                party_name: { type: [string, 'null'], maxLength: 120 }
+                invoice_number: { type: [string, 'null'], maxLength: 80, description: Exact or partial invoice number; searches both customer and provider invoices by default. }
+                amount: { type: [string, 'null'], maxLength: 30, description: Exact CLP amount; periods, commas, spaces and currency symbols are ignored. Do not combine with amount_min or amount_max. }
+                amount_min: { type: [string, 'null'], maxLength: 30 }
+                amount_max: { type: [string, 'null'], maxLength: 30 }
+                date_from: { type: [string, 'null'], maxLength: 40 }
+                date_to: { type: [string, 'null'], maxLength: 40 }
+                date_basis: { type: string, enum: [issued, due, payment, created, modified], default: issued }
+                status: { type: string, enum: [all, paid, pending, overdue], default: all }
+                limit: { type: integer, minimum: 1, maximum: 20, default: 20 }
+      responses:
+        '200': { description: Matching invoice records and the filters applied }
+        '401': { description: Missing, invalid or expired Bearer token }
+        '403': { description: The token owner does not have the admin role }
+        '422': { description: Invalid query parameters }
   /api/v1/assistant/invoices/schedule:
     post:
       operationId: findInvoicesByDueStatus

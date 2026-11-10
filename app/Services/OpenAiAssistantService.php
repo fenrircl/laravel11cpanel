@@ -26,7 +26,7 @@ class OpenAiAssistantService
         $payload = [
             'model' => $this->settings->model(),
             'reasoning' => ['effort' => $this->settings->reasoningEffort()],
-            'instructions' => $this->settings->prompt()."\n\nFormato visual: responde con Markdown. Usa como máximo 2 emojis funcionales por respuesta (por ejemplo 📅, 🧾, 💰, ✅ o ⚠️), solo en títulos o avisos; nunca repitas emojis en cada fila. Mantén tablas cuando faciliten comparar datos.",
+            'instructions' => $this->settings->prompt()."\n\nPara buscar facturas, usa search_invoices y combina todos los filtros que el usuario mencione: número, nombre de cliente/proveedor, monto y fechas. Por defecto busca en ambos tipos; limita a cliente o proveedor solo si se especifica. Los montos CLP con puntos o símbolos se normalizan. Convierte hoy/ayer y fechas como 10 de noviembre, 10/11 o 10-11 a fechas válidas; sin año, usa el año actual. date_basis=modified significa última modificación; created significa ingreso al sistema; issued significa fecha de emisión. Si preguntan solo por facturas de una fecha, usa issued.\nFormato visual: responde con Markdown. Usa como máximo 2 emojis funcionales por respuesta (por ejemplo 📅, 🧾, 💰, ✅ o ⚠️), solo en títulos o avisos; nunca repitas emojis en cada fila. Mantén tablas cuando faciliten comparar datos.",
             'input' => $history,
             'tools' => $this->tools(),
             'tool_choice' => 'auto',
@@ -80,6 +80,7 @@ class OpenAiAssistantService
                     $toolResult = match ($call['name'] ?? '') {
                         'search_records' => $this->data->searchRecords($arguments),
                         'summarize_invoices' => $this->data->summarizeInvoices($arguments),
+                        'search_invoices' => $this->data->searchInvoicesByFilters($arguments),
                         'invoice_schedule' => $this->data->invoiceSchedule($arguments),
                         'provider_balances' => $this->data->providerBalances($arguments),
                         'search_invoice_documents' => $this->data->searchInvoiceDocuments($arguments),
@@ -161,7 +162,7 @@ class OpenAiAssistantService
             [
                 'type' => 'function',
                 'name' => 'search_records',
-                'description' => 'Busca hasta cinco clientes, proveedores, facturas o cotizaciones. Busca por nombre, RUT, contacto, número de factura, id de cotización, trabajo o monto. Omite term solo para pedir los registros más recientes.',
+                'description' => 'Busca entidades o cotizaciones por texto y permite listar registros recientes. Para cualquier consulta de facturas con filtros de número, cliente/proveedor, monto, fecha o estado, usa search_invoices para combinar criterios en una sola búsqueda.',
                 'strict' => true,
                 'parameters' => [
                     'type' => 'object',
@@ -217,6 +218,30 @@ class OpenAiAssistantService
                         'quotation_id' => ['type' => 'integer', 'minimum' => 1],
                     ],
                     'required' => ['quotation_id'],
+                    'additionalProperties' => false,
+                ],
+            ],
+            [
+                'type' => 'function',
+                'name' => 'search_invoices',
+                'description' => 'Busca facturas combinando filtros opcionales de número, nombre de cliente/proveedor, monto exacto o rango, fechas y estado. El número busca en facturas de clientes y proveedores por defecto. date_basis: issued=fecha de emisión, due=vencimiento, payment=pago, created=ingreso al sistema, modified=última modificación. Las fechas aceptan hoy, ayer, D/M, D-M-AAAA y fechas en español; sin año se usa el año actual. Una sola fecha es coincidencia exacta; para un período envía date_from y date_to.',
+                'strict' => true,
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'party_type' => ['type' => 'string', 'enum' => ['all', 'client', 'provider']],
+                        'party_name' => ['type' => ['string', 'null'], 'maxLength' => 120],
+                        'invoice_number' => ['type' => ['string', 'null'], 'maxLength' => 80],
+                        'amount' => ['type' => ['string', 'null'], 'maxLength' => 30],
+                        'amount_min' => ['type' => ['string', 'null'], 'maxLength' => 30],
+                        'amount_max' => ['type' => ['string', 'null'], 'maxLength' => 30],
+                        'date_from' => ['type' => ['string', 'null'], 'maxLength' => 40],
+                        'date_to' => ['type' => ['string', 'null'], 'maxLength' => 40],
+                        'date_basis' => ['type' => 'string', 'enum' => ['issued', 'due', 'payment', 'created', 'modified']],
+                        'status' => ['type' => 'string', 'enum' => ['all', 'paid', 'pending', 'overdue']],
+                        'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20],
+                    ],
+                    'required' => ['party_type', 'party_name', 'invoice_number', 'amount', 'amount_min', 'amount_max', 'date_from', 'date_to', 'date_basis', 'status', 'limit'],
                     'additionalProperties' => false,
                 ],
             ],
