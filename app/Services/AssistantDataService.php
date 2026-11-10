@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Cliente;
+use App\Models\AuditLog;
 use App\Models\Factura;
 use App\Models\Cotizacion;
 use App\Models\InvoiceDocumentContext;
@@ -394,9 +395,14 @@ class AssistantDataService
         }
 
         $count = (clone $query)->count();
-        $records = $query->orderByDesc($dateColumn)->limit((int) $validated['limit'])
+        $invoices = $query->orderByDesc($dateColumn)->limit((int) $validated['limit'])
             ->get(['id', 'invoice', 'client_id', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'status', 'created_at', 'updated_at'])
-            ->map(fn (Factura $invoice) => [
+            ->values();
+        $auditLogs = $this->invoiceAuditLogsFor($invoices);
+        $records = $invoices->map(function (Factura $invoice) use ($auditLogs): array {
+            $audit = $this->closestInvoiceAudit($invoice, $auditLogs);
+
+            return [
                 'id' => $invoice->id,
                 'number' => $invoice->invoice,
                 'party_type' => $invoice->client_id ? 'client' : 'provider',
@@ -406,10 +412,15 @@ class AssistantDataService
                 'paid_date' => $invoice->pay_date?->toDateString(),
                 'created_at' => $invoice->created_at?->toDateTimeString(),
                 'updated_at' => $invoice->updated_at?->toDateTimeString(),
+                'modified_by' => $audit?->user?->name,
+                'modified_by_user_id' => $audit?->user_id !== null ? (int) $audit->user_id : null,
+                'modification_audit_id' => $audit?->id,
+                'modification_audit_action' => $audit?->action,
                 'amount' => (int) $invoice->amount,
                 'currency' => 'CLP',
                 'status' => $this->invoiceStatus($invoice),
-            ])->all();
+            ];
+        })->all();
 
         return [
             'filters' => [
@@ -429,6 +440,57 @@ class AssistantDataService
             'truncated' => $count > count($records),
             'records' => $records,
         ];
+    }
+
+    /** Load matching audit records in one query and only near each invoice update time. */
+    private function invoiceAuditLogsFor($invoices)
+    {
+        $updatedAtTimestamps = $invoices
+            ->pluck('updated_at')
+            ->filter()
+            ->map(fn ($date) => $date->getTimestamp());
+        $invoiceIds = $invoices->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        if ($updatedAtTimestamps->isEmpty() || $invoiceIds === []) {
+            return collect();
+        }
+
+        $referenceTime = now();
+        $from = $referenceTime->copy()->setTimestamp($updatedAtTimestamps->min() - 300);
+        $to = $referenceTime->copy()->setTimestamp($updatedAtTimestamps->max() + 300);
+
+        return AuditLog::query()
+            ->with('user:id,name')
+            ->where('module', 'facturas')
+            ->whereIn('action', ['update', 'restore', 'create'])
+            ->whereIn('entity_id', $invoiceIds)
+            ->whereBetween('created_at', [$from, $to])
+            ->get(['id', 'user_id', 'action', 'entity_id', 'created_at'])
+            ->groupBy(fn (AuditLog $log) => (string) $log->entity_id);
+    }
+
+    /** Return an audit record only when it closely matches this invoice's updated_at. */
+    private function closestInvoiceAudit(Factura $invoice, $auditLogs): ?AuditLog
+    {
+        if (!$invoice->updated_at) {
+            return null;
+        }
+
+        $logs = $auditLogs->get((string) $invoice->id, collect());
+        if ($logs->isEmpty()) {
+            return null;
+        }
+
+        $updatedAt = $invoice->updated_at->getTimestamp();
+        $closest = $logs->sortBy(
+            fn (AuditLog $log) => abs($log->created_at->getTimestamp() - $updatedAt)
+        )->first();
+
+        if (!$closest || abs($closest->created_at->getTimestamp() - $updatedAt) > 300) {
+            return null;
+        }
+
+        return $closest;
     }
 
     private function normalizeInvoiceDate(mixed $value, string $field): ?string
