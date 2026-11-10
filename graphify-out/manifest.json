@@ -1,0 +1,1130 @@
+{
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/Admin/AuditLogsController.php": {
+    "mtime": 1781024961.8815985,
+    "seen": 1794172004.9526758,
+    "ast_hash": "26388c1e99a4d215cca81154f554738c",
+    "semantic_hash": "26388c1e99a4d215cca81154f554738c"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/Admin/RolesController.php": {
+    "mtime": 1781024961.8815985,
+    "seen": 1794172004.9526799,
+    "ast_hash": "5bfbd65ca2e8370af1689532b977b772",
+    "semantic_hash": "5bfbd65ca2e8370af1689532b977b772"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/Admin/UsersController.php": {
+    "mtime": 1781024961.8815985,
+    "seen": 1794172004.9526815,
+    "ast_hash": "30f953db8cdb334dffc3610f93c175e4",
+    "semantic_hash": "30f953db8cdb334dffc3610f93c175e4"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/AuditLogController.php": {
+    "mtime": 1781024961.8815985,
+    "seen": 1794172004.9526825,
+    "ast_hash": "856bca66dd619c9aebb267ebd35c404f",
+    "semantic_hash": "856bca66dd619c9aebb267ebd35c404f"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/Auth/LoginRegisterController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526832,
+    "ast_hash": "c05af95b9bbe2803dbc1fb60733352ce",
+    "semantic_hash": "c05af95b9bbe2803dbc1fb60733352ce"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/BackupController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952684,
+    "ast_hash": "252110ecb0fcc44dc4e7f3a537ed658a",
+    "semantic_hash": "252110ecb0fcc44dc4e7f3a537ed658a"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/BusquedaController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952685,
+    "ast_hash": "b107fdccc6149b110bad03ed8de8099a",
+    "semantic_hash": "b107fdccc6149b110bad03ed8de8099a"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/ChartsController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526856,
+    "ast_hash": "1bdd7ebeceaad4726e0ae52a5e0055b0",
+    "semantic_hash": "1bdd7ebeceaad4726e0ae52a5e0055b0"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/ClientesController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526863,
+    "ast_hash": "08f7f825426d4f47bdec79cebf88494f",
+    "semantic_hash": "08f7f825426d4f47bdec79cebf88494f"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/Controller.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952687,
+    "ast_hash": "25a307335c0719bc9a91b3f7babd186d",
+    "semantic_hash": "25a307335c0719bc9a91b3f7babd186d"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/CotizacionesController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952688,
+    "ast_hash": "4b5ac2886cb8d2a0443c9d615c3c5fcd",
+    "semantic_hash": "4b5ac2886cb8d2a0443c9d615c3c5fcd"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/FacturasController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526887,
+    "ast_hash": "b763c9bc469a0e0fbb03c7fed9324c07",
+    "semantic_hash": "b763c9bc469a0e0fbb03c7fed9324c07"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/HomeController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526894,
+    "ast_hash": "1b2de043ef79f66377f46eef29ef93b9",
+    "semantic_hash": "1b2de043ef79f66377f46eef29ef93b9"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/MetodoPagoController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.95269,
+    "ast_hash": "8e4b16c27d64fa4f8efb8689507eec19",
+    "semantic_hash": "8e4b16c27d64fa4f8efb8689507eec19"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/ProveedoresController.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526906,
+    "ast_hash": "3ce4039e09338cad5dd75746467977c0",
+    "semantic_hash": "3ce4039e09338cad5dd75746467977c0"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Controllers/R2Controller.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526916,
+    "ast_hash": "08d5c05fa33cc27d58da357ca3432158",
+    "semantic_hash": "08d5c05fa33cc27d58da357ca3432158"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Kernel.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526923,
+    "ast_hash": "df1abea6b71ade33aec35d97f9bfbc30",
+    "semantic_hash": "df1abea6b71ade33aec35d97f9bfbc30"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/AdminRoleMiddleware.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526927,
+    "ast_hash": "b2dc754b4bfa002a4e70385dfb351a7f",
+    "semantic_hash": "b2dc754b4bfa002a4e70385dfb351a7f"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/Authenticate.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526935,
+    "ast_hash": "ce8076b44a6c8969f342b62c1173917e",
+    "semantic_hash": "ce8076b44a6c8969f342b62c1173917e"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/EncryptCookies.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526942,
+    "ast_hash": "aa3be31badc36cd9d7a5ea08eef245e7",
+    "semantic_hash": "aa3be31badc36cd9d7a5ea08eef245e7"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/EnsureUtf8Response.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952695,
+    "ast_hash": "d2cd107d9d8db493a03c605db275db90",
+    "semantic_hash": "d2cd107d9d8db493a03c605db275db90"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/PreventRequestsDuringMaintenance.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526956,
+    "ast_hash": "9bf727a4eeaabad8fde5110106356d60",
+    "semantic_hash": "9bf727a4eeaabad8fde5110106356d60"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/RedirectIfAuthenticated.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526963,
+    "ast_hash": "af9003379857ab11acc420477fbc4ab1",
+    "semantic_hash": "af9003379857ab11acc420477fbc4ab1"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/TrimStrings.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.952697,
+    "ast_hash": "016f82bc302a0b8801eeb48edea87cdf",
+    "semantic_hash": "016f82bc302a0b8801eeb48edea87cdf"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/TrustProxies.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526978,
+    "ast_hash": "61c0573d9bc4297f266b808eba9280b8",
+    "semantic_hash": "61c0573d9bc4297f266b808eba9280b8"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/UserContextMiddleware.php": {
+    "mtime": 1781024961.8855987,
+    "seen": 1794172004.9526985,
+    "ast_hash": "c490aa86a200514c01cc73b2b7e091d2",
+    "semantic_hash": "c490aa86a200514c01cc73b2b7e091d2"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/ValidateSignature.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9526992,
+    "ast_hash": "f53889156ddb9b4bd0aec95d7708325d",
+    "semantic_hash": "f53889156ddb9b4bd0aec95d7708325d"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/VerifyApiBearerToken.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9526997,
+    "ast_hash": "d9c84c96a70f76940dfab8cbdd86cfa6",
+    "semantic_hash": "d9c84c96a70f76940dfab8cbdd86cfa6"
+  },
+  "/home/fenrir/laravel11cpanel/app/Http/Middleware/VerifyCsrfToken.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527004,
+    "ast_hash": "f940a35a715b792ecc6c36e1da1adbc1",
+    "semantic_hash": "f940a35a715b792ecc6c36e1da1adbc1"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/AuditLog.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527009,
+    "ast_hash": "04f7c56a8b2b0a7822638402276d5bc9",
+    "semantic_hash": "04f7c56a8b2b0a7822638402276d5bc9"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Ciudad.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527018,
+    "ast_hash": "97f7551db5822768a5fccb7b5452279c",
+    "semantic_hash": "97f7551db5822768a5fccb7b5452279c"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Cliente.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527023,
+    "ast_hash": "b2001ed64e5404df0cee03b8a5333d4e",
+    "semantic_hash": "b2001ed64e5404df0cee03b8a5333d4e"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Cotizacion.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.952703,
+    "ast_hash": "2278f76fc50d4815441846e1d1e024df",
+    "semantic_hash": "2278f76fc50d4815441846e1d1e024df"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/CotizacionItem.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527035,
+    "ast_hash": "73cbbe2dc75f794c70994f8ded1aed5c",
+    "semantic_hash": "73cbbe2dc75f794c70994f8ded1aed5c"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Factura.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527042,
+    "ast_hash": "db8536b438e0db4bd426271498704b1c",
+    "semantic_hash": "db8536b438e0db4bd426271498704b1c"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/FilesRegistry.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527047,
+    "ast_hash": "b7be8d4f6254bf1e1349ec4c1d3962cb",
+    "semantic_hash": "b7be8d4f6254bf1e1349ec4c1d3962cb"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/MetodoPago.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527056,
+    "ast_hash": "5b6369c7494a10ec4ae90d3624ddf290",
+    "semantic_hash": "5b6369c7494a10ec4ae90d3624ddf290"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/OrdenTrabajo.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.952706,
+    "ast_hash": "313011f2f39cebb4d98447e7dccac9cf",
+    "semantic_hash": "313011f2f39cebb4d98447e7dccac9cf"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Proveedor.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527066,
+    "ast_hash": "fc8152ce766b93f35d996217eed33e1c",
+    "semantic_hash": "fc8152ce766b93f35d996217eed33e1c"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/Role.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527073,
+    "ast_hash": "0e1c11262fd90875214c6ccdd9636297",
+    "semantic_hash": "0e1c11262fd90875214c6ccdd9636297"
+  },
+  "/home/fenrir/laravel11cpanel/app/Models/User.php": {
+    "mtime": 1794171960.334963,
+    "seen": 1794172004.9527078,
+    "ast_hash": "71eff847d5013efb68bd2874b7eff0e2",
+    "semantic_hash": "71eff847d5013efb68bd2874b7eff0e2"
+  },
+  "/home/fenrir/laravel11cpanel/app/Providers/AppServiceProvider.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527087,
+    "ast_hash": "d392cd9768517c99997183addadb9de9",
+    "semantic_hash": "d392cd9768517c99997183addadb9de9"
+  },
+  "/home/fenrir/laravel11cpanel/app/Services/AuditLogger.php": {
+    "mtime": 1781024961.8895988,
+    "seen": 1794172004.9527094,
+    "ast_hash": "f16815dacaf3da73dda88134329dfed8",
+    "semantic_hash": "f16815dacaf3da73dda88134329dfed8"
+  },
+  "/home/fenrir/laravel11cpanel/app/Support/helpers.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527109,
+    "ast_hash": "12423ef5af7bc59ca2dd518457f3a3ec",
+    "semantic_hash": "12423ef5af7bc59ca2dd518457f3a3ec"
+  },
+  "/home/fenrir/laravel11cpanel/artisan": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527113,
+    "ast_hash": "6db4e64ab2d4fa6230e6dad951a79530",
+    "semantic_hash": "6db4e64ab2d4fa6230e6dad951a79530"
+  },
+  "/home/fenrir/laravel11cpanel/bootstrap/app.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527123,
+    "ast_hash": "1d6caf795178e7d8a4d8536378970ae2",
+    "semantic_hash": "1d6caf795178e7d8a4d8536378970ae2"
+  },
+  "/home/fenrir/laravel11cpanel/bootstrap/providers.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.952713,
+    "ast_hash": "d18593472c5e35d8ab5add4240fc95f6",
+    "semantic_hash": "d18593472c5e35d8ab5add4240fc95f6"
+  },
+  "/home/fenrir/laravel11cpanel/composer.json": {
+    "mtime": 1794170994.4312258,
+    "seen": 1794172004.9527135,
+    "ast_hash": "6204b5475177e0cf4aab5d25b2b321ac",
+    "semantic_hash": "6204b5475177e0cf4aab5d25b2b321ac"
+  },
+  "/home/fenrir/laravel11cpanel/config/app.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527142,
+    "ast_hash": "1dbe6b750816bcb5f0efee52d720edd1",
+    "semantic_hash": "1dbe6b750816bcb5f0efee52d720edd1"
+  },
+  "/home/fenrir/laravel11cpanel/config/auth.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.952715,
+    "ast_hash": "b65c6daa01e89ecd22338a88fbae40ce",
+    "semantic_hash": "b65c6daa01e89ecd22338a88fbae40ce"
+  },
+  "/home/fenrir/laravel11cpanel/config/cache.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527159,
+    "ast_hash": "488b21f09c887ceb3306242d0500736f",
+    "semantic_hash": "488b21f09c887ceb3306242d0500736f"
+  },
+  "/home/fenrir/laravel11cpanel/config/database.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527164,
+    "ast_hash": "b7b09d68f8893547a7e5fbd5207fc8fa",
+    "semantic_hash": "b7b09d68f8893547a7e5fbd5207fc8fa"
+  },
+  "/home/fenrir/laravel11cpanel/config/filesystems.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.952717,
+    "ast_hash": "17335145a43430fc8ee5c12d83a8bd2f",
+    "semantic_hash": "17335145a43430fc8ee5c12d83a8bd2f"
+  },
+  "/home/fenrir/laravel11cpanel/config/logging.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527178,
+    "ast_hash": "fbb56a82ae25fc5d2ce556acf26838ad",
+    "semantic_hash": "fbb56a82ae25fc5d2ce556acf26838ad"
+  },
+  "/home/fenrir/laravel11cpanel/config/mail.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527183,
+    "ast_hash": "19e978ec659cfcdf9386184e00104b62",
+    "semantic_hash": "19e978ec659cfcdf9386184e00104b62"
+  },
+  "/home/fenrir/laravel11cpanel/config/mcp.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527187,
+    "ast_hash": "fae3d6210fe58865718dec099e23f258",
+    "semantic_hash": "fae3d6210fe58865718dec099e23f258"
+  },
+  "/home/fenrir/laravel11cpanel/config/menu.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527197,
+    "ast_hash": "04f83dd07434678dd8de259ae2e46614",
+    "semantic_hash": "04f83dd07434678dd8de259ae2e46614"
+  },
+  "/home/fenrir/laravel11cpanel/config/queue.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527204,
+    "ast_hash": "fa588a4871790fca01d6a90af9208d15",
+    "semantic_hash": "fa588a4871790fca01d6a90af9208d15"
+  },
+  "/home/fenrir/laravel11cpanel/config/services.php": {
+    "mtime": 1781024961.893599,
+    "seen": 1794172004.9527209,
+    "ast_hash": "ceac635e63d3d805ebb4008e7231accc",
+    "semantic_hash": "ceac635e63d3d805ebb4008e7231accc"
+  },
+  "/home/fenrir/laravel11cpanel/config/session.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527216,
+    "ast_hash": "ea6b486e3eb14eb3994165631160bd31",
+    "semantic_hash": "ea6b486e3eb14eb3994165631160bd31"
+  },
+  "/home/fenrir/laravel11cpanel/cpanel_public/index.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.952722,
+    "ast_hash": "b8ba8abe95662ad389563c17ff093ece",
+    "semantic_hash": "b8ba8abe95662ad389563c17ff093ece"
+  },
+  "/home/fenrir/laravel11cpanel/database/factories/UserFactory.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.952723,
+    "ast_hash": "e863c5e59a1728c6fd033e87269acda7",
+    "semantic_hash": "e863c5e59a1728c6fd033e87269acda7"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/0001_01_01_000000_create_users_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527235,
+    "ast_hash": "138280095e9d19f2ba6fb830415602e2",
+    "semantic_hash": "138280095e9d19f2ba6fb830415602e2"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/0001_01_01_000001_create_cache_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527242,
+    "ast_hash": "6803c10a1aa695d40633ec8bea5576d5",
+    "semantic_hash": "6803c10a1aa695d40633ec8bea5576d5"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/0001_01_01_000002_create_jobs_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527247,
+    "ast_hash": "ead9cce2650b36345454f85e8c0214a0",
+    "semantic_hash": "ead9cce2650b36345454f85e8c0214a0"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_04_000001_create_roles_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527254,
+    "ast_hash": "443d326500ce15e692933fb7f2f49e9e",
+    "semantic_hash": "443d326500ce15e692933fb7f2f49e9e"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_04_000002_create_audit_logs_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527261,
+    "ast_hash": "f762636532924b4f39b51bd7179980e4",
+    "semantic_hash": "f762636532924b4f39b51bd7179980e4"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_12_000003_alter_audit_logs_add_diff_columns.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.952727,
+    "ast_hash": "bc920bcc833a9bac890ae4fc84222855",
+    "semantic_hash": "bc920bcc833a9bac890ae4fc84222855"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_14_000010_add_email_to_quotations_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527276,
+    "ast_hash": "a01370d3232053389925ccbdf085dc92",
+    "semantic_hash": "a01370d3232053389925ccbdf085dc92"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_14_182050_create_personal_access_tokens_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527283,
+    "ast_hash": "eb77af89d184f92ec893eff344c34999",
+    "semantic_hash": "eb77af89d184f92ec893eff344c34999"
+  },
+  "/home/fenrir/laravel11cpanel/database/migrations/2025_09_14_215311_create_mcp_sessions_table.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527287,
+    "ast_hash": "f4b6bc0d2f12496927fde9e7603f720a",
+    "semantic_hash": "f4b6bc0d2f12496927fde9e7603f720a"
+  },
+  "/home/fenrir/laravel11cpanel/database/seeders/DatabaseSeeder.php": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.9527297,
+    "ast_hash": "203551b514520168139f67a8c8fb418f",
+    "semantic_hash": "203551b514520168139f67a8c8fb418f"
+  },
+  "/home/fenrir/laravel11cpanel/package.json": {
+    "mtime": 1794171315.8991401,
+    "seen": 1794172004.9527302,
+    "ast_hash": "dc9918f989d0144f7e3d53708c2b5ecc",
+    "semantic_hash": "dc9918f989d0144f7e3d53708c2b5ecc"
+  },
+  "/home/fenrir/laravel11cpanel/postcss.config.js": {
+    "mtime": 1781024961.9015994,
+    "seen": 1794172004.952731,
+    "ast_hash": "40617f13f9f0033c23f7830f6344cfd8",
+    "semantic_hash": "40617f13f9f0033c23f7830f6344cfd8"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/chatbot.js": {
+    "mtime": 1781024961.9055994,
+    "seen": 1794172004.9527316,
+    "ast_hash": "e9d42b463bf371d9a060ea0cc3047587",
+    "semantic_hash": "e9d42b463bf371d9a060ea0cc3047587"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/clientes/cliente-show.js": {
+    "mtime": 1781024961.9055994,
+    "seen": 1794172004.9527323,
+    "ast_hash": "90193565f6114c4ff0b2313e9c322fa4",
+    "semantic_hash": "90193565f6114c4ff0b2313e9c322fa4"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/clientes/clientes.js": {
+    "mtime": 1781024961.9055994,
+    "seen": 1794172004.952733,
+    "ast_hash": "c5597cf19d33e4fd229f89d0e5ea4de6",
+    "semantic_hash": "c5597cf19d33e4fd229f89d0e5ea4de6"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/comun/buscador-global.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.9527338,
+    "ast_hash": "f0adea060597abadb65807aac4c6db96",
+    "semantic_hash": "f0adea060597abadb65807aac4c6db96"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/comun/cache-local.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.9527342,
+    "ast_hash": "bb1081d4a76f10583d30f6d938d8d097",
+    "semantic_hash": "bb1081d4a76f10583d30f6d938d8d097"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/comun/main.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.952735,
+    "ast_hash": "ce75503cb7abd1a2431395bb7d50c621",
+    "semantic_hash": "ce75503cb7abd1a2431395bb7d50c621"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/comun/plugins/datatable/es-ES.json": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.9527354,
+    "ast_hash": "94a935dc0a2b203acfe9bda19f8b17fa",
+    "semantic_hash": "94a935dc0a2b203acfe9bda19f8b17fa"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/cotizaciones/cotizacion_pdf.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.9527361,
+    "ast_hash": "91ab319e5484a3a61da511915e814c0f",
+    "semantic_hash": "91ab319e5484a3a61da511915e814c0f"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/cotizaciones/cotizaciones.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.952737,
+    "ast_hash": "5d4705b7de79045908d239337a019efc",
+    "semantic_hash": "5d4705b7de79045908d239337a019efc"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/facturas/facturas-cliente-fixed.js": {
+    "mtime": 1781024961.9095995,
+    "seen": 1794172004.9527378,
+    "ast_hash": "b5cf5d76ee45b7822c9dd29eb93c3f9d",
+    "semantic_hash": "b5cf5d76ee45b7822c9dd29eb93c3f9d"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/facturas/facturas-cliente.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527383,
+    "ast_hash": "94446feaa07592a6b0091545cbb67188",
+    "semantic_hash": "94446feaa07592a6b0091545cbb67188"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/facturas/facturas-proveedor.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.952739,
+    "ast_hash": "303adc48fd8ce10d7246badb8e8e316b",
+    "semantic_hash": "303adc48fd8ce10d7246badb8e8e316b"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/facturas/facturas.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527404,
+    "ast_hash": "7ec358a705bce5e6d4fe304022a98a06",
+    "semantic_hash": "7ec358a705bce5e6d4fe304022a98a06"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/facturas/filtros.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527411,
+    "ast_hash": "b679c5cadbbb65e3c68a5ab5b2cd5a98",
+    "semantic_hash": "b679c5cadbbb65e3c68a5ab5b2cd5a98"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/home/home.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527416,
+    "ast_hash": "db2a3c34dabfd65da3ab6f8a04f1cfdd",
+    "semantic_hash": "db2a3c34dabfd65da3ab6f8a04f1cfdd"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/metodos-pago/metodos-pago.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527423,
+    "ast_hash": "ea1e30b81db2b3e20f6dab7543b6f616",
+    "semantic_hash": "ea1e30b81db2b3e20f6dab7543b6f616"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/principal/layout.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.952743,
+    "ast_hash": "5bab33c13b2c846e6b37350d663847b9",
+    "semantic_hash": "5bab33c13b2c846e6b37350d663847b9"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/proveedores/proveedor-show.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.952744,
+    "ast_hash": "25251359a036116fd1e76b33c8f69ebe",
+    "semantic_hash": "25251359a036116fd1e76b33c8f69ebe"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/proveedores/proveedores.js": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9527445,
+    "ast_hash": "f024880dff7a65ffeffe87b00194248c",
+    "semantic_hash": "f024880dff7a65ffeffe87b00194248c"
+  },
+  "/home/fenrir/laravel11cpanel/public/index.php": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9527452,
+    "ast_hash": "f9b5759b193d6bcb41ce28e59781fc47",
+    "semantic_hash": "f9b5759b193d6bcb41ce28e59781fc47"
+  },
+  "/home/fenrir/laravel11cpanel/resources/js/app.js": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.952746,
+    "ast_hash": "1ccf2b9101110f40ecaab1608a6f91cf",
+    "semantic_hash": "1ccf2b9101110f40ecaab1608a6f91cf"
+  },
+  "/home/fenrir/laravel11cpanel/resources/js/bootstrap.js": {
+    "mtime": 1781025326.8595135,
+    "seen": 1794172004.9527464,
+    "ast_hash": "1ce980405edc65d1e49022cdecd6020a",
+    "semantic_hash": "1ce980405edc65d1e49022cdecd6020a"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/admin/audit/index.blade.php": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9527473,
+    "ast_hash": "cae3e866d18501f69fea00fcf3dd3422",
+    "semantic_hash": "cae3e866d18501f69fea00fcf3dd3422"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/admin/roles/index.blade.php": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9527483,
+    "ast_hash": "a2c004f2cfb3d971b000d189f267bc3a",
+    "semantic_hash": "a2c004f2cfb3d971b000d189f267bc3a"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/admin/users/index.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527488,
+    "ast_hash": "9e886436740e3c9dce14c29970a8f7db",
+    "semantic_hash": "9e886436740e3c9dce14c29970a8f7db"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/auth/home.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527495,
+    "ast_hash": "2400491120eeb61dd129c0da65b6939b",
+    "semantic_hash": "2400491120eeb61dd129c0da65b6939b"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/auth/login.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.95275,
+    "ast_hash": "14dada3abccc0758e8a4f7286ac0deb0",
+    "semantic_hash": "14dada3abccc0758e8a4f7286ac0deb0"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/auth/register.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.952751,
+    "ast_hash": "9be5a7c232fe44642837969a06c41945",
+    "semantic_hash": "9be5a7c232fe44642837969a06c41945"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/clientes/edit.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527516,
+    "ast_hash": "530cdfb70812abb8f7bb1e7c9fa65189",
+    "semantic_hash": "530cdfb70812abb8f7bb1e7c9fa65189"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/clientes/index.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527524,
+    "ast_hash": "1dc8b01d1c599fb36682c650b9f3998d",
+    "semantic_hash": "1dc8b01d1c599fb36682c650b9f3998d"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/clientes/partials/adjuntos.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527528,
+    "ast_hash": "13682b5540e1d09972093feb6f993823",
+    "semantic_hash": "13682b5540e1d09972093feb6f993823"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/clientes/show.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527538,
+    "ast_hash": "c554ca47ca365c4ef783462f6083af1e",
+    "semantic_hash": "c554ca47ca365c4ef783462f6083af1e"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/components/audit-log-table.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527543,
+    "ast_hash": "b1d71f7b251a595d60acf19133f60316",
+    "semantic_hash": "b1d71f7b251a595d60acf19133f60316"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/cotizacion.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.952755,
+    "ast_hash": "e3c6be3e327be455229cfaf9eae940cc",
+    "semantic_hash": "e3c6be3e327be455229cfaf9eae940cc"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/create.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527557,
+    "ast_hash": "7b0c47bf70105c9b807c272604badd02",
+    "semantic_hash": "7b0c47bf70105c9b807c272604badd02"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/edit.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527564,
+    "ast_hash": "4e76576c10ec750d0bda7bce756fde72",
+    "semantic_hash": "4e76576c10ec750d0bda7bce756fde72"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/index.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.952757,
+    "ast_hash": "0eaef9f4001cc1b437eddf9805cd7a3e",
+    "semantic_hash": "0eaef9f4001cc1b437eddf9805cd7a3e"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/index_pdf.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527578,
+    "ast_hash": "9b2d2a54e5b72807dcb702196dab1e36",
+    "semantic_hash": "9b2d2a54e5b72807dcb702196dab1e36"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/pdf.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.9527583,
+    "ast_hash": "6b0e42b2f0ce0dab383f34dd92967518",
+    "semantic_hash": "6b0e42b2f0ce0dab383f34dd92967518"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/cotizacion/show.blade.php": {
+    "mtime": 1781024961.9216,
+    "seen": 1794172004.952759,
+    "ast_hash": "ffa3262c3bdcce9cf50caa6324506c05",
+    "semantic_hash": "ffa3262c3bdcce9cf50caa6324506c05"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/facturas/clientes/index.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527595,
+    "ast_hash": "b99be664b34c42c54508536859c0cc77",
+    "semantic_hash": "b99be664b34c42c54508536859c0cc77"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/facturas/edit.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527602,
+    "ast_hash": "8176233a37a2aaea79d3ec9158a88d55",
+    "semantic_hash": "8176233a37a2aaea79d3ec9158a88d55"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/facturas/index.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.952761,
+    "ast_hash": "65b52ec060d4070932b4c27f37eec952",
+    "semantic_hash": "65b52ec060d4070932b4c27f37eec952"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/facturas/proveedores/index.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527617,
+    "ast_hash": "0f8933f644971fa9c15943df4959bdeb",
+    "semantic_hash": "0f8933f644971fa9c15943df4959bdeb"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/facturas/show.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527624,
+    "ast_hash": "77678a3d527ee6ee173e7e81ed809f6b",
+    "semantic_hash": "77678a3d527ee6ee173e7e81ed809f6b"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/layouts/app.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.952763,
+    "ast_hash": "ae88d778eb42cf840121295979edd1bb",
+    "semantic_hash": "ae88d778eb42cf840121295979edd1bb"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/layouts/header.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527638,
+    "ast_hash": "b5433c553ecda7486f6db7f6a4bdb035",
+    "semantic_hash": "b5433c553ecda7486f6db7f6a4bdb035"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/layouts/sidebar.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527645,
+    "ast_hash": "d0da73e8b90634894045c34b8b55af0d",
+    "semantic_hash": "d0da73e8b90634894045c34b8b55af0d"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/metodos-pago/index.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527652,
+    "ast_hash": "8dad0f72f5ccfbe21b656a9443f115d2",
+    "semantic_hash": "8dad0f72f5ccfbe21b656a9443f115d2"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/proveedores/edit.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527657,
+    "ast_hash": "08b2ba3aeea2ce3c21b3298bcddc688c",
+    "semantic_hash": "08b2ba3aeea2ce3c21b3298bcddc688c"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/proveedores/index.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.9527664,
+    "ast_hash": "099509c261d48ab45b706628b92bed31",
+    "semantic_hash": "099509c261d48ab45b706628b92bed31"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/proveedores/partials/adjuntos.blade.php": {
+    "mtime": 1781024961.9256003,
+    "seen": 1794172004.952767,
+    "ast_hash": "b142549ffadf52cf91705a94e8fc6655",
+    "semantic_hash": "b142549ffadf52cf91705a94e8fc6655"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/proveedores/show.blade.php": {
+    "mtime": 1781024961.9296005,
+    "seen": 1794172004.9527678,
+    "ast_hash": "b65b68cd1f367f9acef461a8cd4722bb",
+    "semantic_hash": "b65b68cd1f367f9acef461a8cd4722bb"
+  },
+  "/home/fenrir/laravel11cpanel/resources/views/welcome.blade.php": {
+    "mtime": 1781024961.9296005,
+    "seen": 1794172004.9527683,
+    "ast_hash": "6fd885146e10430e6f0299b41a004b0b",
+    "semantic_hash": "6fd885146e10430e6f0299b41a004b0b"
+  },
+  "/home/fenrir/laravel11cpanel/routes/api.php": {
+    "mtime": 1781024961.9296005,
+    "seen": 1794172004.952769,
+    "ast_hash": "d9c6466e5637781f4d1b28d9309ae3de",
+    "semantic_hash": "d9c6466e5637781f4d1b28d9309ae3de"
+  },
+  "/home/fenrir/laravel11cpanel/routes/console.php": {
+    "mtime": 1781024961.9296005,
+    "seen": 1794172004.9527695,
+    "ast_hash": "3c6ce2e6d16444282b24a9aa63885563",
+    "semantic_hash": "3c6ce2e6d16444282b24a9aa63885563"
+  },
+  "/home/fenrir/laravel11cpanel/routes/web.php": {
+    "mtime": 1781024961.9296005,
+    "seen": 1794172004.9527702,
+    "ast_hash": "4b92dd34f84dcd6d7ddfbe287c19c3a1",
+    "semantic_hash": "4b92dd34f84dcd6d7ddfbe287c19c3a1"
+  },
+  "/home/fenrir/laravel11cpanel/skills-lock.json": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.9527707,
+    "ast_hash": "62949510a127d9b563ffa66b257c1509",
+    "semantic_hash": "62949510a127d9b563ffa66b257c1509"
+  },
+  "/home/fenrir/laravel11cpanel/tailwind.config.js": {
+    "mtime": 1781024961.9336007,
+    "seen": 1794172004.9527717,
+    "ast_hash": "48eb44c9e53844088439bf11dd6076cc",
+    "semantic_hash": "48eb44c9e53844088439bf11dd6076cc"
+  },
+  "/home/fenrir/laravel11cpanel/tests/Feature/ExampleTest.php": {
+    "mtime": 1781024961.9336007,
+    "seen": 1794172004.9527721,
+    "ast_hash": "0f4d91c9c5bbcd4e2f46cf885acb7fb6",
+    "semantic_hash": "0f4d91c9c5bbcd4e2f46cf885acb7fb6"
+  },
+  "/home/fenrir/laravel11cpanel/tests/TestCase.php": {
+    "mtime": 1781024961.9336007,
+    "seen": 1794172004.9527729,
+    "ast_hash": "7e567dc27e68d5b57bae16af07f68907",
+    "semantic_hash": "7e567dc27e68d5b57bae16af07f68907"
+  },
+  "/home/fenrir/laravel11cpanel/tests/Unit/ExampleTest.php": {
+    "mtime": 1781024961.9336007,
+    "seen": 1794172004.9527733,
+    "ast_hash": "3f679e9508c834f0ad95943455fcd836",
+    "semantic_hash": "3f679e9508c834f0ad95943455fcd836"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/accessibility/SKILL.md": {
+    "mtime": 1794171253.2551563,
+    "seen": 1794172004.952774,
+    "ast_hash": "7b8650bc39e9ab2419b41482208f214f",
+    "semantic_hash": "7b8650bc39e9ab2419b41482208f214f"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/accessibility/references/A11Y-PATTERNS.md": {
+    "mtime": 1794171253.2591565,
+    "seen": 1794172004.9527748,
+    "ast_hash": "2995457ea35b394cc9665fa502d66e85",
+    "semantic_hash": "2995457ea35b394cc9665fa502d66e85"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/accessibility/references/WCAG.md": {
+    "mtime": 1794171253.2591565,
+    "seen": 1794172004.9527755,
+    "ast_hash": "1aeaf4a30d2ceb69edec5a62bfb084ee",
+    "semantic_hash": "1aeaf4a30d2ceb69edec5a62bfb084ee"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/frontend-design/LICENSE.txt": {
+    "mtime": 1794171253.3271563,
+    "seen": 1794172004.952776,
+    "ast_hash": "2ee41112a44fe7014dce33e26468ba93",
+    "semantic_hash": "2ee41112a44fe7014dce33e26468ba93"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/frontend-design/SKILL.md": {
+    "mtime": 1794171253.3271563,
+    "seen": 1794172004.9527767,
+    "ast_hash": "7d6df6b2e98e38f8b86046325dc6afd0",
+    "semantic_hash": "7d6df6b2e98e38f8b86046325dc6afd0"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-patterns/SKILL.md": {
+    "mtime": 1794171253.6391563,
+    "seen": 1794172004.9527774,
+    "ast_hash": "e7b110061befed8a2494380f0be450f9",
+    "semantic_hash": "e7b110061befed8a2494380f0be450f9"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/SKILL.md": {
+    "mtime": 1794171253.8911562,
+    "seen": 1794172004.952778,
+    "ast_hash": "2e62210eefc97b59761bee669bdf80a9",
+    "semantic_hash": "2e62210eefc97b59761bee669bdf80a9"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/references/eloquent.md": {
+    "mtime": 1794171253.8911562,
+    "seen": 1794172004.9527788,
+    "ast_hash": "88667a2f1f5713e354985e0efe275117",
+    "semantic_hash": "88667a2f1f5713e354985e0efe275117"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/references/livewire.md": {
+    "mtime": 1794171253.8911562,
+    "seen": 1794172004.9527795,
+    "ast_hash": "35dcde062191320c1b476db705eb228e",
+    "semantic_hash": "35dcde062191320c1b476db705eb228e"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/references/queues.md": {
+    "mtime": 1794171253.8951561,
+    "seen": 1794172004.95278,
+    "ast_hash": "7a32e6b8daf81ddb70d7b0569fc22a25",
+    "semantic_hash": "7a32e6b8daf81ddb70d7b0569fc22a25"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/references/routing.md": {
+    "mtime": 1794171253.8951561,
+    "seen": 1794172004.9527807,
+    "ast_hash": "0891370f1d6c7af3153c16897e7f12c3",
+    "semantic_hash": "0891370f1d6c7af3153c16897e7f12c3"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/laravel-specialist/references/testing.md": {
+    "mtime": 1794171253.8951561,
+    "seen": 1794172004.9527812,
+    "ast_hash": "6b5b4f6d0745e108e93fc9a503fd83b7",
+    "semantic_hash": "6b5b4f6d0745e108e93fc9a503fd83b7"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/nodejs-backend-patterns/SKILL.md": {
+    "mtime": 1794171253.3471563,
+    "seen": 1794172004.9527822,
+    "ast_hash": "cfa8f41173e65075918f1f3621ca302f",
+    "semantic_hash": "cfa8f41173e65075918f1f3621ca302f"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/nodejs-backend-patterns/references/advanced-patterns.md": {
+    "mtime": 1794171253.3511562,
+    "seen": 1794172004.9527826,
+    "ast_hash": "bb25613ebc806047ebe1039a19a6f5da",
+    "semantic_hash": "bb25613ebc806047ebe1039a19a6f5da"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/nodejs-backend-patterns/references/details.md": {
+    "mtime": 1794171253.3511562,
+    "seen": 1794172004.9527833,
+    "ast_hash": "a50c2b1bd8b7f214d54e67f74af1432d",
+    "semantic_hash": "a50c2b1bd8b7f214d54e67f74af1432d"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/nodejs-best-practices/SKILL.md": {
+    "mtime": 1794171253.3431563,
+    "seen": 1794172004.9527838,
+    "ast_hash": "eaa5efc90221ae7d499621ee5f5a4513",
+    "semantic_hash": "eaa5efc90221ae7d499621ee5f5a4513"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/SKILL.md": {
+    "mtime": 1794171253.8831563,
+    "seen": 1794172004.9527845,
+    "ast_hash": "48787b63f5e415e02a8a66e2ff57e9e6",
+    "semantic_hash": "48787b63f5e415e02a8a66e2ff57e9e6"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/references/async-patterns.md": {
+    "mtime": 1794171253.8831563,
+    "seen": 1794172004.9527855,
+    "ast_hash": "02afb53333a457c11f32369a806e7650",
+    "semantic_hash": "02afb53333a457c11f32369a806e7650"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/references/laravel-patterns.md": {
+    "mtime": 1794171253.8831563,
+    "seen": 1794172004.952786,
+    "ast_hash": "d3ff8118650401c88695d373dc958707",
+    "semantic_hash": "d3ff8118650401c88695d373dc958707"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/references/modern-php-features.md": {
+    "mtime": 1794171253.8871562,
+    "seen": 1794172004.9527867,
+    "ast_hash": "ab5cb7ff0cf9e8668a09e4e252624938",
+    "semantic_hash": "ab5cb7ff0cf9e8668a09e4e252624938"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/references/symfony-patterns.md": {
+    "mtime": 1794171253.8871562,
+    "seen": 1794172004.9527874,
+    "ast_hash": "583a4850a6f2eac8ff92e615cab500f3",
+    "semantic_hash": "583a4850a6f2eac8ff92e615cab500f3"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/php-pro/references/testing-quality.md": {
+    "mtime": 1794171253.8871562,
+    "seen": 1794172004.9527879,
+    "ast_hash": "78b63a5ad09051b36910bf49ee112a10",
+    "semantic_hash": "78b63a5ad09051b36910bf49ee112a10"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/seo/SKILL.md": {
+    "mtime": 1794171253.2631564,
+    "seen": 1794172004.9527888,
+    "ast_hash": "af2e624c8e6fcc4128b23f8173ccd297",
+    "semantic_hash": "af2e624c8e6fcc4128b23f8173ccd297"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/seo/references/STRUCTURED-DATA.md": {
+    "mtime": 1794171253.2631564,
+    "seen": 1794172004.9527895,
+    "ast_hash": "8d59ebfc23383afe8ab3aebfeab265b5",
+    "semantic_hash": "8d59ebfc23383afe8ab3aebfeab265b5"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/SKILL.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.95279,
+    "ast_hash": "09406f483ba9ae79648dd15cadf292a8",
+    "semantic_hash": "09406f483ba9ae79648dd15cadf292a8"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/accessibility.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9527907,
+    "ast_hash": "f77ad96a3107458e458f1d0bbc92b7e6",
+    "semantic_hash": "f77ad96a3107458e458f1d0bbc92b7e6"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/animations.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9527912,
+    "ast_hash": "a4f08599c1e9e91809f47146e60f359d",
+    "semantic_hash": "a4f08599c1e9e91809f47146e60f359d"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/component-patterns.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9527984,
+    "ast_hash": "1d9d98de37a2802c8201d6c7f500fd06",
+    "semantic_hash": "1d9d98de37a2802c8201d6c7f500fd06"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/configuration.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9527993,
+    "ast_hash": "82dbfabe7e77b7649b86016873db8c70",
+    "semantic_hash": "82dbfabe7e77b7649b86016873db8c70"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/layout-patterns.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9527998,
+    "ast_hash": "5634cb326b3be4266190286e091cd7ff",
+    "semantic_hash": "5634cb326b3be4266190286e091cd7ff"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/performance.md": {
+    "mtime": 1794171253.3311563,
+    "seen": 1794172004.9528005,
+    "ast_hash": "171bdd2789b6fa8e20589085facc651f",
+    "semantic_hash": "171bdd2789b6fa8e20589085facc651f"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/reference.md": {
+    "mtime": 1794171253.3351564,
+    "seen": 1794172004.952801,
+    "ast_hash": "d6e81208ea059e182d342eb9d6cb73c4",
+    "semantic_hash": "d6e81208ea059e182d342eb9d6cb73c4"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/tailwind-css-patterns/references/responsive-design.md": {
+    "mtime": 1794171253.3351564,
+    "seen": 1794172004.9528017,
+    "ast_hash": "59130e24f48113dd9fffa99e5ff97abf",
+    "semantic_hash": "59130e24f48113dd9fffa99e5ff97abf"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/GENERATION.md": {
+    "mtime": 1794171254.1191561,
+    "seen": 1794172004.9528027,
+    "ast_hash": "0f42ad957eb4b0d77fc379e878b09985",
+    "semantic_hash": "0f42ad957eb4b0d77fc379e878b09985"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/SKILL.md": {
+    "mtime": 1794171254.1191561,
+    "seen": 1794172004.9528034,
+    "ast_hash": "2daa6cef735d0aa17543517dfcefb100",
+    "semantic_hash": "2daa6cef735d0aa17543517dfcefb100"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/build-and-ssr.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.952805,
+    "ast_hash": "291e5349c3d03647931ba1e6b1202994",
+    "semantic_hash": "291e5349c3d03647931ba1e6b1202994"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/core-config.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.952806,
+    "ast_hash": "a04e2c308007b667d901faa07382cd4f",
+    "semantic_hash": "a04e2c308007b667d901faa07382cd4f"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/core-features.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.9528067,
+    "ast_hash": "b2f6696ae3889a82b4297f694dd2ad83",
+    "semantic_hash": "b2f6696ae3889a82b4297f694dd2ad83"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/core-plugin-api.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.9528072,
+    "ast_hash": "b6ab7fc940f72a11b90f1cfc3437527a",
+    "semantic_hash": "b6ab7fc940f72a11b90f1cfc3437527a"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/environment-api.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.952808,
+    "ast_hash": "c775659b53b2e656aa0f380eeb686fc8",
+    "semantic_hash": "c775659b53b2e656aa0f380eeb686fc8"
+  },
+  "/home/fenrir/laravel11cpanel/.agents/skills/vite/references/rolldown-migration.md": {
+    "mtime": 1794171254.123156,
+    "seen": 1794172004.9528086,
+    "ast_hash": "d3d74f06877539d6bb85eb843884e022",
+    "semantic_hash": "d3d74f06877539d6bb85eb843884e022"
+  },
+  "/home/fenrir/laravel11cpanel/README.md": {
+    "mtime": 1794171181.9231775,
+    "seen": 1794172004.9528093,
+    "ast_hash": "27fa1fd8b2dbf61e0f01330153e650b9",
+    "semantic_hash": "27fa1fd8b2dbf61e0f01330153e650b9"
+  },
+  "/home/fenrir/laravel11cpanel/docker-compose.yml": {
+    "mtime": 1781024961.8975992,
+    "seen": 1794172004.95281,
+    "ast_hash": "8428aefc3c07cd85e9afa8ac2170189e",
+    "semantic_hash": "8428aefc3c07cd85e9afa8ac2170189e"
+  },
+  "/home/fenrir/laravel11cpanel/public/assets/js/comun/README-Validaciones-CL.md": {
+    "mtime": 1781024961.9055994,
+    "seen": 1794172004.9528108,
+    "ast_hash": "3e3486ac084d2d309698c4e64db61a33",
+    "semantic_hash": "3e3486ac084d2d309698c4e64db61a33"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/index.html": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9528112,
+    "ast_hash": "2b645583b426733efe0decd2d96a4b52",
+    "semantic_hash": "2b645583b426733efe0decd2d96a4b52"
+  },
+  "/home/fenrir/laravel11cpanel/public/robots.txt": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.952812,
+    "ast_hash": "b6216d61c03e6ce0c9aea6ca7808f7ca",
+    "semantic_hash": "b6216d61c03e6ce0c9aea6ca7808f7ca"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/default-50x50.gif": {
+    "mtime": 1781024961.9135997,
+    "seen": 1794172004.9528131,
+    "ast_hash": "bb4dba391c7b7dea1c7b682f3970acfe",
+    "semantic_hash": "bb4dba391c7b7dea1c7b682f3970acfe"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/header-logo.jpg": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9528139,
+    "ast_hash": "64b1dd158cc2bfb7d4d7ce46288b3a21",
+    "semantic_hash": "64b1dd158cc2bfb7d4d7ce46288b3a21"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/icons.png": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9528143,
+    "ast_hash": "0b002041a69c3537b28c9aeb88189ff8",
+    "semantic_hash": "0b002041a69c3537b28c9aeb88189ff8"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/logo.png": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.952815,
+    "ast_hash": "203a6e92f7725a7b6d5989b713f82bc8",
+    "semantic_hash": "203a6e92f7725a7b6d5989b713f82bc8"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/logo2.png": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9528155,
+    "ast_hash": "01541cb107b0dcd4c730b3ad188b9cf2",
+    "semantic_hash": "01541cb107b0dcd4c730b3ad188b9cf2"
+  },
+  "/home/fenrir/laravel11cpanel/public/img/logo_footer.png": {
+    "mtime": 1781024961.9176,
+    "seen": 1794172004.9528165,
+    "ast_hash": "e0bea7eaecdf036fd0f1df59f24f97e9",
+    "semantic_hash": "e0bea7eaecdf036fd0f1df59f24f97e9"
+  }
+}
