@@ -60,6 +60,9 @@ return [
         'ingest_bearer' => env('N8N_INGEST_BEARER'),
         'pdf_webhook_url' => env('N8N_PDF_PROCESS_WEBHOOK_URL'),
         'pdf_webhook_bearer' => env('N8N_PDF_WEBHOOK_BEARER'),
+        'email_search_webhook_url' => env('N8N_EMAIL_SEARCH_WEBHOOK_URL'),
+        'email_search_bearer' => env('N8N_EMAIL_SEARCH_BEARER'),
+        'email_search_timeout' => (int) env('N8N_EMAIL_SEARCH_TIMEOUT', 25),
     ],
 
 ];

@@ -1,0 +1,275 @@
+{
+  "name": "Laravel - búsqueda de correo cPanel por webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assistant/email/search",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8612f25a-f291-4729-b37d-28a219e83301",
+      "name": "Webhook desde Laravel",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const incoming = $input.first()?.json ?? {};\nlet body = incoming.body ?? incoming;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch { throw new Error('El body debe ser JSON válido.'); }\n}\nif (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('El body debe ser un objeto JSON.');\nconst direction = String(body.direction ?? 'both').toLowerCase();\nif (!['inbound', 'sent', 'both'].includes(direction)) throw new Error('direction debe ser inbound, sent o both.');\nconst clean = (value, max = 180) => {\n  if (value === undefined || value === null) return '';\n  if (typeof value !== 'string' && typeof value !== 'number') throw new Error('Los filtros deben ser texto.');\n  return String(value).replace(/[\\u0000-\\u001f\\u007f]/g, ' ').trim().slice(0, max);\n};\nconst isoDate = (value, name) => {\n  const v = clean(value, 10);\n  if (!v) return '';\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(v) || Number.isNaN(Date.parse(v + 'T00:00:00Z'))) throw new Error(name + ' debe usar YYYY-MM-DD.');\n  return v;\n};\nconst filters = {\n  text: clean(body.query ?? body.text, 180),\n  from: clean(body.from, 180),\n  to: clean(body.to, 180),\n  subject: clean(body.subject, 180),\n  since: isoDate(body.after ?? body.since, 'after'),\n  before: isoDate(body.before, 'before'),\n};\nif (!Object.values(filters).some(Boolean)) throw new Error('Incluye al menos un filtro: query, from, to, subject, after o before.');\nif (filters.since && filters.before && filters.since > filters.before) throw new Error('after no puede ser posterior a before.');\nconst limit = Math.max(1, Math.min(10, Number.parseInt(body.limit ?? 5, 10) || 5));\nreturn [{ json: { direction, filters, limit } }];"
+      },
+      "id": "f18bb8ad-99c5-4fb1-8c65-5cc736f96b71",
+      "name": "Validar y preparar filtros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "search",
+        "mailbox": "INBOX",
+        "searchFilters": {
+          "before": "={{ $json.filters.before }}",
+          "from": "={{ $json.filters.from }}",
+          "since": "={{ $json.filters.since }}",
+          "subject": "={{ $json.filters.subject }}",
+          "text": "={{ $json.filters.text }}",
+          "to": "={{ $json.filters.to }}"
+        },
+        "options": {
+          "limit": "={{ $json.limit }}",
+          "includeBody": true,
+          "includeHeaders": false,
+          "newestFirst": true
+        }
+      },
+      "id": "4f777c92-d9eb-4c4d-a929-429123a51833",
+      "name": "Buscar en Recibidos",
+      "type": "n8n-nodes-imap-ai.imap",
+      "typeVersion": 1,
+      "position": [
+        740,
+        220
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "email",
+        "operation": "search",
+        "mailbox": "Sent",
+        "searchFilters": {
+          "before": "={{ $json.filters.before }}",
+          "from": "={{ $json.filters.from }}",
+          "since": "={{ $json.filters.since }}",
+          "subject": "={{ $json.filters.subject }}",
+          "text": "={{ $json.filters.text }}",
+          "to": "={{ $json.filters.to }}"
+        },
+        "options": {
+          "limit": "={{ $json.limit }}",
+          "includeBody": true,
+          "includeHeaders": false,
+          "newestFirst": true
+        }
+      },
+      "id": "ff06e370-50b2-4544-9df8-5378cac8b1bb",
+      "name": "Buscar en Enviados",
+      "type": "n8n-nodes-imap-ai.imap",
+      "typeVersion": 1,
+      "position": [
+        740,
+        500
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $('Validar y preparar filtros').first().json;\nif (req.direction === 'sent') return [];\nconst stripHtml = (s) => String(s ?? '').replace(/<\\/(p|div|li|tr|br|h[1-6])\\s*>/gi, '\\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '\"').replace(/&#39;/g, '\\'').replace(/[ \\t]+/g, ' ').replace(/\\n{3,}/g, '\\n\\n').trim();\nconst messages = $input.all().map(({json}) => ({\n  mailbox: 'INBOX', uid: json.uid ?? null, message_id: json.messageId ?? null,\n  date: json.date ?? json.internalDate ?? null, subject: json.subject ?? '(sin asunto)',\n  from: json.from ?? [], to: json.to ?? [],\n  attachments: Array.isArray(json.attachments) ? json.attachments.map(a => ({name: a.filename ?? null, mime_type: a.contentType ?? null, size: a.size ?? null})) : [],\n  excerpt: stripHtml(json.textPlain || json.textHtml).slice(0, 700)\n})).filter(m => m.uid || m.message_id);\nreturn messages.map(json => ({json}));"
+      },
+      "id": "526b2038-64d3-4b74-aa30-fcbb557ed70d",
+      "name": "Preparar resultados recibidos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        220
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $('Validar y preparar filtros').first().json;\nif (req.direction === 'inbound') return [];\nconst stripHtml = (s) => String(s ?? '').replace(/<\\/(p|div|li|tr|br|h[1-6])\\s*>/gi, '\\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '\"').replace(/&#39;/g, '\\'').replace(/[ \\t]+/g, ' ').replace(/\\n{3,}/g, '\\n\\n').trim();\nconst messages = $input.all().map(({json}) => ({\n  mailbox: 'Sent', uid: json.uid ?? null, message_id: json.messageId ?? null,\n  date: json.date ?? json.internalDate ?? null, subject: json.subject ?? '(sin asunto)',\n  from: json.from ?? [], to: json.to ?? [],\n  attachments: Array.isArray(json.attachments) ? json.attachments.map(a => ({name: a.filename ?? null, mime_type: a.contentType ?? null, size: a.size ?? null})) : [],\n  excerpt: stripHtml(json.textPlain || json.textHtml).slice(0, 700)\n})).filter(m => m.uid || m.message_id);\nreturn messages.map(json => ({json}));"
+      },
+      "id": "93de2c17-3ba0-43a4-84ce-1901c45861f6",
+      "name": "Preparar resultados enviados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        500
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "06736cbd-d304-4c37-8bdd-107237f71522",
+      "name": "Unir resultados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1240,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const req = $('Validar y preparar filtros').first().json;\nconst all = $input.all().map(x => x.json).filter(m => m && (m.uid || m.message_id));\nall.sort((a,b) => Date.parse(b.date || 0) - Date.parse(a.date || 0));\nconst seen = new Set();\nconst unique = all.filter(m => { const k = m.message_id || (m.mailbox + ':' + m.uid); if (seen.has(k)) return false; seen.add(k); return true; });\nconst results = unique.slice(0, req.limit);\nreturn [{json: {ok: true, direction: req.direction, count: results.length, truncated: unique.length > results.length, results}}];"
+      },
+      "id": "8c706b40-6f07-466b-89e3-b8fb0f059314",
+      "name": "Limitar y responder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "475da33f-4f82-4bf4-bbaa-e779fb94d194",
+      "name": "Devolver JSON a Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        360
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook desde Laravel": {
+      "main": [
+        [
+          {
+            "node": "Validar y preparar filtros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar y preparar filtros": {
+      "main": [
+        [
+          {
+            "node": "Buscar en Recibidos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar en Enviados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar en Recibidos": {
+      "main": [
+        [
+          {
+            "node": "Preparar resultados recibidos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar en Enviados": {
+      "main": [
+        [
+          {
+            "node": "Preparar resultados enviados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar resultados recibidos": {
+      "main": [
+        [
+          {
+            "node": "Unir resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar resultados enviados": {
+      "main": [
+        [
+          {
+            "node": "Unir resultados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Unir resultados": {
+      "main": [
+        [
+          {
+            "node": "Limitar y responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limitar y responder": {
+      "main": [
+        [
+          {
+            "node": "Devolver JSON a Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none"
+  },
+  "versionId": "8d36612a-01bf-442c-b463-ae72ed4792ec",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
