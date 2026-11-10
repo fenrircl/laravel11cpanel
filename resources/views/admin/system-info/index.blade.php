@@ -167,7 +167,7 @@
                     <p class="small text-muted">Consultas registradas hoy. La cuota de usuarios sin rol administrador es de 5 y se reinicia a medianoche de {{ config('assistant.quota_timezone', 'America/Santiago') }}.</p>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
-                            <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Uso de hoy</th><th>Cuota</th><th>Disponibles</th></tr></thead>
+                            <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Uso de hoy</th><th>Total histórico</th><th>Cuota</th><th>Disponibles</th></tr></thead>
                             <tbody>
                                 @forelse($quotaUsers as $quotaUser)
                                     <tr>
@@ -175,11 +175,12 @@
                                         <td>{{ $quotaUser->email }}</td>
                                         <td>{{ $quotaUser->assistant_is_admin ? 'Administrador' : 'Usuario' }}</td>
                                         <td>{{ number_format($quotaUser->assistant_requests_today) }}</td>
+                                        <td>{{ number_format($quotaUser->assistant_requests_lifetime) }}</td>
                                         <td>{{ $quotaUser->assistant_is_admin ? 'Sin límite' : '5 por día' }}</td>
                                         <td>{{ $quotaUser->assistant_is_admin ? '—' : number_format(max(0, 5 - $quotaUser->assistant_requests_today)) }}</td>
                                     </tr>
                                 @empty
-                                    <tr><td colspan="6" class="text-muted">No hay usuarios registrados.</td></tr>
+                                    <tr><td colspan="7" class="text-muted">No hay usuarios registrados.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>

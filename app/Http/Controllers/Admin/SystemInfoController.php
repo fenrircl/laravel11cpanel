@@ -93,8 +93,14 @@ class SystemInfoController extends Controller
                 ->selectRaw('user_id, COUNT(*) as request_count')
                 ->groupBy('user_id')
                 ->pluck('request_count', 'user_id');
-            $quotaUsers->getCollection()->transform(function (User $user) use ($requestsByUser) {
+            $lifetimeRequestsByUser = AssistantUsageLog::query()
+                ->whereIn('user_id', $quotaUsers->getCollection()->pluck('id'))
+                ->selectRaw('user_id, COUNT(*) as request_count')
+                ->groupBy('user_id')
+                ->pluck('request_count', 'user_id');
+            $quotaUsers->getCollection()->transform(function (User $user) use ($requestsByUser, $lifetimeRequestsByUser) {
                 $user->assistant_requests_today = (int) ($requestsByUser[$user->id] ?? 0);
+                $user->assistant_requests_lifetime = (int) ($lifetimeRequestsByUser[$user->id] ?? 0);
                 $user->assistant_is_admin = $user->roles->contains('slug', 'admin');
 
                 return $user;
