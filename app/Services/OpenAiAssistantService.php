@@ -24,6 +24,38 @@ class OpenAiAssistantService
             throw new RuntimeException('El asistente no está configurado.');
         }
 
+        $quotationChartYear = $this->monthlyQuotationChartYear($history);
+        if ($quotationChartYear !== null) {
+            $summary = $this->data->summarizeQuotations([
+                'year' => $quotationChartYear,
+                'client_name' => null,
+            ]);
+            $monthly = $summary['monthly'];
+            $chart = [
+                'title' => 'Totales de cotizaciones por mes — '.$summary['year'],
+                'type' => 'bar',
+                'labels' => array_column($monthly, 'label'),
+                'series' => [[
+                    'name' => 'Total con IVA (CLP)',
+                    'data' => array_column($monthly, 'total'),
+                ]],
+            ];
+            $content = sprintf(
+                'Aquí tienes el gráfico con todas las cotizaciones de %d. Se consideran %s cotizaciones y los meses sin registros aparecen en cero. El total anual es **$%s CLP**.',
+                $summary['year'],
+                number_format($summary['total_quotations'], 0, ',', '.'),
+                number_format($summary['year_total'], 0, ',', '.')
+            );
+
+            return [
+                'content' => $content,
+                'chart' => $chart,
+                'usage' => ['input_tokens' => 0, 'output_tokens' => 0, 'total_tokens' => 0],
+                'tool_calls' => 1,
+                'model' => $this->settings->model(),
+            ];
+        }
+
         $tools = $this->tools();
         if (!$this->requestsChart($history)) {
             $tools = array_values(array_filter($tools, fn (array $tool) => ($tool['name'] ?? null) !== 'render_chart'));
@@ -134,6 +166,31 @@ class OpenAiAssistantService
         }
 
         return false;
+    }
+
+    private function monthlyQuotationChartYear(array $history): ?int
+    {
+        foreach (array_reverse($history) as $message) {
+            if (($message['role'] ?? null) !== 'user') {
+                continue;
+            }
+
+            $text = (string) ($message['content'] ?? '');
+            if (preg_match('/\\b(gr[aá]fic[oa]s?|chart|visualizaci[oó]n)\\b/iu', $text) !== 1
+                || preg_match('/cotizaci[oó]n(?:es)?/iu', $text) !== 1
+                || preg_match('/\\b(mes(?:es)?|mensual)\\b/iu', $text) !== 1
+                || preg_match('/\\bcliente\\b/iu', $text) === 1) {
+                return null;
+            }
+
+            if (preg_match('/\\b(20\\d{2})\\b/u', $text, $matches) === 1) {
+                return (int) $matches[1];
+            }
+
+            return (int) \Carbon\CarbonImmutable::now(config('assistant.quota_timezone', 'America/Santiago'))->year;
+        }
+
+        return null;
     }
 
     private function renderChart(array $input, ?array &$chart): array
