@@ -220,6 +220,8 @@
   let conversationId = null;
   let conversationsLoaded = false;
   let busy = false;
+  let conversationEpoch = 0;
+  let activeChatController = null;
 
   async function request(path, options = {}) {
     const headers = {
@@ -430,8 +432,20 @@
     typing.hidden = !value;
   }
 
+  function cancelActiveChatRequest() {
+    conversationEpoch++;
+    if (activeChatController) {
+      activeChatController.abort();
+      activeChatController = null;
+    }
+    setBusy(false);
+  }
+
   async function openConversation(id) {
+    cancelActiveChatRequest();
+    const requestedEpoch = conversationEpoch;
     const result = await request(`/conversations/${encodeURIComponent(id)}`);
+    if (requestedEpoch !== conversationEpoch) return;
     conversationId = result.conversation.id;
     messages.replaceChildren();
     result.data.forEach((message) => {
@@ -504,22 +518,32 @@
 
     addMessage(message, 'user');
     input.value = '';
+    const requestEpoch = conversationEpoch;
+    const controller = new AbortController();
+    activeChatController = controller;
     setBusy(true);
     try {
       const result = await request('/messages', {
         method: 'POST',
         body: JSON.stringify({ conversation_id: conversationId, message }),
+        signal: controller.signal,
       });
+      if (requestEpoch !== conversationEpoch) return;
       applyQuota(result.quota);
       conversationId = result.conversation_id;
       addMessage(result.message.content, 'assistant', true, result.message.chart);
       conversationsLoaded = false;
     } catch (error) {
-      if (error?.payload?.quota) applyQuota(error.payload.quota);
-      showError(error);
+      if (requestEpoch === conversationEpoch && error?.name !== 'AbortError') {
+        if (error?.payload?.quota) applyQuota(error.payload.quota);
+        showError(error);
+      }
     } finally {
-      setBusy(false);
-      input.focus();
+      if (requestEpoch === conversationEpoch) {
+        if (activeChatController === controller) activeChatController = null;
+        setBusy(false);
+        input.focus();
+      }
     }
   }
 
@@ -554,7 +578,9 @@
     }
   });
   widget.querySelector('#cb-new').addEventListener('click', () => {
+    cancelActiveChatRequest();
     conversationId = null;
+    input.value = '';
     historyPanel.hidden = true;
     showWelcome();
     input.focus();
