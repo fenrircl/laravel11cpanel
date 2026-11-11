@@ -3,6 +3,8 @@
 
   const chatBase = document.querySelector('meta[name="assistant-chat-url"]')?.content?.replace(/\/$/, '');
   const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+  const userId = document.querySelector('meta[name="assistant-user-id"]')?.content || 'unknown';
+  const activeConversationKey = `assistant-chat-active-${userId}`;
   if (!chatBase) return;
 
   const toggle = document.createElement('button');
@@ -217,11 +219,28 @@
     });
   }
 
-  let conversationId = null;
+  let savedConversationState = null;
+  try {
+    savedConversationState = window.sessionStorage.getItem(activeConversationKey);
+  } catch (_) {
+    // The chat remains usable when session storage is unavailable.
+  }
+  let conversationId = savedConversationState && savedConversationState !== 'new' ? savedConversationState : null;
+  let explicitNewConversation = savedConversationState === 'new';
   let conversationsLoaded = false;
   let busy = false;
   let conversationEpoch = 0;
   let activeChatController = null;
+
+  function rememberConversation(id) {
+    conversationId = id == null ? null : String(id);
+    explicitNewConversation = id == null;
+    try {
+      window.sessionStorage.setItem(activeConversationKey, id == null ? 'new' : String(id));
+    } catch (_) {
+      // The current conversation remains selected until the page is closed.
+    }
+  }
 
   async function request(path, options = {}) {
     const headers = {
@@ -446,7 +465,7 @@
     const requestedEpoch = conversationEpoch;
     const result = await request(`/conversations/${encodeURIComponent(id)}`);
     if (requestedEpoch !== conversationEpoch) return;
-    conversationId = result.conversation.id;
+    rememberConversation(result.conversation.id);
     messages.replaceChildren();
     result.data.forEach((message) => {
       addMessage(message.content, message.role, message.role === 'assistant', message.chart);
@@ -488,7 +507,7 @@
         try {
           await request(`/conversations/${encodeURIComponent(conversation.id)}`, { method: 'DELETE' });
           if (conversationId === conversation.id) {
-            conversationId = null;
+            rememberConversation(null);
             showWelcome();
           }
           await refreshHistory(false);
@@ -530,11 +549,12 @@
       });
       if (requestEpoch !== conversationEpoch) return;
       applyQuota(result.quota);
-      conversationId = result.conversation_id;
+      rememberConversation(result.conversation_id);
       addMessage(result.message.content, 'assistant', true, result.message.chart);
       conversationsLoaded = false;
     } catch (error) {
       if (requestEpoch === conversationEpoch && error?.name !== 'AbortError') {
+        if (error?.payload?.conversation_id) rememberConversation(error.payload.conversation_id);
         if (error?.payload?.quota) applyQuota(error.payload.quota);
         showError(error);
       }
@@ -558,7 +578,12 @@
       }
       if (!conversationsLoaded) {
         try {
-          await refreshHistory(!conversationId);
+          if (conversationId) {
+            await openConversation(conversationId);
+            await refreshHistory(false);
+          } else {
+            await refreshHistory(!explicitNewConversation);
+          }
         } catch (error) {
           showError(error);
         }
@@ -579,7 +604,7 @@
   });
   widget.querySelector('#cb-new').addEventListener('click', () => {
     cancelActiveChatRequest();
-    conversationId = null;
+    rememberConversation(null);
     input.value = '';
     historyPanel.hidden = true;
     showWelcome();

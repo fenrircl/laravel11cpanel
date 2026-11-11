@@ -24,28 +24,35 @@ class OpenAiAssistantService
             throw new RuntimeException('El asistente no está configurado.');
         }
 
-        $quotationChartYear = $this->monthlyQuotationChartYear($history);
-        if ($quotationChartYear !== null) {
+        $quotationChartRequest = $this->monthlyQuotationChartRequest($history);
+        if ($quotationChartRequest !== null) {
             $summary = $this->data->summarizeQuotations([
-                'year' => $quotationChartYear,
+                'year' => $quotationChartRequest['year'],
                 'client_name' => null,
             ]);
             $monthly = $summary['monthly'];
+            $isCountChart = $quotationChartRequest['metric'] === 'count';
             $chart = [
-                'title' => 'Totales de cotizaciones por mes — '.$summary['year'],
+                'title' => ($isCountChart ? 'Cantidad de cotizaciones por mes — ' : 'Totales de cotizaciones por mes — ').$summary['year'],
                 'type' => 'bar',
                 'labels' => array_column($monthly, 'label'),
                 'series' => [[
-                    'name' => 'Total con IVA (CLP)',
-                    'data' => array_column($monthly, 'total'),
+                    'name' => $isCountChart ? 'Cantidad de cotizaciones' : 'Total con IVA (CLP)',
+                    'data' => array_column($monthly, $isCountChart ? 'count' : 'total'),
                 ]],
             ];
-            $content = sprintf(
-                'Aquí tienes el gráfico con todas las cotizaciones de %d. Se consideran %s cotizaciones y los meses sin registros aparecen en cero. El total anual es **$%s CLP**.',
-                $summary['year'],
-                number_format($summary['total_quotations'], 0, ',', '.'),
-                number_format($summary['year_total'], 0, ',', '.')
-            );
+            $content = $isCountChart
+                ? sprintf(
+                    'Aquí tienes el gráfico con la cantidad de cotizaciones realizadas en %d. Se consideran **%s cotizaciones** en total y los meses sin registros aparecen en cero.',
+                    $summary['year'],
+                    number_format($summary['total_quotations'], 0, ',', '.')
+                )
+                : sprintf(
+                    'Aquí tienes el gráfico con todas las cotizaciones de %d. Se consideran %s cotizaciones y los meses sin registros aparecen en cero. El total anual es **$%s CLP**.',
+                    $summary['year'],
+                    number_format($summary['total_quotations'], 0, ',', '.'),
+                    number_format($summary['year_total'], 0, ',', '.')
+                );
 
             return [
                 'content' => $content,
@@ -168,7 +175,7 @@ class OpenAiAssistantService
         return false;
     }
 
-    private function monthlyQuotationChartYear(array $history): ?int
+    private function monthlyQuotationChartRequest(array $history): ?array
     {
         foreach (array_reverse($history) as $message) {
             if (($message['role'] ?? null) !== 'user') {
@@ -183,11 +190,14 @@ class OpenAiAssistantService
                 return null;
             }
 
-            if (preg_match('/\\b(20\\d{2})\\b/u', $text, $matches) === 1) {
-                return (int) $matches[1];
-            }
+            $year = preg_match('/\\b(20\\d{2})\\b/u', $text, $matches) === 1
+                ? (int) $matches[1]
+                : (int) \Carbon\CarbonImmutable::now(config('assistant.quota_timezone', 'America/Santiago'))->year;
+            $metric = preg_match('/\\b(cantidad|n[uú]mero|cu[aá]nt[oa]s?|conteo|realizadas?|realizados?|realizaron|emitidas?|emitidos?|hechas?|hechos?)\\b/iu', $text) === 1
+                ? 'count'
+                : 'total';
 
-            return (int) \Carbon\CarbonImmutable::now(config('assistant.quota_timezone', 'America/Santiago'))->year;
+            return ['year' => $year, 'metric' => $metric];
         }
 
         return null;

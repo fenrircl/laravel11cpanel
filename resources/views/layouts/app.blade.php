@@ -7,6 +7,7 @@
     <meta name="base-url" content="{{ url('/') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="assistant-chat-url" content="{{ url('/chat') }}">
+    <meta name="assistant-user-id" content="{{ auth()->id() }}">
     <title>@yield('title', config('app.name', 'Laravel'))</title>
 
     <!-- Bootstrap CSS -->
