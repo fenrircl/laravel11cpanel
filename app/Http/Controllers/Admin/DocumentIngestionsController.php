@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Factura;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DocumentIngestionsController extends Controller
@@ -61,18 +63,6 @@ class DocumentIngestionsController extends Controller
             $job->suggested_party_name = null;
             $job->suggested_party_rut = null;
             $job->suggested_party_type = null;
-            if ($job->invoice_id) {
-                $job->suggested_invoice = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])
-                    ->find($job->invoice_id, $invoiceColumns);
-                $job->invoice_matches_count = $job->suggested_invoice ? 1 : 0;
-            } elseif ($folio !== '') {
-                $matches = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])
-                    ->where('invoice', $folio)->limit(2)->get($invoiceColumns);
-                $job->invoice_matches_count = $matches->count();
-                $job->suggested_invoice = $matches->count() === 1 ? $matches->first() : null;
-            }
-            $job->suggested_invoice_id = $job->suggested_invoice?->id;
-
             $supplierRut = $this->normalizeRut((string) data_get($job->extracted_data, 'supplier_rut', ''));
             $customerRut = $this->normalizeRut((string) data_get($job->extracted_data, 'customer_rut', ''));
             $issuer = data_get($job->extracted_data, 'issuer') ?: data_get($job->extracted_data, 'supplier_name');
@@ -106,6 +96,17 @@ class DocumentIngestionsController extends Controller
                 $job->suggested_party_rut = data_get($job->extracted_data, 'customer_rut');
                 $job->suggested_party_type = 'Cliente';
             }
+
+            if ($folio !== '') {
+                $folioCandidates = array_values(array_unique([$folio, preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio]));
+                $matchesQuery = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])->whereIn('invoice', $folioCandidates);
+                if ($job->suggested_client_id) $matchesQuery->where('client_id', $job->suggested_client_id);
+                elseif ($job->suggested_provider_id) $matchesQuery->where('provider_id', $job->suggested_provider_id);
+                $matches = $matchesQuery->limit(2)->get($invoiceColumns);
+                $job->invoice_matches_count = $matches->count();
+                $job->suggested_invoice = $matches->count() === 1 ? $matches->first() : null;
+            }
+            $job->suggested_invoice_id = $job->suggested_invoice?->id;
 
             $job->counterparty_name_matches = [];
             $job->page_counterparties = [];
@@ -156,6 +157,7 @@ class DocumentIngestionsController extends Controller
                     $job->page_counterparties[$page] = [
                         'type' => $primaryCandidate[0],
                         'name' => is_string($primaryCandidate[3]) ? $primaryCandidate[3] : null,
+                        'party_id' => null,
                     ];
 
                     foreach ($candidates as [$partyType, $partyList, $partyRut, $partyName]) {
@@ -163,6 +165,7 @@ class DocumentIngestionsController extends Controller
                         if (!$partyMatch['party']) continue;
                         if ($partyType === $primaryCandidate[0]) {
                             $job->page_counterparties[$page]['name'] = $partyMatch['party']->name;
+                            $job->page_counterparties[$page]['party_id'] = $partyMatch['party']->id;
                         }
                         $job->counterparty_name_matches[] = [
                             'page' => $page,
@@ -185,10 +188,11 @@ class DocumentIngestionsController extends Controller
     public function approve(Request $request, int $ingestion): RedirectResponse
     {
         $data = $request->validate([
-            'invoice_id' => ['required', 'integer', 'exists:invoices,id'],
+            'invoice_number' => ['required', 'string', 'max:80'],
             'provider_id' => ['nullable', 'integer', 'exists:providers,id'], 'client_id' => ['nullable', 'integer', 'exists:clients,id'],
-            'invoice_number' => ['nullable', 'string', 'max:80'], 'invoice_date' => ['nullable', 'date'],
+            'invoice_date' => ['nullable', 'date'],
             'invoice_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'create_missing' => ['nullable', 'boolean'],
         ]);
         if (!empty($data['provider_id']) && !empty($data['client_id'])) {
             return back()->withErrors(['provider_id' => 'Selecciona proveedor o cliente, no ambos.'])->withInput();
@@ -196,19 +200,55 @@ class DocumentIngestionsController extends Controller
         DB::transaction(function () use ($data, $ingestion, $request) {
             $job = DB::table('document_ingestions')->where('id', $ingestion)->lockForUpdate()->firstOrFail();
             $extraction = DB::table('invoice_extractions')->where('ingestion_id', $job->id)->lockForUpdate()->firstOrFail();
-            $invoice = Factura::findOrFail($data['invoice_id']);
-            $invoiceBefore = $invoice->fresh()->toArray();
-            $changes = [];
-            if (isset($data['provider_id'])) $changes += ['provider_id' => $data['provider_id'], 'client_id' => null];
-            if (isset($data['client_id'])) $changes += ['client_id' => $data['client_id'], 'provider_id' => null];
-            foreach (['invoice_number' => 'invoice', 'invoice_date' => 'date', 'invoice_amount' => 'amount'] as $input => $column) {
-                if (array_key_exists($input, $data) && $data[$input] !== null && $data[$input] !== '') $changes[$column] = $data[$input];
-            }
-            if ($changes) $invoice->forceFill($changes)->save();
             $normalized = json_decode($extraction->normalized_data ?: '{}', true) ?: [];
-            if (isset($data['invoice_number'])) $normalized['invoice_number'] = $data['invoice_number'];
-            if (isset($data['invoice_date'])) $normalized['date'] = $data['invoice_date'];
-            if (isset($data['invoice_amount'])) $normalized['amount'] = (float)$data['invoice_amount'];
+            $number = trim($data['invoice_number']);
+            $folioCandidates = array_values(array_unique([$number, preg_replace('/^N\s*[°º]?\s*/iu', '', $number) ?? $number]));
+            $partyType = !empty($data['client_id']) ? 'client' : (!empty($data['provider_id']) ? 'provider' : null);
+            $partyId = (int) ($data['client_id'] ?? $data['provider_id'] ?? 0);
+            $query = Factura::query()->whereIn('invoice', $folioCandidates);
+            if ($partyId) $query->where($partyType === 'client' ? 'client_id' : 'provider_id', $partyId);
+            $matches = $query->lockForUpdate()->limit(3)->get();
+            if ($matches->isEmpty() && $partyId && Factura::query()->whereIn('invoice', $folioCandidates)->exists()) {
+                throw ValidationException::withMessages(['invoice_number' => 'Ese folio ya existe asociado a otra contraparte. Revisa cliente/proveedor y folio antes de continuar.']);
+            }
+            if ($matches->count() > 1) throw ValidationException::withMessages(['invoice_number' => 'El folio coincide con más de una factura. Usa el folio exacto de la factura.']);
+
+            $created = false;
+            if ($matches->isEmpty()) {
+                if (!filter_var($data['create_missing'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    throw ValidationException::withMessages(['invoice_number' => "No existe la factura {$number}. Marca “Crear factura si no existe” para crearla."]);
+                }
+                if (!$partyId || !$partyType) {
+                    throw ValidationException::withMessages(['provider_id' => 'Selecciona el cliente o proveedor antes de crear la factura.']);
+                }
+                $createValues = [
+                    'invoice' => mb_substr($number, 0, 80),
+                    'date' => $data['invoice_date'] ?? data_get($normalized, 'date'),
+                    'amount' => $data['invoice_amount'] ?? data_get($normalized, 'amount'),
+                    'status' => 0,
+                ];
+                $createValues[$partyType === 'client' ? 'client_id' : 'provider_id'] = $partyId;
+                $invoice = Factura::create($createValues);
+                $created = true;
+                $invoiceBefore = [];
+            } else {
+                $invoice = $matches->first();
+                $invoiceBefore = $invoice->toArray();
+                $changes = [];
+                // Keep every populated field; extraction only fills missing values.
+                if (empty($invoice->invoice)) $changes['invoice'] = mb_substr($number, 0, 80);
+                $date = $data['invoice_date'] ?? data_get($normalized, 'date');
+                $amount = $data['invoice_amount'] ?? data_get($normalized, 'amount');
+                if (empty($invoice->date) && $date) $changes['date'] = $date;
+                if ($invoice->amount === null && $amount !== null && $amount !== '') $changes['amount'] = $amount;
+                if ($partyId && !$invoice->client_id && !$invoice->provider_id) {
+                    $changes[$partyType === 'client' ? 'client_id' : 'provider_id'] = $partyId;
+                }
+                if ($changes) $invoice->forceFill($changes)->save();
+            }
+            if ($number !== '') $normalized['invoice_number'] = $number;
+            if (!empty($data['invoice_date'])) $normalized['date'] = $data['invoice_date'];
+            if (($data['invoice_amount'] ?? null) !== null) $normalized['amount'] = (float) $data['invoice_amount'];
             $items = $normalized['line_items'] ?? [];
             if (!is_array($items)) $items = [];
             if ($job->file_registry_id) {
@@ -235,8 +275,8 @@ class DocumentIngestionsController extends Controller
                 'from' => 'Detalle anterior de la extracción',
                 'to' => count(array_filter($items, fn ($line) => is_array($line) && !empty($line['description']))) . ' ítem(s) guardado(s) desde extracción #' . $extraction->id,
             ];
-            AuditLogger::log($request, 'approve_extraction', 'facturas', $invoice->id,
-                'Aprobó la extracción #' . $extraction->id . ' y aplicó sus valores a la factura #' . $invoice->invoice . '.',
+            AuditLogger::log($request, $created ? 'create_from_extraction' : 'approve_extraction', 'facturas', $invoice->id,
+                ($created ? 'Creó' : 'Aprobó') . ' la extracción #' . $extraction->id . ' para la factura #' . $invoice->invoice . '.',
                 [
                     'model' => Factura::class,
                     'data_before' => $invoiceBefore,
@@ -258,14 +298,18 @@ class DocumentIngestionsController extends Controller
         $data = $request->validate([
             'pages' => ['required', 'array', 'min:1'],
             'pages.*' => ['required', 'integer', 'distinct', 'min:1'],
-            'invoice_ids' => ['required', 'array'],
-            'invoice_ids.*' => ['nullable', 'integer', 'exists:invoices,id'],
-            'invoice_numbers' => ['nullable', 'array'],
-            'invoice_numbers.*' => ['nullable', 'string', 'max:80'],
+            'invoice_numbers' => ['required', 'array'],
+            'invoice_numbers.*' => ['required', 'string', 'max:80'],
             'invoice_dates' => ['nullable', 'array'],
             'invoice_dates.*' => ['nullable', 'date'],
             'invoice_amounts' => ['nullable', 'array'],
             'invoice_amounts.*' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+            'party_types' => ['nullable', 'array'],
+            'party_types.*' => ['nullable', 'in:client,provider'],
+            'party_ids' => ['nullable', 'array'],
+            'party_ids.*' => ['nullable', 'integer', 'min:1'],
+            'create_missing' => ['nullable', 'array'],
+            'create_missing.*' => ['nullable', 'boolean'],
         ]);
 
         $result = DB::transaction(function () use ($data, $ingestion, $request) {
@@ -290,28 +334,85 @@ class DocumentIngestionsController extends Controller
 
             foreach ($data['pages'] as $pageValue) {
                 $page = (int) $pageValue;
-                if (!isset($byPage[$page])) return ['error' => "No se encontró la factura de la página {$page} en la extracción."];
-                $invoiceId = (int) ($data['invoice_ids'][$page] ?? 0);
-                if (!$invoiceId) return ['error' => "Selecciona una factura existente para la página {$page}."];
-
-                $invoice = Factura::query()->lockForUpdate()->findOrFail($invoiceId);
+                if (!isset($byPage[$page])) throw ValidationException::withMessages(['pages' => "No se encontró la factura de la página {$page} en la extracción."]);
                 $entry = $byPage[$page];
                 $number = trim((string) ($data['invoice_numbers'][$page] ?? data_get($entry, 'invoice_number', '')));
+                if ($number === '') throw ValidationException::withMessages(['pages' => "Ingresa el número de factura de la página {$page}."]);
                 $date = $data['invoice_dates'][$page] ?? data_get($entry, 'date');
                 $amount = $data['invoice_amounts'][$page] ?? data_get($entry, 'amount');
+                $partyType = $data['party_types'][$page] ?? null;
+                $partyId = (int) ($data['party_ids'][$page] ?? 0);
+                if ($partyType && $partyId) {
+                    $partyTable = $partyType === 'client' ? 'clients' : 'providers';
+                    if (!DB::table($partyTable)->where('id', $partyId)->exists()) {
+                        throw ValidationException::withMessages(['pages' => "La contraparte de la página {$page} ya no existe; revisa los datos extraídos."]);
+                    }
+                } else {
+                    $partyType = null;
+                    $partyId = 0;
+                }
+
+                $folioCandidates = [$number, preg_replace('/^N\s*[°º]?\s*/iu', '', $number) ?? $number];
+                $folioCandidates = array_values(array_unique(array_filter($folioCandidates)));
+                $invoiceQuery = Factura::query()->whereIn('invoice', $folioCandidates);
+                if ($partyId) {
+                    $partyColumn = $partyType === 'client' ? 'client_id' : 'provider_id';
+                    $invoiceQuery->where($partyColumn, $partyId);
+                }
+                $matches = $invoiceQuery->lockForUpdate()->limit(3)->get();
+                if ($matches->isEmpty() && $partyId && Factura::query()->whereIn('invoice', $folioCandidates)->exists()) {
+                    throw ValidationException::withMessages(['pages' => "El folio {$number} ya existe asociado a otra contraparte. Revisa la página antes de crear una factura duplicada."]);
+                }
+                if ($matches->count() > 1 && $date) {
+                    $dateMatches = $matches->filter(fn ($candidate) => $candidate->date?->format('Y-m-d') === (string) $date)->values();
+                    if ($dateMatches->count() === 1) $matches = $dateMatches;
+                }
+                if ($matches->count() > 1 && $amount !== null && $amount !== '') {
+                    $amountMatches = $matches->filter(fn ($candidate) => (float) $candidate->amount === (float) $amount)->values();
+                    if ($amountMatches->count() === 1) $matches = $amountMatches;
+                }
+                if ($matches->count() > 1) {
+                    throw ValidationException::withMessages(['pages' => "El folio {$number} coincide con varias facturas. Usa “Últimas facturas” para confirmar el folio correcto."]);
+                }
+
+                $created = false;
+                if ($matches->isEmpty()) {
+                    $createMissing = filter_var($data['create_missing'][$page] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    if (!$createMissing) throw ValidationException::withMessages(['pages' => "No existe la factura {$number}. Marca “Crear factura si ese número todavía no existe” para crearla."]);
+                    if (!$partyId || !$partyType) throw ValidationException::withMessages(['pages' => "No se puede crear la factura {$number} porque su cliente o proveedor no está identificado."]);
+                    $partyColumn = $partyType === 'client' ? 'client_id' : 'provider_id';
+                    $invoice = Factura::create([
+                        'invoice' => mb_substr($number, 0, 80),
+                        $partyColumn => $partyId,
+                        'date' => $date ?: null,
+                        'amount' => $amount !== null && $amount !== '' ? $amount : null,
+                        'status' => 0,
+                    ]);
+                    $created = true;
+                } else {
+                    $invoice = $matches->first();
+                }
+
                 $changes = [];
-                if ($number !== '') $changes['invoice'] = mb_substr($number, 0, 80);
-                if ($date) $changes['date'] = $date;
-                if ($amount !== null && $amount !== '') $changes['amount'] = $amount;
+                if (!$created) {
+                    // Extraction is additive: existing values always win over missing or uncertain OCR data.
+                    if (empty($invoice->invoice) && $number !== '') $changes['invoice'] = mb_substr($number, 0, 80);
+                    if (empty($invoice->date) && $date) $changes['date'] = $date;
+                    if ($invoice->amount === null && $amount !== null && $amount !== '') $changes['amount'] = $amount;
+                    if ($partyId && !$invoice->client_id && !$invoice->provider_id) {
+                        $changes[$partyType === 'client' ? 'client_id' : 'provider_id'] = $partyId;
+                    }
+                }
                 $before = $invoice->toArray();
                 if ($changes) $invoice->forceFill($changes)->save();
                 $approvedInvoices[$page] = $invoice->id;
                 $approvals[(string) $page] = ['invoice_id' => $invoice->id, 'approved_at' => $now->toISOString(), 'approved_by' => $request->user()->id];
 
-                AuditLogger::log($request, 'approve_extraction_page', 'facturas', $invoice->id,
-                    "Aprobó la página {$page} de la extracción #{$extraction->id} (" . ($job->filename ?: $job->uuid) . ').',
-                    ['model' => Factura::class, 'data_before' => $before, 'data_after' => $invoice->fresh()->toArray(),
-                        'changes' => AuditLogger::simpleDiff($before, $invoice->fresh()->toArray()), 'reversible' => false]);
+                $after = $invoice->fresh()->toArray();
+                AuditLogger::log($request, $created ? 'create_from_extraction_page' : 'approve_extraction_page', 'facturas', $invoice->id,
+                    ($created ? 'Creó' : 'Aprobó') . " la factura {$number} desde la página {$page} de la extracción #{$extraction->id} (" . ($job->filename ?: $job->uuid) . ').',
+                    ['model' => Factura::class, 'data_before' => $created ? [] : $before, 'data_after' => $after,
+                        'changes' => AuditLogger::simpleDiff($created ? [] : $before, $after), 'reversible' => false]);
             }
 
             $normalized['page_approvals'] = $approvals;
@@ -412,6 +513,48 @@ class DocumentIngestionsController extends Controller
             report($exception);
             abort(503, 'No se pudo leer el PDF desde R2.');
         }
+    }
+
+    public function recentInvoices(Request $request, int $ingestion, int $page): JsonResponse
+    {
+        $data = $request->validate([
+            'party_type' => ['required', 'in:client,provider'],
+            'party_id' => ['required', 'integer', 'min:1'],
+        ]);
+        $job = DB::table('document_ingestions')->where('id', $ingestion)->first();
+        abort_unless($job, 404, 'Importación no encontrada.');
+        $extraction = DB::table('invoice_extractions')->where('ingestion_id', $job->id)->first(['normalized_data']);
+        abort_unless($extraction, 404, 'Extracción no encontrada.');
+        $normalized = json_decode($extraction->normalized_data ?: '{}', true) ?: [];
+        $entries = data_get($normalized, 'invoices', []);
+        $pageExists = false;
+        if (is_array($entries) && $entries !== []) {
+            foreach ($entries as $index => $entry) {
+                if ((int) (data_get($entry, 'page') ?: $index + 1) === $page) {
+                    $pageExists = true;
+                    break;
+                }
+            }
+        } else {
+            $pageExists = $page === 1;
+        }
+        abort_unless($pageExists, 404, 'Página no encontrada.');
+
+        $table = $data['party_type'] === 'client' ? 'clients' : 'providers';
+        $invoicePartyColumn = $data['party_type'] === 'client' ? 'client_id' : 'provider_id';
+        $party = DB::table($table)->where('id', $data['party_id'])->first(['id', 'name', 'rut']);
+        abort_unless($party, 404, 'Cliente o proveedor no encontrado.');
+
+        $invoices = DB::table('invoices')->where($invoicePartyColumn, $party->id)
+            ->orderByDesc('date')->orderByDesc('id')->limit(20)
+            ->get(['invoice', 'date', 'amount'])
+            ->map(fn ($invoice) => [
+                'invoice_number' => (string) $invoice->invoice,
+                'date' => $invoice->date ? substr((string) $invoice->date, 0, 10) : null,
+                'amount' => $invoice->amount,
+            ]);
+
+        return response()->json(['party' => $party->name, 'invoices' => $invoices]);
     }
 
     public function discard(Request $request, int $ingestion): RedirectResponse

@@ -113,7 +113,7 @@
                                     <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
                                         @csrf
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                                            <span class="small text-muted">Selecciona páginas e ID. Los campos vacíos se conservan.</span>
+                                            <span class="small text-muted">Selecciona páginas y confirma el folio. Los campos vacíos se conservan.</span>
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-select-all-pages="{{ $job->id }}">Marcar pendientes</button>
                                         </div>
                                 @endif
@@ -122,7 +122,6 @@
                                         $previewItems = data_get($preview, 'line_items', []);
                                         $pageNumber = (int) (data_get($preview, 'page') ?: $previewIndex + 1);
                                         $pageAlreadyApproved = data_get($pageApprovals ?? [], (string) $pageNumber);
-                                        $pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string) $pageNumber);
                                         $pageCounterparty = data_get($job->page_counterparties ?? [], (string) $pageNumber, []);
                                         $pageCounterpartyName = data_get($pageCounterparty, 'name') ?: data_get($preview, 'recipient') ?: data_get($preview, 'issuer') ?: 'Contraparte no identificada';
                                     @endphp
@@ -152,13 +151,15 @@
                                         </div>
                                         <details class="small mb-3"><summary>Más datos</summary><div class="row g-2 mt-1"><div class="col-md-3">Emisor: {{ data_get($preview, 'issuer') ?: '—' }}</div><div class="col-md-3">RUT proveedor: {{ data_get($preview, 'supplier_rut') ?: '—' }}</div><div class="col-md-3">RUT cliente: {{ data_get($preview, 'customer_rut') ?: '—' }}</div><div class="col-md-3">Neto: {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">IVA: {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">Moneda: {{ data_get($preview, 'currency') ?: '—' }}</div></div></details>
                                         @if($hasMultipleInvoices)
-                                            <h4 class="h6 mb-2">Vincular a factura existente</h4>
+                                            <h4 class="h6 mb-2">Buscar por número de factura</h4>
+                                            <input type="hidden" name="party_types[{{ $pageNumber }}]" value="{{ strtolower(data_get($pageCounterparty, 'type', '')) === 'cliente' ? 'client' : (strtolower(data_get($pageCounterparty, 'type', '')) === 'proveedor' ? 'provider' : '') }}">
+                                            <input type="hidden" name="party_ids[{{ $pageNumber }}]" value="{{ data_get($pageCounterparty, 'party_id') }}">
                                             <div class="row g-2 mb-3">
-                                                <div class="col-md-3"><label class="form-label small" for="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}">ID de factura existente</label><input class="form-control form-control-sm" type="number" min="1" name="invoice_ids[{{ $pageNumber }}]" id="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}" value="{{ old('invoice_ids.' . $pageNumber, is_array($pageAlreadyApproved) ? data_get($pageAlreadyApproved, 'invoice_id') : data_get($pageInvoiceSuggestion, 'id')) }}" placeholder="Ej. 6410">@if($pageInvoiceSuggestion)<div class="form-text text-success">Coincidencia única por folio {{ $pageInvoiceSuggestion['folio'] }}.</div>@else<div class="form-text">Si el folio no coincide, ingresa el ID interno.</div>@endif</div>
-                                                <div class="col-md-3"><label class="form-label small" for="page-number-{{ $job->id }}-{{ $pageNumber }}">Folio</label><input class="form-control form-control-sm" name="invoice_numbers[{{ $pageNumber }}]" id="page-number-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'invoice_number') }}"></div>
+                                                <div class="col-md-5"><label class="form-label small" for="page-number-{{ $job->id }}-{{ $pageNumber }}">N° factura</label><div class="input-group input-group-sm"><input class="form-control" name="invoice_numbers[{{ $pageNumber }}]" id="page-number-{{ $job->id }}-{{ $pageNumber }}" value="{{ old('invoice_numbers.' . $pageNumber, data_get($preview, 'invoice_number')) }}" required><button type="button" class="btn btn-outline-primary" data-invoice-search data-url="{{ route('admin.document-ingestions.recent-invoices', ['ingestion' => $job->id, 'page' => $pageNumber]) }}" data-party-type="{{ strtolower(data_get($pageCounterparty, 'type', '')) === 'cliente' ? 'client' : 'provider' }}" data-party-id="{{ data_get($pageCounterparty, 'party_id') }}" data-folio-input="page-number-{{ $job->id }}-{{ $pageNumber }}" data-create-checkbox="create-missing-{{ $job->id }}-{{ $pageNumber }}" data-parent-modal="extracted-items-{{ $job->id }}" {{ !data_get($pageCounterparty, 'party_id') ? 'disabled' : '' }}>Últimas facturas</button></div></div>
                                                 <div class="col-md-3"><label class="form-label small" for="page-date-{{ $job->id }}-{{ $pageNumber }}">Fecha</label><input class="form-control form-control-sm" type="date" name="invoice_dates[{{ $pageNumber }}]" id="page-date-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'date') }}"></div>
-                                                <div class="col-md-3"><label class="form-label small" for="page-amount-{{ $job->id }}-{{ $pageNumber }}">Monto total</label><input class="form-control form-control-sm" type="number" min="0" step="1" name="invoice_amounts[{{ $pageNumber }}]" id="page-amount-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'amount') }}"></div>
+                                                <div class="col-md-4"><label class="form-label small" for="page-amount-{{ $job->id }}-{{ $pageNumber }}">Total</label><input class="form-control form-control-sm" type="number" min="0" step="1" name="invoice_amounts[{{ $pageNumber }}]" id="page-amount-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'amount') }}"></div>
                                             </div>
+                                            <div class="form-check mb-3"><input class="form-check-input" type="checkbox" name="create_missing[{{ $pageNumber }}]" value="1" id="create-missing-{{ $job->id }}-{{ $pageNumber }}" {{ !data_get($pageCounterparty, 'party_id') ? 'disabled' : '' }}><label class="form-check-label small" for="create-missing-{{ $job->id }}-{{ $pageNumber }}">Crear factura si ese número todavía no existe{{ !data_get($pageCounterparty, 'party_id') ? ' (contraparte no identificada)' : '' }}</label></div>
                                         @endif
                                         <h4 class="h6 mb-2">Ítems extraídos</h4>
                                         @if(is_array($previewItems) && count($previewItems))
@@ -231,12 +232,12 @@
                     @endphp
                     <form id="approve-job-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve',$job->id) }}" class="row g-2 align-items-end">
                         @csrf
-                        <div class="col-md-4"><label class="form-label" for="invoice-{{ $job->id }}">ID de factura existente</label><input class="form-control" type="number" min="1" name="invoice_id" id="invoice-{{ $job->id }}" value="{{ old('invoice_id', $job->suggested_invoice_id) }}" required><div class="form-text">Se sugiere por ID interno o coincidencia única de folio.</div></div>
-                        <div class="col-md-4"><label class="form-label" for="provider-{{ $job->id }}">Proveedor</label><select class="form-select" name="provider_id" id="provider-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($providers as $provider)<option value="{{ $provider->id }}" @selected((int) old('provider_id', $job->suggested_provider_id ?? 0) === (int) $provider->id)>{{ $provider->name }} · {{ $provider->rut }}</option>@endforeach</select>@if($job->suggested_provider_id ?? null)<div class="form-text text-success">Preseleccionado desde el RUT extraído.</div>@endif</div>
+                        <div class="col-md-4"><label class="form-label" for="provider-{{ $job->id }}">Proveedor</label><select class="form-select" name="provider_id" id="provider-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($providers as $provider)<option value="{{ $provider->id }}" @selected((int) old('provider_id', $job->suggested_provider_id ?? 0) === (int) $provider->id)>{{ $provider->name }} · {{ $provider->rut }}</option>@endforeach</select>@if($job->suggested_provider_id ?? null)<div class="form-text text-success">Detectado automáticamente</div>@endif</div>
                         <div class="col-md-4"><label class="form-label" for="client-{{ $job->id }}">Cliente</label><select class="form-select" name="client_id" id="client-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($clients as $client)<option value="{{ $client->id }}" @selected((int) old('client_id', $job->suggested_client_id ?? 0) === (int) $client->id)>{{ $client->name }} · {{ $client->rut }}</option>@endforeach</select>@if($job->suggested_client_id ?? null)<div class="form-text text-success">Preseleccionado desde el RUT extraído.</div>@endif</div>
-                        <div class="col-md-4"><label class="form-label" for="invoice-number-{{ $job->id }}">Número de factura corregido</label><input class="form-control" id="invoice-number-{{ $job->id }}" name="invoice_number" maxlength="80" value="{{ old('invoice_number', data_get($job->extracted_data, 'invoice_number')) }}"></div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-number-{{ $job->id }}">N° de factura (folio)</label><div class="input-group"><input class="form-control" id="invoice-number-{{ $job->id }}" name="invoice_number" maxlength="80" value="{{ old('invoice_number', data_get($job->extracted_data, 'invoice_number')) }}" required><button type="button" class="btn btn-outline-primary" data-invoice-search data-url="{{ route('admin.document-ingestions.recent-invoices', ['ingestion' => $job->id, 'page' => 1]) }}" data-party-type="{{ $suggestedPartyType === 'Cliente' ? 'client' : 'provider' }}" data-party-id="{{ $job->suggested_client_id ?: $job->suggested_provider_id }}" data-folio-input="invoice-number-{{ $job->id }}" data-create-checkbox="create-missing-single-{{ $job->id }}" {{ !($job->suggested_client_id || $job->suggested_provider_id) ? 'disabled' : '' }}>Últimas facturas</button></div><div class="form-text">La factura se busca por este folio, asociado al cliente o proveedor.</div></div>
                         <div class="col-md-4"><label class="form-label" for="invoice-date-{{ $job->id }}">Fecha corregida</label><input class="form-control" id="invoice-date-{{ $job->id }}" type="date" name="invoice_date" value="{{ old('invoice_date', data_get($job->extracted_data, 'date')) }}"></div>
                         <div class="col-md-4"><label class="form-label" for="invoice-amount-{{ $job->id }}">Monto corregido</label><input class="form-control" id="invoice-amount-{{ $job->id }}" type="number" min="0" step="1" name="invoice_amount" value="{{ old('invoice_amount', data_get($job->extracted_data, 'amount')) }}"></div>
+                        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="create_missing" value="1" id="create-missing-single-{{ $job->id }}" {{ !($job->suggested_client_id || $job->suggested_provider_id) ? 'disabled' : '' }}><label class="form-check-label" for="create-missing-single-{{ $job->id }}">Crear factura si el folio todavía no existe{{ !($job->suggested_client_id || $job->suggested_provider_id) ? ' (primero identifica cliente o proveedor)' : '' }}</label></div></div>
                         <div class="col-12">
                             @if($invoiceMatch)
                                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#invoice-match-{{ $job->id }}">Comparar datos y aprobar</button>
@@ -246,12 +247,12 @@
                         </div>
                     </form>
                     @if($invoiceMatch)
-                        <div class="small text-success mt-2">{{ $job->invoice_id ? 'Factura interna ya asociada' : 'Coincidencia única por folio' }}: factura ID {{ $job->suggested_invoice_id }}.</div>
+                        <div class="small text-success mt-2">Coincidencia única por folio: {{ $invoiceMatch->invoice }}.</div>
                         <div class="modal fade" id="invoice-match-{{ $job->id }}" tabindex="-1" aria-labelledby="invoice-match-title-{{ $job->id }}" aria-hidden="true" data-form-id="approve-job-{{ $job->id }}" data-database-party="{{ $databasePartyLabel }}">
                             <div class="modal-dialog modal-lg modal-dialog-scrollable">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <div><h2 class="modal-title h5 mb-1" id="invoice-match-title-{{ $job->id }}">Comparar antes de aprobar</h2><div class="small text-muted">Factura interna ID {{ $invoiceMatch->id }} · PDF {{ $job->filename }}</div></div>
+                                        <div><h2 class="modal-title h5 mb-1" id="invoice-match-title-{{ $job->id }}">Comparar antes de aprobar</h2><div class="small text-muted">Folio {{ $invoiceMatch->invoice }} · PDF {{ $job->filename }}</div></div>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                                     </div>
                                     <div class="modal-body">
@@ -280,7 +281,7 @@
                             </div>
                         </div>
                     @elseif($job->invoice_matches_count > 1)
-                        <div class="small text-warning mt-2">Hay varias facturas con este folio; confirma manualmente el ID correcto.</div>
+                        <div class="small text-warning mt-2">El folio aparece más de una vez. Usa «Últimas facturas» y revisa la fecha y el monto antes de aprobar.</div>
                     @endif
                 @endif
                 @if(in_array($job->status,['needs_review','failed']))
@@ -297,6 +298,13 @@
     @empty
         <div class="alert alert-info">No hay jobs en este filtro.</div>
     @endforelse
+    <div class="modal fade" id="recent-invoices-modal" tabindex="-1" aria-labelledby="recent-invoices-title" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+            <div class="modal-header"><div><h2 class="modal-title h5 mb-1" id="recent-invoices-title">Últimas facturas</h2><div class="small text-muted" id="recent-invoices-party"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button></div>
+            <div class="modal-body"><div class="small text-muted mb-2">Selecciona un folio para usarlo en el paso actual.</div><div class="table-responsive"><table class="table table-sm table-hover align-middle"><thead><tr><th>N° factura</th><th>Fecha</th><th>Total</th><th></th></tr></thead><tbody id="recent-invoices-results"><tr><td colspan="4" class="text-muted">Cargando…</td></tr></tbody></table></div></div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button></div>
+        </div></div>
+    </div>
     {{ $jobs->links() }}
 </div>
 @endsection
@@ -380,15 +388,14 @@ document.addEventListener('click', function (event) {
     if (target > current) {
         const section = steps[current];
         const checkbox = section.querySelector('.page-approval-checkbox');
-        const page = checkbox?.value;
-        const invoiceId = page ? section.querySelector(`[name="invoice_ids[${page}]"]`) : null;
-        if (checkbox?.checked && !invoiceId?.value.trim()) {
+        const invoiceNumber = section.querySelector('input[name^="invoice_numbers["]');
+        if (checkbox?.checked && !invoiceNumber?.value.trim()) {
             const status = stepper.querySelector('[data-step-status]');
             if (status) {
-                status.textContent = 'Ingresa el ID de factura de esta página antes de continuar.';
+                status.textContent = 'Ingresa el número de factura antes de continuar.';
                 status.classList.add('text-danger');
             }
-            invoiceId?.focus();
+            invoiceNumber?.focus();
             return;
         }
     }
@@ -417,8 +424,100 @@ document.addEventListener('click', function (event) {
 document.addEventListener('shown.bs.modal', function (event) {
     const modal = event.target;
     if (!modal.matches('[id^="extracted-items-"]')) return;
-    const firstStep = modal.querySelector('.extraction-step-button');
-    firstStep?.click();
+    const stepper = modal.querySelector('.extraction-stepper');
+    const currentStep = Number(stepper?.dataset.currentStep || 0);
+    modal.querySelector(`[data-step-target="${currentStep}"]`)?.click();
+});
+
+document.addEventListener('click', async function (event) {
+    const searchButton = event.target.closest('[data-invoice-search]');
+    if (searchButton) {
+        const parentModal = document.getElementById(searchButton.dataset.parentModal);
+        const searchModal = document.getElementById('recent-invoices-modal');
+        const results = document.getElementById('recent-invoices-results');
+        searchModal.dataset.returnModal = parentModal?.id || '';
+        searchModal.dataset.folioInput = searchButton.dataset.folioInput || '';
+        searchModal.dataset.createCheckbox = searchButton.dataset.createCheckbox || '';
+        document.getElementById('recent-invoices-party').textContent = 'Facturas asociadas a esta contraparte';
+        results.innerHTML = '<tr><td colspan="4" class="text-muted">Cargando…</td></tr>';
+        const loadRecentInvoices = async function () {
+            try {
+                const url = new URL(searchButton.dataset.url, window.location.origin);
+                url.searchParams.set('party_type', searchButton.dataset.partyType);
+                url.searchParams.set('party_id', searchButton.dataset.partyId);
+                const response = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (!response.ok) throw new Error('No se pudieron cargar las facturas.');
+                const data = await response.json();
+                document.getElementById('recent-invoices-party').textContent = data.party || '';
+                results.replaceChildren();
+                if (!data.invoices?.length) {
+                    results.innerHTML = '<tr><td colspan="4" class="text-muted">No hay facturas registradas para esta contraparte.</td></tr>';
+                } else {
+                    data.invoices.forEach((invoice) => {
+                        const row = document.createElement('tr');
+                        const number = document.createElement('td'); number.textContent = invoice.invoice_number || '—';
+                        const date = document.createElement('td'); date.textContent = invoice.date || '—';
+                        const amount = document.createElement('td'); amount.textContent = invoice.amount === null ? '—' : '$ ' + new Intl.NumberFormat('es-CL').format(invoice.amount);
+                        const action = document.createElement('td');
+                        const use = document.createElement('button'); use.type = 'button'; use.className = 'btn btn-sm btn-outline-primary'; use.textContent = 'Usar folio'; use.dataset.useInvoiceNumber = invoice.invoice_number || '';
+                        action.append(use); row.append(number, date, amount, action); results.append(row);
+                    });
+                }
+                bootstrap.Modal.getOrCreateInstance(searchModal).show();
+            } catch (error) {
+                results.innerHTML = '<tr><td colspan="4" class="text-danger">No se pudieron cargar las facturas.</td></tr>';
+                bootstrap.Modal.getOrCreateInstance(searchModal).show();
+            }
+        };
+        if (parentModal) {
+            parentModal.addEventListener('hidden.bs.modal', loadRecentInvoices, { once: true });
+            bootstrap.Modal.getOrCreateInstance(parentModal).hide();
+        } else {
+            loadRecentInvoices();
+        }
+        return;
+    }
+
+    const useInvoice = event.target.closest('[data-use-invoice-number]');
+    if (useInvoice) {
+        const searchModal = document.getElementById('recent-invoices-modal');
+        const folioInput = document.getElementById(searchModal.dataset.folioInput);
+        if (folioInput) folioInput.value = useInvoice.dataset.useInvoiceNumber;
+        const createCheckbox = document.getElementById(searchModal.dataset.createCheckbox);
+        if (createCheckbox) createCheckbox.checked = false;
+        bootstrap.Modal.getInstance(searchModal)?.hide();
+    }
+});
+
+document.addEventListener('change', function (event) {
+    if (!event.target.matches('select[name="client_id"], select[name="provider_id"]')) return;
+    const form = event.target.closest('form');
+    const search = form?.querySelector('[data-invoice-search]');
+    if (!search) return;
+    const isClient = event.target.name === 'client_id';
+    const other = form.querySelector(`select[name="${isClient ? 'provider_id' : 'client_id'}"]`);
+    if (event.target.value) {
+        if (other) other.value = '';
+        search.dataset.partyType = isClient ? 'client' : 'provider';
+        search.dataset.partyId = event.target.value;
+        search.disabled = false;
+        const createCheckbox = document.getElementById(search.dataset.createCheckbox);
+        if (createCheckbox) createCheckbox.disabled = false;
+    } else {
+        const active = form.querySelector('select[name="client_id"]')?.value
+            ? ['client', form.querySelector('select[name="client_id"]').value]
+            : (form.querySelector('select[name="provider_id"]')?.value ? ['provider', form.querySelector('select[name="provider_id"]').value] : null);
+        search.dataset.partyType = active?.[0] || '';
+        search.dataset.partyId = active?.[1] || '';
+        search.disabled = !active;
+        const createCheckbox = document.getElementById(search.dataset.createCheckbox);
+        if (createCheckbox) createCheckbox.disabled = !active;
+    }
+});
+
+document.getElementById('recent-invoices-modal')?.addEventListener('hidden.bs.modal', function () {
+    const parent = document.getElementById(this.dataset.returnModal || '');
+    if (parent) bootstrap.Modal.getOrCreateInstance(parent).show();
 });
 </script>
 @endpush
