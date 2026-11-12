@@ -66,6 +66,28 @@
             </tbody>
         </table>
     </div>
-    {{ $files->links() }}
+    <div class="existing-pdf-pagination">
+        {{ $files->onEachSide(1)->links('pagination::bootstrap-5') }}
+    </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+.existing-pdf-pagination .pagination svg,
+.existing-pdf-pagination .pagination img {
+    width: 1rem !important;
+    height: 1rem !important;
+    max-width: 1rem !important;
+    max-height: 1rem !important;
+    display: inline-block;
+    vertical-align: middle;
+}
+.existing-pdf-pagination .pagination .page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem;
+}
+</style>
+@endpush

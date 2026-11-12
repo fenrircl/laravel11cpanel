@@ -405,6 +405,20 @@ class R2Controller extends Controller
                 ]);
             }
         }
+        // Older registry rows can contain a filename with a different accent/encoding
+        // than the object key in R2. Search only the same parent directory and accept
+        // a filename whose accent/spacing-normalized form matches.
+        if ($candidate === null) {
+            try {
+                $candidate = $this->findAlternativeFilePath($key);
+            } catch (\Throwable $exception) {
+                \Log::notice('No se pudo buscar una variante Unicode de ruta R2', [
+                    'file_registry_id' => $record->id,
+                    'path_sha256' => hash('sha256', $key),
+                    'exception' => get_class($exception),
+                ]);
+            }
+        }
         if ($candidate === null && class_exists(\Normalizer::class)) {
             foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
                 $variant = \Normalizer::normalize($key, $form);

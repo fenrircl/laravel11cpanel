@@ -62,10 +62,17 @@ class ExistingInvoicePdfsController extends Controller
     {
         $record = DB::table('files_registry')->where('id', $file)->where('model_type', 'App\\Invoice')->first();
         abort_unless($record, 404, 'PDF asociado a una factura no encontrado.');
-        $mime = strtolower(trim(explode(';', (string) $record->mime_type)[0]));
+        // Legacy rows can contain control bytes or mojibake around the MIME value.
+        // Clean metadata before checking the extension so a real PDF is not rejected.
+        $mime = preg_replace('/[\x00-\x20\x7F-\x9F]/', '', (string) $record->mime_type) ?? '';
+        $mime = strtolower(trim(explode(';', $mime, 2)[0]));
+        $fileName = preg_replace('/[\x00-\x1F\x7F]/', '', (string) $record->file_name) ?? '';
+        $path = preg_replace('/[\x00-\x1F\x7F]/', '', (string) $record->path) ?? '';
         $isPdf = in_array($mime, ['application/pdf', 'application/x-pdf'], true)
-            || strtolower((string) pathinfo((string) $record->file_name, PATHINFO_EXTENSION)) === 'pdf'
-            || strtolower((string) pathinfo((string) $record->path, PATHINFO_EXTENSION)) === 'pdf';
+            || strtolower((string) pathinfo($fileName, PATHINFO_EXTENSION)) === 'pdf'
+            || strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf'
+            || preg_match('/\.pdf(?:$|[^a-z0-9])/i', $fileName) === 1
+            || preg_match('/\.pdf(?:$|[^a-z0-9])/i', $path) === 1;
         abort_unless($isPdf, 422, 'El archivo asociado no es un PDF.');
 
         $webhookUrl = trim((string) config('services.n8n.existing_pdf_process_webhook_url', ''));
