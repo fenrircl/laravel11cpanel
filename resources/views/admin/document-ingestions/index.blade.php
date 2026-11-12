@@ -64,6 +64,114 @@
                 </div>
                 @if($job->warnings)<div class="alert alert-warning py-2"><strong>Advertencias:</strong> {{ implode(' · ', (array)json_decode($job->warnings, true)) }}</div>@endif
                 @if($job->last_error)<div class="alert alert-danger py-2">{{ $job->last_error }}</div>@endif
+                @php
+                    $invoicePreviews = data_get($job->extracted_data, 'invoices');
+                    $invoicePreviews = is_array($invoicePreviews) && count($invoicePreviews)
+                        ? $invoicePreviews
+                        : [$job->extracted_data];
+                    $invoicePreviews = array_values(array_filter($invoicePreviews, 'is_array'));
+                @endphp
+                <button type="button" class="btn btn-sm btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#extracted-items-{{ $job->id }}">
+                    Ver datos e ítems extraídos <span class="badge bg-light text-primary ms-1">{{ count($invoicePreviews) }}</span>
+                </button>
+                <div class="modal fade" id="extracted-items-{{ $job->id }}" tabindex="-1" aria-labelledby="extracted-items-title-{{ $job->id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <div>
+                                    <h2 class="modal-title h5 mb-1" id="extracted-items-title-{{ $job->id }}">Datos e ítems extraídos</h2>
+                                    <div class="small text-muted">{{ $job->filename ?: $job->external_id }} · {{ count($invoicePreviews) }} {{ count($invoicePreviews) === 1 ? 'documento' : 'facturas/páginas' }}</div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert {{ $job->status === 'completed' ? 'alert-success' : 'alert-info' }} py-2">
+                                    {{ $job->status === 'completed' ? 'Importación completada. Estos son los datos reconocidos y guardados.' : 'Vista previa de la extracción. Los datos todavía no se han insertado en una factura.' }}
+                                </div>
+                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                    <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
+                                        @csrf
+                                        @php($pageApprovals = data_get($job->extracted_data, 'page_approvals', []))
+                                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                            <p class="small text-muted mb-0">Marca las facturas que quieras aplicar e indica el ID interno de cada una. Solo se guardarán las filas seleccionadas.</p>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-select-all-pages="{{ $job->id }}">Marcar pendientes</button>
+                                        </div>
+                                @endif
+                                @forelse($invoicePreviews as $previewIndex => $preview)
+                                    @php($previewItems = data_get($preview, 'line_items', []))
+                                    @php($pageNumber = (int) (data_get($preview, 'page') ?: $previewIndex + 1))
+                                    @php($pageAlreadyApproved = data_get($pageApprovals ?? [], (string)$pageNumber))
+                                    @php($pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string)$pageNumber))
+                                    <section class="border rounded p-3 mb-3">
+                                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                                    <input class="form-check-input mt-0 page-approval-checkbox" type="checkbox" name="pages[]" value="{{ $pageNumber }}" id="page-{{ $job->id }}-{{ $pageNumber }}" @checked(!$pageAlreadyApproved)>
+                                                @endif
+                                                <h3 class="h6 mb-0">{{ count($invoicePreviews) > 1 ? 'Factura / página ' . $pageNumber : 'Resumen de extracción' }}</h3>
+                                            </div>
+                                            <span class="badge {{ $pageAlreadyApproved ? 'bg-success' : 'bg-light text-dark border' }}">{{ $pageAlreadyApproved ? 'Aplicada a factura ID ' . data_get($pageAlreadyApproved, 'invoice_id', $pageAlreadyApproved) : (is_array($previewItems) ? count($previewItems) : 0) . ' ítems' }}</span>
+                                        </div>
+                                        @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                            <div class="row g-2 mb-3">
+                                                <div class="col-md-3"><label class="form-label small" for="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}">ID de factura existente</label><input class="form-control form-control-sm" type="number" min="1" name="invoice_ids[{{ $pageNumber }}]" id="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}" value="{{ old('invoice_ids.' . $pageNumber, is_array($pageAlreadyApproved) ? data_get($pageAlreadyApproved, 'invoice_id') : data_get($pageInvoiceSuggestion, 'id')) }}" placeholder="Ej. 6410">@if($pageInvoiceSuggestion)<div class="form-text text-success">Coincidencia única por folio {{ $pageInvoiceSuggestion['folio'] }}.</div>@else<div class="form-text">Si el folio no coincide, ingresa el ID interno.</div>@endif</div>
+                                                <div class="col-md-3"><label class="form-label small" for="page-number-{{ $job->id }}-{{ $pageNumber }}">Folio</label><input class="form-control form-control-sm" name="invoice_numbers[{{ $pageNumber }}]" id="page-number-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'invoice_number') }}"></div>
+                                                <div class="col-md-3"><label class="form-label small" for="page-date-{{ $job->id }}-{{ $pageNumber }}">Fecha</label><input class="form-control form-control-sm" type="date" name="invoice_dates[{{ $pageNumber }}]" id="page-date-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'date') }}"></div>
+                                                <div class="col-md-3"><label class="form-label small" for="page-amount-{{ $job->id }}-{{ $pageNumber }}">Monto total</label><input class="form-control form-control-sm" type="number" min="0" step="1" name="invoice_amounts[{{ $pageNumber }}]" id="page-amount-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'amount') }}"></div>
+                                            </div>
+                                        @endif
+                                        <div class="row g-2 small mb-3">
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">N° factura:</span> <strong>{{ data_get($preview, 'invoice_number') ?: 'No identificado' }}</strong></div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Fecha:</span> {{ data_get($preview, 'date') ?: 'No identificada' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Emisor:</span> {{ data_get($preview, 'issuer') ?: 'No identificado' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($preview, 'supplier_rut') ?: '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Cliente:</span> {{ data_get($preview, 'recipient') ?: data_get($preview, 'customer_name') ?: 'No identificado' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">RUT cliente:</span> {{ data_get($preview, 'customer_rut') ?: '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Neto:</span> {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">IVA:</span> {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Total:</span> <strong>{{ data_get($preview, 'amount') !== null ? '$ ' . number_format((float)data_get($preview, 'amount'), 0, ',', '.') : 'No identificado' }}</strong></div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Moneda:</span> {{ data_get($preview, 'currency') ?: '—' }}</div>
+                                        </div>
+                                        @if(is_array($previewItems) && count($previewItems))
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-striped table-bordered align-middle mb-0">
+                                                    <thead class="table-light"><tr><th>#</th><th>Descripción</th><th>Código</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario</th><th>Total</th></tr></thead>
+                                                    <tbody>
+                                                        @foreach($previewItems as $lineIndex => $item)
+                                                            <tr>
+                                                                <td>{{ data_get($item, 'item') ?: $lineIndex + 1 }}</td>
+                                                                <td>{{ data_get($item, 'description') ?: data_get($item, 'description_original') ?: '—' }}</td>
+                                                                <td>{{ data_get($item, 'code') ?: data_get($item, 'supplier_sku') ?: '—' }}</td>
+                                                                <td>{{ data_get($item, 'quantity') ?? '—' }}</td>
+                                                                <td>{{ data_get($item, 'unit') ?: '—' }}</td>
+                                                                <td>{{ data_get($item, 'unit_price') !== null ? '$ ' . number_format((float)data_get($item, 'unit_price'), 2, ',', '.') : '—' }}</td>
+                                                                @php($lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount'))
+                                                                <td>{{ $lineTotal !== null ? '$ ' . number_format((float)$lineTotal, 0, ',', '.') : '—' }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @else
+                                            <div class="small text-muted">No se pudieron extraer ítems para este documento.</div>
+                                        @endif
+                                    </section>
+                                @empty
+                                    <div class="alert alert-warning mb-0">La extracción no contiene datos de factura para previsualizar.</div>
+                                @endforelse
+                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                    </form>
+                                @endif
+                            </div>
+                            <div class="modal-footer justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                    <button type="submit" class="btn btn-success" form="approve-pages-{{ $job->id }}">Aplicar facturas seleccionadas</button>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <details class="mb-3"><summary>Ver datos extraídos</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
                 @if($job->file_registry_id || $job->r2_key)
                     <a class="btn btn-sm btn-outline-primary mb-2" target="_blank" rel="noopener" href="{{ route('admin.document-ingestions.pdf', ['ingestion' => $job->id]) }}">Ver PDF en R2</a>
@@ -204,6 +312,15 @@ document.addEventListener('show.bs.modal', function (event) {
         badgeElement.className = `badge ${badge}`;
         badgeElement.textContent = label;
         result.replaceChildren(badgeElement);
+    });
+});
+
+document.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-select-all-pages]');
+    if (!button) return;
+    const modal = button.closest('.modal');
+    modal?.querySelectorAll('.page-approval-checkbox').forEach((checkbox) => {
+        if (!checkbox.closest('section')?.querySelector('.badge.bg-success')) checkbox.checked = true;
     });
 });
 </script>

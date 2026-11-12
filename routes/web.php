@@ -170,6 +170,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::post('/existing-invoice-pdfs/{file}/retry', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'retry'])->name('existing-invoice-pdfs.retry');
         Route::post('/existing-invoice-pdfs/{file}/cancel', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'cancel'])->name('existing-invoice-pdfs.cancel');
         Route::post('/document-ingestions/{ingestion}/approve', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'approve'])->name('document-ingestions.approve');
+        Route::post('/document-ingestions/{ingestion}/approve-pages', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'approvePages'])->whereNumber('ingestion')->name('document-ingestions.approve-pages');
         Route::post('/document-ingestions/{ingestion}/retry', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'retry'])->name('document-ingestions.retry');
     });
 

@@ -109,9 +109,31 @@ class DocumentIngestionsController extends Controller
 
             $job->counterparty_name_matches = [];
             $invoiceEntries = data_get($job->extracted_data, 'invoices', []);
+            $job->page_invoice_suggestions = [];
             if (is_array($invoiceEntries)) {
+                $folioCandidates = [];
+                foreach ($invoiceEntries as $entry) {
+                    if (!is_array($entry)) continue;
+                    $folio = trim((string) data_get($entry, 'invoice_number', ''));
+                    if ($folio === '') continue;
+                    $folioCandidates[] = $folio;
+                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio;
+                    if ($withoutPrefix !== $folio) $folioCandidates[] = $withoutPrefix;
+                }
+                $folioRows = $folioCandidates
+                    ? Factura::query()->whereIn('invoice', array_values(array_unique($folioCandidates)))->get(['id', 'invoice'])
+                    : collect();
+                $foliosByNumber = $folioRows->groupBy(fn ($invoice) => trim((string) $invoice->invoice));
+
                 foreach ($invoiceEntries as $index => $entry) {
                     if (!is_array($entry)) continue;
+                    $page = (int) (data_get($entry, 'page') ?: $index + 1);
+                    $folio = trim((string) data_get($entry, 'invoice_number', ''));
+                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio;
+                    $folioMatches = $foliosByNumber->get($folio, collect())->concat($foliosByNumber->get($withoutPrefix, collect()))->unique('id')->values();
+                    $job->page_invoice_suggestions[$page] = $folioMatches->count() === 1
+                        ? ['id' => $folioMatches->first()->id, 'folio' => $folioMatches->first()->invoice]
+                        : null;
                     $entryIssuer = data_get($entry, 'issuer') ?: data_get($entry, 'supplier_name');
                     $entryRecipient = data_get($entry, 'customer_name') ?: data_get($entry, 'recipient');
                     $entrySupplierRut = $this->normalizeRut((string) data_get($entry, 'supplier_rut', ''));
@@ -133,7 +155,7 @@ class DocumentIngestionsController extends Controller
                         $partyMatch = $findParty($partyList, $partyRut, is_string($partyName) ? $partyName : null);
                         if (!$partyMatch['party']) continue;
                         $job->counterparty_name_matches[] = [
-                            'page' => data_get($entry, 'page', $index + 1),
+                            'page' => $page,
                             'invoice_number' => data_get($entry, 'invoice_number'),
                             'type' => $partyType,
                             'extracted_name' => $partyName,
@@ -220,6 +242,134 @@ class DocumentIngestionsController extends Controller
                 'method' => 'POST', 'created_at' => now(), 'updated_at' => now()]);
         });
         return back()->with('success', 'Importación aprobada y asociada a la factura.');
+    }
+
+    public function approvePages(Request $request, int $ingestion): RedirectResponse
+    {
+        $data = $request->validate([
+            'pages' => ['required', 'array', 'min:1'],
+            'pages.*' => ['required', 'integer', 'distinct', 'min:1'],
+            'invoice_ids' => ['required', 'array'],
+            'invoice_ids.*' => ['nullable', 'integer', 'exists:invoices,id'],
+            'invoice_numbers' => ['nullable', 'array'],
+            'invoice_numbers.*' => ['nullable', 'string', 'max:80'],
+            'invoice_dates' => ['nullable', 'array'],
+            'invoice_dates.*' => ['nullable', 'date'],
+            'invoice_amounts' => ['nullable', 'array'],
+            'invoice_amounts.*' => ['nullable', 'numeric', 'min:0', 'max:999999999999'],
+        ]);
+
+        $result = DB::transaction(function () use ($data, $ingestion, $request) {
+            $job = DB::table('document_ingestions')->where('id', $ingestion)->lockForUpdate()->firstOrFail();
+            $extraction = DB::table('invoice_extractions')->where('ingestion_id', $job->id)->lockForUpdate()->firstOrFail();
+            $normalized = json_decode($extraction->normalized_data ?: '{}', true) ?: [];
+            $entries = data_get($normalized, 'invoices', []);
+            if (!is_array($entries) || $entries === []) {
+                return ['error' => 'Esta extracción no contiene facturas separadas por página.'];
+            }
+
+            $byPage = [];
+            foreach ($entries as $index => $entry) {
+                if (!is_array($entry)) continue;
+                $page = (int) (data_get($entry, 'page') ?: $index + 1);
+                $byPage[$page] = $entry;
+            }
+            $approvals = data_get($normalized, 'page_approvals', []);
+            if (!is_array($approvals)) $approvals = [];
+            $now = now();
+            $approvedInvoices = [];
+
+            foreach ($data['pages'] as $pageValue) {
+                $page = (int) $pageValue;
+                if (!isset($byPage[$page])) return ['error' => "No se encontró la factura de la página {$page} en la extracción."];
+                $invoiceId = (int) ($data['invoice_ids'][$page] ?? 0);
+                if (!$invoiceId) return ['error' => "Selecciona una factura existente para la página {$page}."];
+
+                $invoice = Factura::query()->lockForUpdate()->findOrFail($invoiceId);
+                $entry = $byPage[$page];
+                $number = trim((string) ($data['invoice_numbers'][$page] ?? data_get($entry, 'invoice_number', '')));
+                $date = $data['invoice_dates'][$page] ?? data_get($entry, 'date');
+                $amount = $data['invoice_amounts'][$page] ?? data_get($entry, 'amount');
+                $changes = [];
+                if ($number !== '') $changes['invoice'] = mb_substr($number, 0, 80);
+                if ($date) $changes['date'] = $date;
+                if ($amount !== null && $amount !== '') $changes['amount'] = $amount;
+                $before = $invoice->toArray();
+                if ($changes) $invoice->forceFill($changes)->save();
+                $approvedInvoices[$page] = $invoice->id;
+                $approvals[(string) $page] = ['invoice_id' => $invoice->id, 'approved_at' => $now->toISOString(), 'approved_by' => $request->user()->id];
+
+                AuditLogger::log($request, 'approve_extraction_page', 'facturas', $invoice->id,
+                    "Aprobó la página {$page} de la extracción #{$extraction->id} (" . ($job->filename ?: $job->uuid) . ').',
+                    ['model' => Factura::class, 'data_before' => $before, 'data_after' => $invoice->fresh()->toArray(),
+                        'changes' => AuditLogger::simpleDiff($before, $invoice->fresh()->toArray()), 'reversible' => false]);
+            }
+
+            $normalized['page_approvals'] = $approvals;
+            $pageCount = count($byPage);
+            $approvedPageKeys = array_intersect(array_map('strval', array_keys($byPage)), array_keys($approvals));
+            $approvedCount = count($approvedPageKeys);
+            $isComplete = $approvedCount >= $pageCount;
+
+            // Rebuild this extraction's lines from the approved pages so partial approvals
+            // remain repeatable without duplicating or mixing line items between invoices.
+            DB::table('invoice_line_items')->where('extraction_id', $extraction->id)->delete();
+            $lineNumber = 0;
+            foreach ($byPage as $page => $entry) {
+                $approval = $approvals[(string) $page] ?? null;
+                $invoiceId = is_array($approval) ? (int) ($approval['invoice_id'] ?? 0) : (int) $approval;
+                if (!$invoiceId) continue;
+                foreach ((array) data_get($entry, 'line_items', []) as $line) {
+                    if (!is_array($line) || empty($line['description'])) continue;
+                    $lineNumber++;
+                    $description = mb_substr((string) $line['description'], 0, 1000);
+                    $currency = strtoupper((string) data_get($entry, 'currency', 'CLP'));
+                    if (!preg_match('/^[A-Z]{3}$/', $currency)) $currency = 'CLP';
+                    DB::table('invoice_line_items')->insert([
+                        'invoice_id' => $invoiceId, 'extraction_id' => $extraction->id, 'line_number' => $lineNumber,
+                        'description_original' => $description,
+                        'description_normalized' => mb_substr(mb_strtolower(trim($description)), 0, 700),
+                        'supplier_sku' => isset($line['code']) ? mb_substr((string) $line['code'], 0, 191) : null,
+                        'quantity' => $line['quantity'] ?? null, 'unit_original' => isset($line['unit']) ? mb_substr((string) $line['unit'], 0, 32) : null,
+                        'unit_price' => $line['unit_price'] ?? null,
+                        'total_amount' => $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null,
+                        'currency' => $currency, 'source_line' => json_encode($line + ['source_page' => $page], JSON_UNESCAPED_UNICODE),
+                        'created_at' => $now, 'updated_at' => $now,
+                    ]);
+                }
+            }
+
+            $primaryInvoiceId = reset($approvedInvoices);
+            DB::table('invoice_extractions')->where('id', $extraction->id)->update([
+                'invoice_id' => $approvedCount === 1 ? $primaryInvoiceId : null,
+                'validation_status' => $isComplete ? 'validated' : 'needs_review',
+                'is_active' => $isComplete,
+                'processed_at' => $isComplete ? $now : null,
+                'normalized_data' => json_encode($normalized, JSON_UNESCAPED_UNICODE),
+                'updated_at' => $now,
+            ]);
+            DB::table('document_ingestions')->where('id', $job->id)->update([
+                'invoice_id' => $approvedCount === 1 ? $primaryInvoiceId : null,
+                'status' => $isComplete ? 'completed' : 'needs_review',
+                'last_error' => $isComplete ? null : 'Aprobadas ' . $approvedCount . ' de ' . $pageCount . ' facturas del PDF.',
+                'updated_at' => $now,
+            ]);
+
+            if ($job->file_registry_id && $approvedCount === 1) {
+                DB::table('files_registry')->where('id', $job->file_registry_id)->update([
+                    'model_type' => 'App\\Invoice', 'model_id' => $primaryInvoiceId, 'real_id' => $primaryInvoiceId,
+                ]);
+            }
+
+            return ['error' => null, 'approved' => $approvedCount, 'total' => $pageCount, 'complete' => $isComplete];
+        });
+
+        if ($result['error'] ?? null) return back()->withErrors(['pages' => $result['error']]);
+        $message = $result['complete']
+            ? 'Todas las facturas del PDF fueron aprobadas y sus ítems quedaron asociados.'
+            : "Se aplicaron las páginas seleccionadas. Quedan {$result['approved']} de {$result['total']} facturas aprobadas; puedes continuar después.";
+
+        return back()->with('success', $message);
     }
 
     public function retry(int $ingestion): RedirectResponse
