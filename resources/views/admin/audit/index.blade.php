@@ -3,30 +3,24 @@
 @section('content')
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Logs de auditoría</h3>
+        <h1 class="h3 mb-0"><i class="fas fa-clipboard-list me-2"></i>Auditoría</h1>
     </div>
+    @include('admin._quick-nav', ['active' => 'audit'])
 
     <div class="card mb-3">
         <div class="card-body">
             <form class="row g-2" method="GET">
-                <div class="col-md-2">
-                    <input type="text" name="q" class="form-control" value="{{ request('q') }}" placeholder="Buscar...">
-                </div>
-                <div class="col-md-2">
-                    <input type="text" name="module" class="form-control" value="{{ request('module') }}" placeholder="Módulo">
-                </div>
-                <div class="col-md-2">
-                    <input type="text" name="action" class="form-control" value="{{ request('action') }}" placeholder="Acción">
-                </div>
-                <div class="col-md-2">
-                    <input type="number" name="user_id" class="form-control" value="{{ request('user_id') }}" placeholder="Usuario ID">
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>Filtrar</button>
-                </div>
-                <div class="col-md-2">
-                    <a href="{{ route('admin.audit.index') }}" class="btn btn-secondary w-100">Limpiar</a>
-                </div>
+                <div class="col-md-6"><input type="search" name="q" class="form-control" value="{{ request('q') }}" placeholder="Buscar en auditoría..."></div>
+                <div class="col-md-3"><button class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>Buscar</button></div>
+                <div class="col-md-3"><a href="{{ route('admin.audit.index') }}" class="btn btn-outline-secondary w-100">Limpiar</a></div>
+                <details class="col-12 mt-2">
+                    <summary>Filtros avanzados</summary>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-4"><input type="text" name="module" class="form-control" value="{{ request('module') }}" placeholder="Módulo"></div>
+                        <div class="col-md-4"><input type="text" name="action" class="form-control" value="{{ request('action') }}" placeholder="Acción"></div>
+                        <div class="col-md-4"><input type="number" name="user_id" class="form-control" value="{{ request('user_id') }}" placeholder="ID de usuario"></div>
+                    </div>
+                </details>
             </form>
         </div>
     </div>

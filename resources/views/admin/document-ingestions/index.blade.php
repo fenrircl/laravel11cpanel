@@ -3,7 +3,7 @@
 @section('content')
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div><h1 class="h3 mb-1">Mantenedor de jobs</h1><p class="text-muted mb-0">Revisa importaciones, corrige los datos y administra reintentos.</p></div>
+        <div><h1 class="h3 mb-1">Jobs de importación</h1></div>
     </div>
     @include('admin._quick-nav', ['active' => 'jobs'])
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
@@ -33,16 +33,16 @@
                     <div class="col-md-3"><strong>Confianza:</strong> {{ $job->confidence ?? '—' }}</div>
                     <div class="col-md-3"><strong>Actualizado:</strong> {{ $job->updated_at }}</div>
                 </div>
-                <div class="border rounded p-3 mb-3 bg-light">
-                    <strong class="d-block mb-2">Datos identificados</strong>
-                    <div class="row g-2 small">
-                        <div class="col-md-3"><span class="text-muted">Emisor:</span> {{ data_get($job->extracted_data, 'issuer') ?: 'No identificado' }}</div>
-                        <div class="col-md-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($job->extracted_data, 'supplier_rut') ?: 'No identificado' }}</div>
-                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient') ?: (data_get($job->extracted_data, 'invoices') ? 'Varias facturas; revisar coincidencias por página' : 'No identificado') }}</div>
-                        <div class="col-md-3"><span class="text-muted">RUT cliente:</span> {{ data_get($job->extracted_data, 'customer_rut') ?: 'No identificado' }}</div>
+                <details class="border rounded p-3 mb-3 bg-light">
+                    <summary>Datos identificados y coincidencias</summary>
+                    <div class="row g-2 small mt-2">
+                        <div class="col-md-3"><span class="text-muted">Emisor:</span> {{ data_get($job->extracted_data, 'issuer') ?: '—' }}</div>
+                        <div class="col-md-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($job->extracted_data, 'supplier_rut') ?: '—' }}</div>
+                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient') ?: (data_get($job->extracted_data, 'invoices') ? 'Varias facturas' : '—') }}</div>
+                        <div class="col-md-3"><span class="text-muted">RUT cliente:</span> {{ data_get($job->extracted_data, 'customer_rut') ?: '—' }}</div>
                     </div>
                     @if(!empty($job->counterparty_name_matches))
-                        <div class="table-responsive mt-3">
+                        <div class="table-responsive mt-2">
                             <table class="table table-sm table-bordered align-middle mb-0 bg-white">
                                 <thead class="table-light"><tr><th>Página</th><th>Nombre extraído</th><th>Coincidencia en sistema</th><th>Tipo</th><th>Coincidencia</th></tr></thead>
                                 <tbody>
@@ -58,12 +58,21 @@
                                 </tbody>
                             </table>
                         </div>
-                    @elseif(data_get($job->extracted_data, 'invoices'))
-                        <div class="small text-muted mt-2">No se encontró una coincidencia única de proveedor o cliente para las facturas individuales.</div>
                     @endif
-                </div>
-                @if($job->warnings)<div class="alert alert-warning py-2"><strong>Advertencias:</strong> {{ implode(' · ', (array)json_decode($job->warnings, true)) }}</div>@endif
-                @if($job->last_error)<div class="alert alert-danger py-2">{{ $job->last_error }}</div>@endif
+                </details>
+                @if($job->warnings)
+                    @php
+                        $jobWarnings = json_decode($job->warnings, true);
+                        $jobWarnings = is_array($jobWarnings) ? $jobWarnings : [(string) $job->warnings];
+                    @endphp
+                    <details class="mb-2 text-warning-emphasis">
+                        <summary>Advertencias ({{ count($jobWarnings) }})</summary>
+                        <ul class="small mb-0 mt-2">@foreach($jobWarnings as $warning)<li>{{ $warning }}</li>@endforeach</ul>
+                    </details>
+                @endif
+                @if($job->last_error)
+                    <details class="mb-2 text-danger"><summary>Detalle del estado</summary><p class="small mb-0 mt-2">{{ $job->last_error }}</p></details>
+                @endif
                 @php
                     $invoicePreviews = data_get($job->extracted_data, 'invoices');
                     $invoicePreviews = is_array($invoicePreviews) && count($invoicePreviews)
@@ -104,7 +113,7 @@
                                     <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
                                         @csrf
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                                            <p class="small text-muted mb-0">Marca las facturas que quieras aplicar e indica el ID interno de cada una. Solo se guardarán las filas seleccionadas.</p>
+                                            <span class="small text-muted">Selecciona las páginas y confirma su ID.</span>
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-select-all-pages="{{ $job->id }}">Marcar pendientes</button>
                                         </div>
                                 @endif
@@ -134,17 +143,12 @@
                                             </div>
                                         @endif
                                         <div class="row g-2 small mb-3">
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">N° factura:</span> <strong>{{ data_get($preview, 'invoice_number') ?: 'No identificado' }}</strong></div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Fecha:</span> {{ data_get($preview, 'date') ?: 'No identificada' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Emisor:</span> {{ data_get($preview, 'issuer') ?: 'No identificado' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($preview, 'supplier_rut') ?: '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Cliente:</span> {{ data_get($preview, 'recipient') ?: data_get($preview, 'customer_name') ?: 'No identificado' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">RUT cliente:</span> {{ data_get($preview, 'customer_rut') ?: '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Neto:</span> {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">IVA:</span> {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Total:</span> <strong>{{ data_get($preview, 'amount') !== null ? '$ ' . number_format((float)data_get($preview, 'amount'), 0, ',', '.') : 'No identificado' }}</strong></div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Moneda:</span> {{ data_get($preview, 'currency') ?: '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Folio:</span> <strong>{{ data_get($preview, 'invoice_number') ?: '—' }}</strong></div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Fecha:</span> {{ data_get($preview, 'date') ?: '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Cliente:</span> {{ data_get($preview, 'recipient') ?: data_get($preview, 'customer_name') ?: '—' }}</div>
+                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Total:</span> <strong>{{ data_get($preview, 'amount') !== null ? '$ ' . number_format((float)data_get($preview, 'amount'), 0, ',', '.') : '—' }}</strong></div>
                                         </div>
+                                        <details class="small mb-3"><summary>Más datos de la factura</summary><div class="row g-2 mt-1"><div class="col-md-3">Emisor: {{ data_get($preview, 'issuer') ?: '—' }}</div><div class="col-md-3">RUT proveedor: {{ data_get($preview, 'supplier_rut') ?: '—' }}</div><div class="col-md-3">RUT cliente: {{ data_get($preview, 'customer_rut') ?: '—' }}</div><div class="col-md-3">Neto: {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">IVA: {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">Moneda: {{ data_get($preview, 'currency') ?: '—' }}</div></div></details>
                                         @if(is_array($previewItems) && count($previewItems))
                                             <div class="table-responsive">
                                                 <table class="table table-sm table-striped table-bordered align-middle mb-0">
@@ -193,7 +197,7 @@
                         </div>
                     </div>
                 </div>
-                <details class="mb-3"><summary>Ver datos extraídos</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
+                <details class="mb-2"><summary>JSON de extracción</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
                 @if($job->file_registry_id || $job->r2_key)
                     <a class="btn btn-sm btn-outline-primary mb-2" target="_blank" rel="noopener" href="{{ route('admin.document-ingestions.pdf', ['ingestion' => $job->id]) }}">Ver PDF en R2</a>
                 @else

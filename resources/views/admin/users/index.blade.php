@@ -51,12 +51,12 @@
     <header class="users-heading">
         <div>
             <h1>Usuarios</h1>
-            <p>Administra el acceso y los permisos de las cuentas.</p>
         </div>
         <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createUserModal">
             <i class="fas fa-plus me-2" aria-hidden="true"></i>Crear usuario
         </button>
     </header>
+    @include('admin._quick-nav', ['active' => 'users'])
 
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="status">

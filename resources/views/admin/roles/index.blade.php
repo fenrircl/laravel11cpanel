@@ -2,12 +2,11 @@
 
 @section('content')
 <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="mb-0">Administración de roles</h3>
-    </div>
+    <h1 class="h3 mb-3">Roles</h1>
+    @include('admin._quick-nav', ['active' => 'roles'])
 
-    <div class="card mb-4">
-        <div class="card-header">Crear rol</div>
+    <details class="card mb-3">
+        <summary class="card-header">Crear rol</summary>
         <div class="card-body">
             <form method="POST" action="{{ route('admin.roles.store') }}" class="row g-3">
                 @csrf
@@ -24,7 +23,7 @@
                 </div>
             </form>
         </div>
-    </div>
+    </details>
 
     <div class="card">
         <div class="card-header">Roles</div>

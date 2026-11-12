@@ -5,7 +5,6 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <div>
             <h1 class="h3 mb-1">Información del sistema</h1>
-            <p class="text-muted mb-0">Versiones activas en este servidor y versiones fijadas para el próximo despliegue.</p>
         </div>
         <span class="badge {{ $phpSupported ? 'bg-success' : 'bg-danger' }}">
             PHP {{ $phpSupported ? 'cumple el requisito' : 'no cumple el requisito' }}
@@ -14,11 +13,7 @@
 
     @include('admin._quick-nav', ['active' => 'system'])
 
-    <div class="alert alert-info" role="note">
-        Las versiones fijadas provienen de <code>composer.lock</code> y <code>package-lock.json</code> subidos al repositorio.
-        Esto permite corroborar qué versiones contiene el despliegue; no consulta internet para determinar si existe una versión más nueva.
-        Los paquetes npm se usan durante el build y pueden no estar instalados en cPanel.
-    </div>
+    <details class="card mb-3"><summary class="card-header">Información del despliegue</summary><div class="card-body small text-muted">Las versiones fijadas provienen de los archivos lock del repositorio. Los paquetes npm se usan durante el build y pueden no estar instalados en cPanel.</div></details>
 
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
@@ -33,15 +28,10 @@
             <span class="badge {{ $assistantEnabled ? 'bg-success' : 'bg-secondary' }}">{{ $assistantEnabled ? 'Habilitado por .env' : 'Deshabilitado por .env' }}</span>
         </div>
         <div class="card-body">
-            <p class="small text-muted">El prompt, modelo y límites se guardan en la base de datos y se aplican sin deploy. La API key y el interruptor de encendido permanecen en el <code>.env</code>.</p>
             <form method="POST" action="{{ route('admin.system-info.assistant.update') }}">
                 @csrf
                 @method('PUT')
-                <div class="mb-3">
-                    <label class="form-label" for="system_prompt">Prompt del sistema</label>
-                    <textarea class="form-control font-monospace" id="system_prompt" name="system_prompt" rows="7" maxlength="12000" required>{{ old('system_prompt', $assistantSettings['system_prompt']) }}</textarea>
-                    <div class="form-text">Máximo 12.000 caracteres. No incluyas API keys ni instrucciones que permitan modificar información del sistema.</div>
-                </div>
+                <details class="mb-3"><summary>Prompt del sistema</summary><div class="pt-2"><textarea class="form-control font-monospace" id="system_prompt" name="system_prompt" rows="5" maxlength="12000" required>{{ old('system_prompt', $assistantSettings['system_prompt']) }}</textarea><div class="form-text">Máximo 12.000 caracteres. No incluyas claves.</div></div></details>
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4">
                         <label class="form-label" for="assistant_model">Modelo</label>
@@ -71,15 +61,14 @@
         <div class="card-header fw-semibold">Almacenamiento de archivos R2</div>
         <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
-                <p class="mb-1">Comprueba la lectura de un archivo ya registrado usando la misma consulta que la descarga. No crea, modifica ni elimina archivos.</p>
-                <p class="small text-muted mb-0">No valida la firma de carga PUT usada por las URLs prefirmadas.</p>
-                <dl class="row small mt-3 mb-0">
+                <p class="mb-2">Verifica la lectura de un archivo ya registrado.</p>
+                <details class="small"><summary>Configuración técnica</summary><dl class="row mt-2 mb-0">
                     <dt class="col-sm-4">Bucket</dt><dd class="col-sm-8"><code>{{ $r2Configuration['bucket'] }}</code></dd>
                     <dt class="col-sm-4">Endpoint</dt><dd class="col-sm-8"><code>{{ $r2Configuration['endpoint_host'] }}</code></dd>
                     <dt class="col-sm-4">Región</dt><dd class="col-sm-8"><code>{{ $r2Configuration['region'] }}</code></dd>
                     <dt class="col-sm-4">Access key / Secret</dt><dd class="col-sm-8">{{ $r2Configuration['access_key_set'] ? 'Access key configurada' : 'Access key ausente' }} · {{ $r2Configuration['secret_set'] ? 'Secret configurado' : 'Secret ausente' }}</dd>
                     <dt class="col-sm-4">Caché de configuración</dt><dd class="col-sm-8">{{ $r2Configuration['config_cached'] ? 'Activa (los cambios en .env no se aplican hasta limpiar la caché)' : 'Inactiva' }}</dd>
-                </dl>
+                </dl><p class="text-muted mt-2 mb-0">No valida la firma de carga PUT.</p></details>
                 @if(session('r2_check'))
                     <div class="alert {{ session('r2_check.ok') ? 'alert-success' : 'alert-danger' }} mt-3 mb-0" role="status">{{ session('r2_check.message') }}</div>
                 @endif
@@ -193,7 +182,7 @@
             @else
                 <div class="mb-4">
                     <h3 class="h6 mb-1">Cuota y uso diario por usuario</h3>
-                    <p class="small text-muted">Consultas registradas hoy. La cuota de usuarios sin rol administrador es de 5 y se reinicia a medianoche de {{ config('assistant.quota_timezone', 'America/Santiago') }}.</p>
+                    <details class="small mb-2"><summary>Detalles de la cuota</summary><p class="text-muted mb-0 mt-1">La cuota de usuarios sin rol administrador es de 5 por día y se reinicia a medianoche ({{ config('assistant.quota_timezone', 'America/Santiago') }}).</p></details>
                     <div class="table-responsive">
                         <table class="table table-sm table-striped align-middle">
                             <thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th>Uso de hoy</th><th>Total histórico</th><th>Cuota</th><th>Disponibles</th></tr></thead>
@@ -224,7 +213,7 @@
                     <div class="col-sm-6 col-lg"><div class="border rounded p-2"><div class="small text-muted">Tokens totales</div><strong>{{ number_format($usageTotals['total_tokens']) }}</strong></div></div>
                     <div class="col-sm-6 col-lg"><div class="border rounded p-2"><div class="small text-muted">Fallidas</div><strong>{{ number_format($usageTotals['failed']) }}</strong></div></div>
                 </div>
-                <p class="small text-muted">Cada fila conserva el mensaje y la respuesta del chat para auditoría, junto al consumo informado por OpenAI. Las llamadas de ChatGPT Actions externas no incluyen aquí los tokens facturados por ChatGPT.</p>
+                <details class="small mb-2"><summary>Sobre estos datos</summary><p class="text-muted mb-0 mt-1">Se guardan mensajes y respuestas para auditoría. El uso de ChatGPT Actions externas no se incluye en estos tokens.</p></details>
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle">
                         <thead><tr><th>Fecha</th><th>Usuario</th><th>Pregunta y respuesta</th><th>Modelo</th><th>Tokens (in / out / total)</th><th>Funciones</th><th>Duración</th><th>Estado</th></tr></thead>

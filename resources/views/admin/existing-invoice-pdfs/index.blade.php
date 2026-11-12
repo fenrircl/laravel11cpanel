@@ -4,11 +4,10 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            <h1 class="h3 mb-1">PDF de facturas existentes</h1>
-            <p class="text-muted mb-0">Extrae productos y servicios de PDFs ya asociados a facturas. Los documentos dudosos quedan en revisión.</p>
+            <h1 class="h3 mb-1">PDF de facturas</h1>
         </div>
     </div>
-    @include('admin._quick-nav', ['active' => 'jobs'])
+    @include('admin._quick-nav', ['active' => 'pdfs'])
     @if(session('success'))<div class="alert alert-success" role="status">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
@@ -44,7 +43,7 @@
                                 };
                             @endphp
                             <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
-                            @if($file->processing_error)<div class="small text-danger mt-1">{{ $file->processing_error }}</div>@endif
+                            @if($file->processing_error)<details class="small text-danger mt-1"><summary>Ver detalle</summary><span>{{ $file->processing_error }}</span></details>@endif
                         </td>
                         <td>
                             @if($file->extraction_id)
