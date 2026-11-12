@@ -33,8 +33,17 @@
                         </td>
                         <td>{{ $file->provider_name ?: $file->client_name ?: 'Sin contraparte' }}</td>
                         <td>
-                            @php($statusLabel = ['pending'=>'Pendiente','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallido','processed'=>'Procesado'][$file->processing_status] ?? $file->processing_status)
-                            <span class="badge {{ $file->processing_status==='processed'?'bg-success':($file->processing_status==='needs_review'?'bg-warning text-dark':($file->processing_status==='failed'?'bg-danger':($file->processing_status==='processing'?'bg-info text-dark':'bg-secondary'))) }}">{{ $statusLabel }}</span>
+                            @php
+                                $statusLabel = ['pending' => 'Pendiente', 'processing' => 'Procesando', 'needs_review' => 'Revisión', 'failed' => 'Fallido', 'processed' => 'Procesado'][$file->processing_status] ?? $file->processing_status;
+                                $statusClass = match ($file->processing_status) {
+                                    'processed' => 'bg-success',
+                                    'needs_review' => 'bg-warning text-dark',
+                                    'failed' => 'bg-danger',
+                                    'processing' => 'bg-info text-dark',
+                                    default => 'bg-secondary',
+                                };
+                            @endphp
+                            <span class="badge {{ $statusClass }}">{{ $statusLabel }}</span>
                             @if($file->processing_error)<div class="small text-danger mt-1">{{ $file->processing_error }}</div>@endif
                         </td>
                         <td>
