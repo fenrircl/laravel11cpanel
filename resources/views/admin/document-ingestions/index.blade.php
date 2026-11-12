@@ -113,7 +113,7 @@
                                     <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
                                         @csrf
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                                            <span class="small text-muted">Selecciona las páginas y confirma su ID.</span>
+                                            <span class="small text-muted">Selecciona páginas e ID. Los campos vacíos se conservan.</span>
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-select-all-pages="{{ $job->id }}">Marcar pendientes</button>
                                         </div>
                                 @endif
@@ -123,18 +123,36 @@
                                         $pageNumber = (int) (data_get($preview, 'page') ?: $previewIndex + 1);
                                         $pageAlreadyApproved = data_get($pageApprovals ?? [], (string) $pageNumber);
                                         $pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string) $pageNumber);
+                                        $pageCounterparty = data_get($job->page_counterparties ?? [], (string) $pageNumber, []);
+                                        $pageCounterpartyName = data_get($pageCounterparty, 'name') ?: data_get($preview, 'recipient') ?: data_get($preview, 'issuer') ?: 'Contraparte no identificada';
                                     @endphp
                                     <section class="border rounded p-3 mb-3 {{ $hasMultipleInvoices ? 'extraction-page-step' : '' }}" data-step-index="{{ $previewIndex }}">
-                                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-                                            <div class="d-flex align-items-center gap-2">
+                                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3 pb-3 border-bottom">
+                                            <div class="d-flex align-items-start gap-2">
                                                 @if($hasMultipleInvoices)
-                                                    <input class="form-check-input mt-0 page-approval-checkbox" type="checkbox" name="pages[]" value="{{ $pageNumber }}" id="page-{{ $job->id }}-{{ $pageNumber }}" @checked(!$pageAlreadyApproved)>
+                                                    <input class="form-check-input mt-2 page-approval-checkbox" type="checkbox" name="pages[]" value="{{ $pageNumber }}" id="page-{{ $job->id }}-{{ $pageNumber }}" @checked(!$pageAlreadyApproved) aria-label="Aplicar factura de la página {{ $pageNumber }}">
                                                 @endif
-                                                <h3 class="h6 mb-0">{{ count($invoicePreviews) > 1 ? 'Factura / página ' . $pageNumber : 'Resumen de extracción' }}</h3>
+                                                <div>
+                                                    <div class="small text-muted">{{ data_get($pageCounterparty, 'type', 'Contraparte') }} · {{ count($invoicePreviews) > 1 ? 'Página ' . $pageNumber : 'Factura' }}</div>
+                                                    <h3 class="h4 fw-semibold mb-0">{{ $pageCounterpartyName }}</h3>
+                                                    <div class="small text-muted">Factura {{ data_get($preview, 'invoice_number') ?: 'sin folio' }}</div>
+                                                </div>
                                             </div>
-                                            <span class="badge {{ $pageAlreadyApproved ? 'bg-success' : 'bg-light text-dark border' }}">{{ $pageAlreadyApproved ? 'Aplicada a factura ID ' . data_get($pageAlreadyApproved, 'invoice_id', $pageAlreadyApproved) : (is_array($previewItems) ? count($previewItems) : 0) . ' ítems' }}</span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge {{ $pageAlreadyApproved ? 'bg-success' : 'bg-light text-dark border' }}">{{ $pageAlreadyApproved ? 'Aplicada' : (is_array($previewItems) ? count($previewItems) : 0) . ' ítems' }}</span>
+                                                @if($job->file_registry_id || $job->r2_key)
+                                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="{{ route('admin.document-ingestions.pdf', ['ingestion' => $job->id]) }}#page={{ $pageNumber }}">Abrir PDF · pág. {{ $pageNumber }}</a>
+                                                @endif
+                                            </div>
                                         </div>
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-md-4"><div class="border rounded p-2 h-100"><div class="small text-muted">Folio</div><strong>{{ data_get($preview, 'invoice_number') ?: '—' }}</strong></div></div>
+                                            <div class="col-md-4"><div class="border rounded p-2 h-100"><div class="small text-muted">Fecha</div><strong>{{ data_get($preview, 'date') ?: '—' }}</strong></div></div>
+                                            <div class="col-md-4"><div class="border rounded p-2 h-100"><div class="small text-muted">Total</div><strong>{{ data_get($preview, 'amount') !== null ? '$ ' . number_format((float)data_get($preview, 'amount'), 0, ',', '.') : 'No identificado' }}</strong></div></div>
+                                        </div>
+                                        <details class="small mb-3"><summary>Más datos</summary><div class="row g-2 mt-1"><div class="col-md-3">Emisor: {{ data_get($preview, 'issuer') ?: '—' }}</div><div class="col-md-3">RUT proveedor: {{ data_get($preview, 'supplier_rut') ?: '—' }}</div><div class="col-md-3">RUT cliente: {{ data_get($preview, 'customer_rut') ?: '—' }}</div><div class="col-md-3">Neto: {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">IVA: {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">Moneda: {{ data_get($preview, 'currency') ?: '—' }}</div></div></details>
                                         @if($hasMultipleInvoices)
+                                            <h4 class="h6 mb-2">Vincular a factura existente</h4>
                                             <div class="row g-2 mb-3">
                                                 <div class="col-md-3"><label class="form-label small" for="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}">ID de factura existente</label><input class="form-control form-control-sm" type="number" min="1" name="invoice_ids[{{ $pageNumber }}]" id="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}" value="{{ old('invoice_ids.' . $pageNumber, is_array($pageAlreadyApproved) ? data_get($pageAlreadyApproved, 'invoice_id') : data_get($pageInvoiceSuggestion, 'id')) }}" placeholder="Ej. 6410">@if($pageInvoiceSuggestion)<div class="form-text text-success">Coincidencia única por folio {{ $pageInvoiceSuggestion['folio'] }}.</div>@else<div class="form-text">Si el folio no coincide, ingresa el ID interno.</div>@endif</div>
                                                 <div class="col-md-3"><label class="form-label small" for="page-number-{{ $job->id }}-{{ $pageNumber }}">Folio</label><input class="form-control form-control-sm" name="invoice_numbers[{{ $pageNumber }}]" id="page-number-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'invoice_number') }}"></div>
@@ -142,13 +160,7 @@
                                                 <div class="col-md-3"><label class="form-label small" for="page-amount-{{ $job->id }}-{{ $pageNumber }}">Monto total</label><input class="form-control form-control-sm" type="number" min="0" step="1" name="invoice_amounts[{{ $pageNumber }}]" id="page-amount-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'amount') }}"></div>
                                             </div>
                                         @endif
-                                        <div class="row g-2 small mb-3">
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Folio:</span> <strong>{{ data_get($preview, 'invoice_number') ?: '—' }}</strong></div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Fecha:</span> {{ data_get($preview, 'date') ?: '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Cliente:</span> {{ data_get($preview, 'recipient') ?: data_get($preview, 'customer_name') ?: '—' }}</div>
-                                            <div class="col-sm-6 col-lg-3"><span class="text-muted">Total:</span> <strong>{{ data_get($preview, 'amount') !== null ? '$ ' . number_format((float)data_get($preview, 'amount'), 0, ',', '.') : '—' }}</strong></div>
-                                        </div>
-                                        <details class="small mb-3"><summary>Más datos de la factura</summary><div class="row g-2 mt-1"><div class="col-md-3">Emisor: {{ data_get($preview, 'issuer') ?: '—' }}</div><div class="col-md-3">RUT proveedor: {{ data_get($preview, 'supplier_rut') ?: '—' }}</div><div class="col-md-3">RUT cliente: {{ data_get($preview, 'customer_rut') ?: '—' }}</div><div class="col-md-3">Neto: {{ data_get($preview, 'net_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'net_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">IVA: {{ data_get($preview, 'tax_amount') !== null ? '$ ' . number_format((float)data_get($preview, 'tax_amount'), 0, ',', '.') : '—' }}</div><div class="col-md-3">Moneda: {{ data_get($preview, 'currency') ?: '—' }}</div></div></details>
+                                        <h4 class="h6 mb-2">Ítems extraídos</h4>
                                         @if(is_array($previewItems) && count($previewItems))
                                             <div class="table-responsive">
                                                 <table class="table table-sm table-striped table-bordered align-middle mb-0">

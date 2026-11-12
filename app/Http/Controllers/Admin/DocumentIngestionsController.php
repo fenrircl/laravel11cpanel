@@ -108,6 +108,7 @@ class DocumentIngestionsController extends Controller
             }
 
             $job->counterparty_name_matches = [];
+            $job->page_counterparties = [];
             $invoiceEntries = data_get($job->extracted_data, 'invoices', []);
             $job->page_invoice_suggestions = [];
             if (is_array($invoiceEntries)) {
@@ -151,9 +152,18 @@ class DocumentIngestionsController extends Controller
                         $candidates[] = ['Cliente', $clients, $entryCustomerRut, $entryRecipient];
                     }
 
+                    $primaryCandidate = $candidates[0];
+                    $job->page_counterparties[$page] = [
+                        'type' => $primaryCandidate[0],
+                        'name' => is_string($primaryCandidate[3]) ? $primaryCandidate[3] : null,
+                    ];
+
                     foreach ($candidates as [$partyType, $partyList, $partyRut, $partyName]) {
                         $partyMatch = $findParty($partyList, $partyRut, is_string($partyName) ? $partyName : null);
                         if (!$partyMatch['party']) continue;
+                        if ($partyType === $primaryCandidate[0]) {
+                            $job->page_counterparties[$page]['name'] = $partyMatch['party']->name;
+                        }
                         $job->counterparty_name_matches[] = [
                             'page' => $page,
                             'invoice_number' => data_get($entry, 'invoice_number'),
@@ -209,16 +219,15 @@ class DocumentIngestionsController extends Controller
             }
             DB::table('invoice_extractions')->where('id', $extraction->id)->update(['invoice_id' => $invoice->id, 'validation_status' => 'validated', 'is_active' => true, 'processed_at' => now(), 'updated_at' => now()]);
             DB::table('invoice_extractions')->where('id', $extraction->id)->update(['normalized_data' => json_encode($normalized, JSON_UNESCAPED_UNICODE)]);
-            DB::table('invoice_line_items')->where('extraction_id', $extraction->id)->delete();
             foreach ($items as $i => $line) {
                 if (!is_array($line) || empty($line['description'])) continue;
-                DB::table('invoice_line_items')->insert(['invoice_id' => $invoice->id, 'extraction_id' => $extraction->id,
+                $this->addMissingInvoiceLineItem(['invoice_id' => $invoice->id, 'extraction_id' => $extraction->id,
                     'line_number' => $i + 1, 'description_original' => mb_substr((string)$line['description'], 0, 1000),
                     'description_normalized' => mb_substr(mb_strtolower(trim((string)$line['description'])), 0, 700),
                     'supplier_sku' => isset($line['code']) ? mb_substr((string)$line['code'], 0, 191) : null,
                     'quantity' => $line['quantity'] ?? null, 'unit_price' => $line['unit_price'] ?? null,
                     'total_amount' => $line['total_amount'] ?? null, 'currency' => $normalized['currency'] ?? null,
-                    'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE), 'created_at' => now(), 'updated_at' => now()]);
+                    'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE)]);
             }
             $invoiceAfter = $invoice->fresh()->toArray();
             $auditChanges = AuditLogger::simpleDiff($invoiceBefore, $invoiceAfter);
@@ -311,9 +320,7 @@ class DocumentIngestionsController extends Controller
             $approvedCount = count($approvedPageKeys);
             $isComplete = $approvedCount >= $pageCount;
 
-            // Rebuild this extraction's lines from the approved pages so partial approvals
-            // remain repeatable without duplicating or mixing line items between invoices.
-            DB::table('invoice_line_items')->where('extraction_id', $extraction->id)->delete();
+            // Merge extracted lines without deleting previously saved information.
             $lineNumber = 0;
             foreach ($byPage as $page => $entry) {
                 $approval = $approvals[(string) $page] ?? null;
@@ -325,7 +332,7 @@ class DocumentIngestionsController extends Controller
                     $description = mb_substr((string) $line['description'], 0, 1000);
                     $currency = strtoupper((string) data_get($entry, 'currency', 'CLP'));
                     if (!preg_match('/^[A-Z]{3}$/', $currency)) $currency = 'CLP';
-                    DB::table('invoice_line_items')->insert([
+                    $this->addMissingInvoiceLineItem([
                         'invoice_id' => $invoiceId, 'extraction_id' => $extraction->id, 'line_number' => $lineNumber,
                         'description_original' => $description,
                         'description_normalized' => mb_substr(mb_strtolower(trim($description)), 0, 700),
@@ -334,7 +341,6 @@ class DocumentIngestionsController extends Controller
                         'unit_price' => $line['unit_price'] ?? null,
                         'total_amount' => $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null,
                         'currency' => $currency, 'source_line' => json_encode($line + ['source_page' => $page], JSON_UNESCAPED_UNICODE),
-                        'created_at' => $now, 'updated_at' => $now,
                     ]);
                 }
             }
@@ -454,5 +460,33 @@ class DocumentIngestionsController extends Controller
     private function normalizeRut(string $rut): string
     {
         return strtolower((string) preg_replace('/[^0-9k]/i', '', $rut));
+    }
+
+    /** Insert an extracted line or fill only its empty fields; never delete or clear existing values. */
+    private function addMissingInvoiceLineItem(array $values): void
+    {
+        $existing = DB::table('invoice_line_items')
+            ->where('extraction_id', $values['extraction_id'])
+            ->where('line_number', $values['line_number'])
+            ->first();
+
+        if (!$existing) {
+            DB::table('invoice_line_items')->insert($values + ['created_at' => now(), 'updated_at' => now()]);
+            return;
+        }
+
+        $missingValues = [];
+        foreach ($values as $column => $value) {
+            if (in_array($column, ['extraction_id', 'line_number', 'invoice_id'], true)) continue;
+            $current = $existing->{$column} ?? null;
+            if (($current === null || $current === '') && $value !== null && $value !== '') {
+                $missingValues[$column] = $value;
+            }
+        }
+
+        if ($missingValues) {
+            $missingValues['updated_at'] = now();
+            DB::table('invoice_line_items')->where('id', $existing->id)->update($missingValues);
+        }
     }
 }
