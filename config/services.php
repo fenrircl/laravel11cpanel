@@ -58,6 +58,7 @@ return [
     'n8n' => [
         'webhook_url' => env('N8N_WEBHOOK_URL'),
         'ingest_bearer' => env('N8N_INGEST_BEARER'),
+        'existing_pdf_process_webhook_url' => env('N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL'),
         'pdf_webhook_url' => env('N8N_PDF_PROCESS_WEBHOOK_URL'),
         'pdf_webhook_bearer' => env('N8N_PDF_WEBHOOK_BEARER'),
         'email_search_webhook_url' => env('N8N_EMAIL_SEARCH_WEBHOOK_URL'),

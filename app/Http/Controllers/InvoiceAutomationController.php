@@ -18,12 +18,20 @@ class InvoiceAutomationController extends Controller
     public function pendingDocuments(Request $request): JsonResponse
     {
         $limit = min(max((int)$request->query('limit', 25), 1), 100);
+        $fileId = $request->integer('file_id');
+        $latestExtraction = DB::table('invoice_extractions')->selectRaw('file_registry_id, MAX(id) as extraction_id')
+            ->whereNotNull('file_registry_id')->groupBy('file_registry_id');
+        $latestIngestion = DB::table('document_ingestions')->selectRaw('external_id, MAX(id) as ingestion_id')
+            ->where('source', 'registered_pdf')->groupBy('external_id');
         $files = DB::table('files_registry as f')
             ->join('invoices as i', 'i.id', '=', 'f.model_id')
-            ->leftJoin('invoice_extractions as e', 'e.file_registry_id', '=', 'f.id')
+            ->leftJoinSub($latestExtraction, 'latest_extraction', fn ($join) => $join->on('latest_extraction.file_registry_id', '=', 'f.id'))
+            ->leftJoin('invoice_extractions as e', 'e.id', '=', 'latest_extraction.extraction_id')
+            ->leftJoinSub($latestIngestion, 'latest_ingestion', fn ($join) => $join->on('latest_ingestion.external_id', '=', 'f.id'))
+            ->leftJoin('document_ingestions as j', 'j.id', '=', 'latest_ingestion.ingestion_id')
             ->where('f.model_type', 'App\\Invoice')
             ->where(function ($q) { $q->where('f.mime_type', 'application/pdf')->orWhere('f.file_name', 'like', '%.pdf')->orWhere('f.path', 'like', '%.pdf'); })
-            ->where(function ($q) { $q->whereNull('e.id')->orWhere('j.status', 'processing'); })
+            ->when($fileId, fn ($q) => $q->where('f.id', $fileId), fn ($q) => $q->where(fn ($pending) => $pending->whereNull('e.id')->orWhere('j.status', 'processing')))
             ->orderBy('f.id')->limit($limit)
             ->get(['f.id as file_id', 'f.path as r2_key', 'f.file_name', 'f.mime_type', 'f.size', 'f.created_at', 'i.id as invoice_id', 'i.invoice as invoice_number']);
         return response()->json(['count' => $files->count(), 'data' => $files]);
@@ -132,10 +140,29 @@ class InvoiceAutomationController extends Controller
         $confidence = $ex['confidence'] ?? null;
         $minimumConfidence = (float) config('services.invoices.minimum_extraction_confidence', 0.80);
         $warnings = $ex['warnings'] ?? [];
-        if ($folio === '' || !$ownRut || !is_array($lineItems)
-            || empty($payload['date']) || !is_numeric($payload['amount'] ?? null)
-            || $confidence === null || $confidence < $minimumConfidence || !empty($warnings)) {
-            DB::table('document_ingestions')->where('id', $ingest->id)->update(['status' => 'needs_review', 'last_error' => 'Faltan campos requeridos, hay advertencias o confianza baja.', 'updated_at' => now()]);
+        $blockingWarnings = array_filter((array) $warnings, function ($warning) {
+            $warning = mb_strtolower((string) $warning);
+            return str_contains($warning, 'múltiples facturas')
+                || str_contains($warning, 'multiples facturas')
+                || str_contains($warning, 'facturas independientes')
+                || str_contains($warning, 'no fue posible estructurar')
+                || str_contains($warning, 'no se pudo estructurar')
+                || str_contains($warning, 'documento ambiguo');
+        });
+        $reviewReasons = [];
+        if ($folio === '') $reviewReasons[] = 'número de factura no identificado';
+        if (!$ownRut) $reviewReasons[] = 'falta configurar INVOICE_OWN_RUT en Laravel';
+        if (empty($payload['date'])) $reviewReasons[] = 'fecha no identificada';
+        if (!is_numeric($payload['amount'] ?? null)) $reviewReasons[] = 'monto no identificado';
+        if (!is_array($lineItems) || $lineItems === []) $reviewReasons[] = 'detalle de productos/servicios no identificado';
+        if ($confidence === null || $confidence < $minimumConfidence) $reviewReasons[] = 'confianza menor al mínimo (' . number_format($minimumConfidence, 2) . ')';
+        if ($blockingWarnings) $reviewReasons[] = 'el extractor reportó advertencias que impiden identificar una sola factura';
+        if ($reviewReasons) {
+            DB::table('document_ingestions')->where('id', $ingest->id)->update([
+                'status' => 'needs_review',
+                'last_error' => 'Pendiente de revisión: ' . implode('; ', $reviewReasons) . '.',
+                'updated_at' => now(),
+            ]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'required_fields_confidence_or_warnings']);
         }
         $isPurchase = $customerRut === $ownRut;
@@ -148,7 +175,7 @@ class InvoiceAutomationController extends Controller
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['status' => 'needs_review', 'last_error' => 'El PDF no está cargado en R2 ni asociado a un archivo existente.', 'updated_at' => now()]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'pdf_not_uploaded_or_registered']);
         }
-        return DB::transaction(function () use ($data, $ex, $payload, $lineItems, $ingest, $folio, $counterpartyRut, $isPurchase) {
+        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $counterpartyRut, $isPurchase) {
         $partyId = $this->partyIdForRut($counterpartyRut, $isPurchase);
         $counterpartyTable = $isPurchase ? 'providers' : 'clients';
         $rutMatches = DB::table($counterpartyTable)->whereRaw("REPLACE(REPLACE(REPLACE(LOWER(rut), '.', ''), '-', ''), ' ', '') = ?", [strtolower($counterpartyRut)])->count();
@@ -182,6 +209,51 @@ class InvoiceAutomationController extends Controller
             if (!$invoice) {
                 $invoice = Factura::create(['invoice' => $folio, $isPurchase ? 'provider_id' : 'client_id' => $partyId,
                     'date' => $payload['date'], 'amount' => (int) round((float)$payload['amount']), 'status' => 0]);
+                $snapshot = $invoice->fresh()->toArray();
+                DB::table('audit_logs')->insert([
+                    'user_id' => null,
+                    'action' => 'auto_create',
+                    'module' => 'facturas',
+                    'entity_id' => (string) $invoice->id,
+                    'description' => 'Creó factura #' . $invoice->invoice . ' automáticamente desde importación n8n ' . $ingest->uuid . '.',
+                    'model' => Factura::class,
+                    'data_before' => null,
+                    'data_after' => json_encode($snapshot, JSON_UNESCAPED_UNICODE),
+                    'changes' => json_encode(\App\Services\AuditLogger::simpleDiff([], $snapshot), JSON_UNESCAPED_UNICODE),
+                    'reversible' => false,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),
+                    'url' => mb_substr($request->fullUrl(), 0, 255),
+                    'method' => $request->method(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                $partyColumn = $isPurchase ? 'provider_id' : 'client_id';
+                $otherPartyColumn = $isPurchase ? 'client_id' : 'provider_id';
+                if (!$invoice->{$partyColumn} && !$invoice->{$otherPartyColumn}) {
+                    $before = $invoice->toArray();
+                    $invoice->forceFill([$partyColumn => $partyId])->save();
+                    $after = $invoice->fresh()->toArray();
+                    DB::table('audit_logs')->insert([
+                        'user_id' => null,
+                        'action' => 'auto_update',
+                        'module' => 'facturas',
+                        'entity_id' => (string) $invoice->id,
+                        'description' => 'Asoció automáticamente la factura #' . $invoice->invoice . ' con la contraparte identificada por RUT desde importación n8n ' . $ingest->uuid . '.',
+                        'model' => Factura::class,
+                        'data_before' => json_encode($before, JSON_UNESCAPED_UNICODE),
+                        'data_after' => json_encode($after, JSON_UNESCAPED_UNICODE),
+                        'changes' => json_encode(\App\Services\AuditLogger::simpleDiff($before, $after), JSON_UNESCAPED_UNICODE),
+                        'reversible' => false,
+                        'ip_address' => $request->ip(),
+                        'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),
+                        'url' => mb_substr($request->fullUrl(), 0, 255),
+                        'method' => $request->method(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
             $fileId = $ingest->file_registry_id;
             if (!$fileId && $ingest->r2_key && Storage::disk('r2')->exists($ingest->r2_key)) {

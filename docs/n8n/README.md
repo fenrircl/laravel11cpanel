@@ -1,5 +1,15 @@
 # Integración de correo cPanel con n8n
 
+## Procesar PDFs históricos desde administración
+
+El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.json) conserva su ejecución automática cada seis horas y ahora también tiene un webhook para iniciar un solo PDF desde **Administración → PDF históricos**. Importa la versión actualizada del JSON, activa el workflow y asigna la credencial Header Auth **Bearer Laravel n8n** al nodo **Procesar PDF desde administración**. El webhook queda en:
+
+```text
+https://n8n.solidtec.cl/webhook/invoice-existing-pdfs/process
+```
+
+En el `.env` de Laravel configura `N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL` con esa URL y `N8N_INGEST_BEARER` con el mismo token configurado en la credencial. La URL de Laravel ya está escrita en los nodos del JSON; no necesita acceso a variables de entorno de n8n. El procesamiento se ejecuta de a un PDF; los datos dudosos quedan en revisión y no generan ítems validados.
+
 ## Workflow de búsqueda por webhook
 
 `email-search-cpanel.json` implementa la llamada de Laravel al webhook de n8n y devuelve JSON. **Antes de importarlo/publicarlo**, instala en una instancia n8n autohospedada el nodo comunitario que implementa búsquedas IMAP:

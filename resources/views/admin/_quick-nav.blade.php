@@ -6,5 +6,6 @@
         <li class="nav-item"><a class="nav-link" href="{{ route('admin.system-info.index') }}#php-runtime">PHP y servidor</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ route('admin.system-info.index') }}#r2-status">R2</a></li>
         <li class="nav-item"><a class="nav-link {{ $active === 'jobs' ? 'active' : '' }}" @if($active === 'jobs') aria-current="page" @endif href="{{ route('admin.document-ingestions.index') }}">Jobs de importación</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ route('admin.existing-invoice-pdfs.index') }}">PDF históricos</a></li>
     </ul>
 </nav>

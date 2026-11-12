@@ -163,6 +163,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::put('/system-info/assistant', [\App\Http\Controllers\Admin\SystemInfoController::class, 'updateAssistantSettings'])->name('system-info.assistant.update');
         Route::post('/system-info/r2-check', [\App\Http\Controllers\Admin\SystemInfoController::class, 'checkR2'])->name('system-info.r2-check');
         Route::get('/document-ingestions', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'index'])->name('document-ingestions.index');
+        Route::get('/existing-invoice-pdfs', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'index'])->name('existing-invoice-pdfs.index');
+        Route::post('/existing-invoice-pdfs/{file}/process', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'process'])->name('existing-invoice-pdfs.process');
         Route::post('/document-ingestions/{ingestion}/approve', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'approve'])->name('document-ingestions.approve');
         Route::post('/document-ingestions/{ingestion}/retry', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'retry'])->name('document-ingestions.retry');
     });

@@ -27,6 +27,15 @@ class DocumentIngestionsController extends Controller
             ->orderByDesc('j.updated_at')->paginate(30)->withQueryString();
         $providers = DB::table('providers')->orderBy('name')->get(['id', 'name', 'rut']);
         $clients = DB::table('clients')->orderBy('name')->get(['id', 'name', 'rut']);
+        $jobs->getCollection()->transform(function ($job) {
+            $job->extracted_data = json_decode($job->normalized_data ?: '{}', true) ?: [];
+            $folio = trim((string) data_get($job->extracted_data, 'invoice_number', ''));
+            $matches = $folio === '' ? collect() : Factura::query()->where('invoice', $folio)->limit(2)->get(['id']);
+            $job->invoice_matches_count = $matches->count();
+            $job->suggested_invoice_id = $job->invoice_id ?: ($matches->count() === 1 ? (int) $matches->first()->id : null);
+
+            return $job;
+        });
         return view('admin.document-ingestions.index', compact('jobs', 'status', 'type', 'types', 'providers', 'clients'));
     }
 

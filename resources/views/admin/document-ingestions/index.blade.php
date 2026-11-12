@@ -33,6 +33,15 @@
                     <div class="col-md-3"><strong>Confianza:</strong> {{ $job->confidence ?? '—' }}</div>
                     <div class="col-md-3"><strong>Actualizado:</strong> {{ $job->updated_at }}</div>
                 </div>
+                <div class="border rounded p-3 mb-3 bg-light">
+                    <strong class="d-block mb-2">Datos identificados</strong>
+                    <div class="row g-2 small">
+                        <div class="col-md-3"><span class="text-muted">Emisor:</span> {{ data_get($job->extracted_data, 'issuer') ?: 'No identificado' }}</div>
+                        <div class="col-md-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($job->extracted_data, 'supplier_rut') ?: 'No identificado' }}</div>
+                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: 'No identificado' }}</div>
+                        <div class="col-md-3"><span class="text-muted">RUT cliente:</span> {{ data_get($job->extracted_data, 'customer_rut') ?: 'No identificado' }}</div>
+                    </div>
+                </div>
                 @if($job->warnings)<div class="alert alert-warning py-2"><strong>Advertencias:</strong> {{ implode(' · ', (array)json_decode($job->warnings, true)) }}</div>@endif
                 @if($job->last_error)<div class="alert alert-danger py-2">{{ $job->last_error }}</div>@endif
                 <details class="mb-3"><summary>Ver datos extraídos</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
@@ -40,7 +49,7 @@
                 @if(in_array($job->status,['needs_review','failed']) && $job->extraction_payload)
                     <form method="POST" action="{{ route('admin.document-ingestions.approve',$job->id) }}" class="row g-2 align-items-end">
                         @csrf
-                        <div class="col-md-4"><label class="form-label" for="invoice-{{ $job->id }}">ID de factura existente</label><input class="form-control" type="number" min="1" name="invoice_id" id="invoice-{{ $job->id }}" required></div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-{{ $job->id }}">ID de factura existente</label><input class="form-control" type="number" min="1" name="invoice_id" id="invoice-{{ $job->id }}" value="{{ $job->suggested_invoice_id }}" required><div class="form-text">El sistema sugiere el ID cuando el folio coincide con una sola factura.</div></div>
                         <div class="col-md-4"><label class="form-label" for="provider-{{ $job->id }}">Corregir proveedor (opcional)</label><select class="form-select" name="provider_id" id="provider-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($providers as $provider)<option value="{{ $provider->id }}">{{ $provider->name }} · {{ $provider->rut }}</option>@endforeach</select></div>
                         <div class="col-md-4"><label class="form-label" for="client-{{ $job->id }}">Corregir cliente (opcional)</label><select class="form-select" name="client_id" id="client-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($clients as $client)<option value="{{ $client->id }}">{{ $client->name }} · {{ $client->rut }}</option>@endforeach</select></div>
                         <div class="col-md-4"><label class="form-label">Número de factura corregido</label><input class="form-control" name="invoice_number" maxlength="80" value="{{ data_get(json_decode($job->normalized_data ?: '{}', true), 'invoice_number') }}"></div>
@@ -48,6 +57,11 @@
                         <div class="col-md-4"><label class="form-label">Monto corregido</label><input class="form-control" type="number" min="0" step="1" name="invoice_amount" value="{{ data_get(json_decode($job->normalized_data ?: '{}', true), 'amount') }}"></div>
                         <div class="col-12"><button class="btn btn-primary" type="submit">Guardar cambios, asociar y aprobar</button></div>
                     </form>
+                    @if($job->suggested_invoice_id)
+                        <div class="small text-success mt-2">Coincidencia única por folio: factura ID {{ $job->suggested_invoice_id }}.</div>
+                    @elseif($job->invoice_matches_count > 1)
+                        <div class="small text-warning mt-2">Hay varias facturas con este folio; confirma manualmente el ID correcto.</div>
+                    @endif
                 @endif
                 @if(in_array($job->status,['needs_review','failed']))
                     <form method="POST" action="{{ route('admin.document-ingestions.retry',$job->id) }}" class="mt-2">@csrf<button class="btn btn-outline-secondary btn-sm" type="submit">Enviar a cola de reintento</button></form>

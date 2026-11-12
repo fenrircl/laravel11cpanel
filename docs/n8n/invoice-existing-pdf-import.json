@@ -23,7 +23,30 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/pending?limit=25' }}",
+        "httpMethod": "POST",
+        "path": "invoice-existing-pdfs/process",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2009",
+      "name": "Procesar PDF desde administración",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/pending?limit=25' + ($json.body && $json.body.file_id ? '&file_id=' + encodeURIComponent($json.body.file_id) : '') }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
@@ -62,7 +85,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/' + $json.file_id + '/download-url' }}",
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/' + $json.file_id + '/download-url' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
@@ -208,6 +231,17 @@
   ],
   "connections": {
     "Cada 6 horas": {
+      "main": [
+        [
+          {
+            "node": "Listar PDFs pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar PDF desde administración": {
       "main": [
         [
           {

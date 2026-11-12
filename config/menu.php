@@ -131,6 +131,13 @@ return [
                 'auth_required' => true
             ],
             [
+                'title' => 'PDF históricos',
+                'icon' => 'fas fa-file-pdf',
+                'route' => 'admin.existing-invoice-pdfs.index',
+                'tooltip' => 'Procesar PDFs ya asociados a facturas',
+                'auth_required' => true
+            ],
+            [
                 'title' => 'Información del sistema',
                 'icon' => 'fas fa-server',
                 'route' => 'admin.system-info.index',
