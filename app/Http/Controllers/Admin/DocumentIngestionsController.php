@@ -37,6 +37,9 @@ class DocumentIngestionsController extends Controller
             $job->suggested_invoice = null;
             $job->suggested_provider_id = null;
             $job->suggested_client_id = null;
+            $job->suggested_party_name = null;
+            $job->suggested_party_rut = null;
+            $job->suggested_party_type = null;
             if ($job->invoice_id) {
                 $job->suggested_invoice = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])
                     ->find($job->invoice_id, $invoiceColumns);

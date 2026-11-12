@@ -17,12 +17,12 @@ Fecha: 12 de noviembre de 2026. Estado: implementación en curso. Las marcas ref
 | Crear proveedor ausente | Implementado en primera versión | Con RUT chileno válido/no duplicado, issuer, confianza aceptada y sin warnings; toggle `INVOICE_AUTO_CREATE_PROVIDERS`. Alta y creación de factura ocurren en transacción y se auditan. Falta prueba con BD real. Clientes siguen a revisión. |
 | Completar datos de contacto de contraparte | Parcial | Laravel completa solo campos vacíos si el JSON incluye correo/teléfono/dirección explícitos; la API PDF actual no garantiza estos campos. No se espera que se rellenen hasta ampliar extractor. |
 | Consulta de productos por chatbot | Implementado como primera versión | `search_invoice_items` busca código/descripción, contraparte, folio y año; `summarize_invoice_items` agrega en SQL agrupado por moneda y unidad y reporta cobertura. Falta paginación con cursor e historial comparable; muestra datos extraídos activos únicamente. |
-| Workflow Drive | Borrador avanzado creado | Incluye filtro por carpeta, resultados completos, rama quote antes de R2, comprobación de acción idempotente y merge para conservar el binario. Requiere credenciales, variables y prueba de nodo/expresiones en instancia. |
+| Workflow Drive | Flujo asíncrono implementado en JSON | Reserva antes de extraer, envía `wait=false`, consulta `status_url` cada 5 s hasta `completed`/`failed`, guarda solo el resultado final y registra fallos en Laravel. Requiere reimportar, asignar credenciales y validar en la instancia de n8n. |
 | Workflow de PDFs ya asociados | Borrador avanzado creado | Procesa PDFs sin extracción y jobs reenviados; usa enlace temporal sin volver a cargar el objeto. Requiere importación y prueba en versión real de n8n. |
 | Adjuntos de correo | Pendiente | El workflow existente de búsqueda sigue de solo lectura; falta entrada de adjuntos y su identidad IMAP estable. |
 | Workflow de búsqueda de correo | Ya existe previamente | `docs/n8n/email-search-cpanel.json`; no se ha modificado para descargar ni procesar adjuntos. |
 | SQL manual y guía de despliegue cPanel | Parcial | Añadido `docs/sql/invoice-extraction-schema.sql` idempotente. Falta compararlo contra la versión MySQL de producción e integrarlo con el procedimiento de pull/backup/reconciliación de migraciones. |
-| API extractora | Contrato existente, mapeo inicial confirmado | Revisado `api-pdf/app/main.py`: campos de extracción en nivel superior y líneas en `data.line_items`. No necesita cambios para la integración base. Unidad y base de impuestos quedan como mejora futura del extractor, necesaria para comparar líneas en unidades y bases tributarias homogéneas. |
+| API extractora y QStash | Cola y consulta de estado implementadas en `api-pdf` | `POST /v1/extractions` acepta `wait=false`; devuelve `202` con `job_id`/`status_url`. `GET /v1/extractions/{job_id}` devuelve `queued`, `processing`, `completed` o `failed`, y `result` al completar. QStash debe estar configurado, la cola creada con paralelismo 2 y el volumen `/var/lib/api-pdf` persistente. No se requirieron cambios al código de la API. |
 | Exclusión de cotizaciones de la intranet | Implementado en endpoint; falta filtrarlas antes de la subida n8n | Si el extractor clasifica `quote`, Laravel responde `ignored`, sin crear factura ni líneas. El workflow debe clasificar antes de reservar URL/subir a R2 y detener esa rama. Las cotizaciones existentes se consultan desde sus registros y partidas actuales. |
 | Descarga de PDFs antiguos desde plataforma | Fix implementado en código; requiere prueba con claves cPanel/R2 | Añadida descarga por ID de `files_registry`, que lee la clave guardada exacta y evita doble decodificación/normalización Unicode. Las respuestas de facturas ahora incluyen `file_id` y el botón usa la ruta nueva. La ruta antigua queda como fallback y ya no fuerza NFD ni decodifica otra vez. |
 
@@ -30,9 +30,12 @@ Las rutas implementadas usan estas formas:
 
 ```text
 POST /api/v1/automation/ingestions/reserve
+POST /api/v1/automation/ingestions/{ingestion}/failure
 POST /api/v1/automation/ingestions/{ingestion}/upload-url
 PUT  /api/v1/automation/ingestions/{ingestion}/result
 ```
+
+El workflow de Drive consulta la API PDF con el mismo bearer configurado en la credencial de n8n. Cuando el job termina en `failed`, o falla la carga/entrega a Laravel, llama al endpoint `/failure`; Laravel registra `failed` y `last_error`, libera la reserva y el archivo permanece en la raíz de Drive para el siguiente reintento. Las respuestas `completed`/`ignored` siguen sin reprocesarse. Los fallos de envío inicial también se registran; evita reintentar automáticamente el POST de extracción porque QStash ya reintenta las entregas del worker.
 
 Se verificó sintaxis PHP de migración, controladores/servicios, rutas y `config/services.php`; ambos JSON se parsean sin claves duplicadas y `git diff --check` está limpio. No se han ejecutado pruebas de integración ni se ha probado contra R2, n8n o una base de datos real. La pantalla admin de jobs y el alta automática de proveedores están en primera versión. No importar aún a producción hasta validar workflows y SQL con respaldo/copia de esquema.
 

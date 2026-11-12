@@ -16,6 +16,12 @@
               "name": "laravel_base_url",
               "value": "https://intranet.acerosera.cl",
               "type": "string"
+            },
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1032",
+              "name": "invoice_own_rut",
+              "value": "76.150.341-3",
+              "type": "string"
             }
           ]
         },
@@ -114,7 +120,7 @@
         "operation": "download",
         "fileId": {
           "__rl": true,
-        "value": "={{ $('Buscar PDFs en carpeta Drive').item.json.id }}",
+          "value": "={{ $('Buscar PDFs en carpeta Drive').item.json.id }}",
           "mode": "id"
         }
       },
@@ -155,11 +161,15 @@
             {
               "name": "locale",
               "value": "es-CL"
+            },
+            {
+              "name": "wait",
+              "value": "false"
             }
           ]
         },
         "options": {
-          "timeout": 300000
+          "timeout": 30000
         }
       },
       "id": "8a204720-1a7c-4acb-bbef-a12355be1005",
@@ -176,9 +186,7 @@
           "name": "Bearer API PDF"
         }
       },
-      "retryOnFail": true,
-      "maxTries": 6,
-      "waitBetweenTries": 10000
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -204,7 +212,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1380,
+        2100,
         -120
       ]
     },
@@ -251,7 +259,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1620,
+        2340,
         -240
       ],
       "credentials": {
@@ -259,7 +267,8 @@
           "id": "",
           "name": "Bearer Laravel n8n"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -272,7 +281,7 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2100,
+        2820,
         -180
       ]
     },
@@ -320,9 +329,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2580,
+        3300,
         -180
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -332,7 +342,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => { const result = $('Extraer datos del PDF').item.json; const text = result.raw_text || ''; const looksLikeInvoice = result.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test(text) && !/COTIZACI[ÓO]N/i.test(text); return { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...result, document_type: looksLikeInvoice ? 'invoice' : result.document_type }; })() }}",
+        "jsonBody": "={{ (() => { const result = $('Normalizar resultado OCR').item.json; const text = result.raw_text || ''; const looksLikeInvoice = result.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test(text) && !/COTIZACI[ÓO]N/i.test(text); return { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...result, document_type: looksLikeInvoice ? 'invoice' : result.document_type }; })() }}",
         "options": {
           "timeout": 30000
         }
@@ -342,7 +352,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2820,
+        3540,
         -120
       ],
       "credentials": {
@@ -350,7 +360,8 @@
           "id": "",
           "name": "Bearer Laravel n8n"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -386,7 +397,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1860,
+        2580,
         -240
       ]
     },
@@ -414,7 +425,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2340,
+        3060,
         -180
       ]
     },
@@ -489,11 +500,11 @@
           "value": "My Drive",
           "mode": "list"
         },
-      "folderId": {
-        "__rl": true,
-        "value": "root",
-        "mode": "id"
-      },
+        "folderId": {
+          "__rl": true,
+          "value": "root",
+          "mode": "id"
+        },
         "options": {
           "simplifyOutput": true
         }
@@ -516,14 +527,14 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const reservation = $('Reservar importación en Laravel').item.json;\nconst extraction = reservation.action === 'skip' ? null : $('Extraer datos del PDF').item.json;\nconst data = extraction?.data || {};\nconst rawName = reservation.action === 'skip'\n  ? reservation.counterparty_name\n  : (data.issuer || data.supplier_name || data.recipient || reservation.counterparty_name);\nconst safeName = String(rawName || 'Sin proveedor')\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[\\\\\\/:*?\"<>|#%{}~&']/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 80) || 'Sin proveedor';\nreturn { json: { drive_file_id: $('Buscar PDFs en carpeta Drive').item.json.id, supplier_folder_name: safeName, supplier_parent_id: ( $('Crear carpeta procesados').isExecuted ? $('Crear carpeta procesados').first().json.id : $('Buscar carpeta procesados').first().json.id ) } };"
+        "jsCode": "const reservation = $('Reservar importación en Laravel').item.json;\nconst extraction = reservation.action === 'skip' ? null : $('Normalizar resultado OCR').item.json;\nconst data = extraction?.data || {};\nconst normalize = (value) => String(value || '')\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()\n  .replace(/\\bLIMITADA\\b/g, 'LTDA').replace(/\\s+/g, ' ');\nconst ownRut = String($('Configurar importación').first().json.invoice_own_rut || '').replace(/[^0-9Kk]/g, '').toUpperCase();\nconst isOwnCompany = (name) => /^(SOCIEDAD )?ACEROS ERA( LTDA)?$/.test(normalize(name));\nlet partyName = reservation.action === 'skip' ? reservation.counterparty_name : null;\nif (extraction) {\n  const issuer = data.issuer || data.supplier_name || null;\n  const recipient = data.recipient || data.customer_name || null;\n  const supplierRut = String(data.supplier_rut || '').replace(/[^0-9Kk]/g, '').toUpperCase();\n  const customerRut = String(data.customer_rut || '').replace(/[^0-9Kk]/g, '').toUpperCase();\n  if ((ownRut && supplierRut === ownRut) || isOwnCompany(issuer)) partyName = recipient;\n  else if ((ownRut && customerRut === ownRut) || isOwnCompany(recipient)) partyName = issuer;\n  else if (data.supplier_name && !data.customer_name) partyName = data.supplier_name;\n  else if (!issuer) partyName = recipient;\n  else if (!recipient) partyName = issuer;\n}\nif (isOwnCompany(partyName)) partyName = null;\nconst safeName = normalize(partyName).replace(/[^A-Z0-9 -]/g, '').replace(/\\s+/g, ' ').trim().slice(0, 80) || null;\nconst processedFolderId = $('Crear carpeta procesados').isExecuted\n  ? $('Crear carpeta procesados').first().json.id\n  : $('Buscar carpeta procesados').first().json.id;\nreturn { json: {\n  drive_file_id: $('Buscar PDFs en carpeta Drive').item.json.id,\n  supplier_folder_name: safeName,\n  supplier_parent_id: processedFolderId\n} };"
       },
       "id": "8a204720-1a7c-4acb-bbef-a12355be1025",
       "name": "Preparar carpeta de contraparte",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3060,
+        3780,
         0
       ]
     },
@@ -549,7 +560,7 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        3300,
+        4260,
         0
       ],
       "credentials": {
@@ -584,7 +595,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3540,
+        4500,
         0
       ]
     },
@@ -612,7 +623,7 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        3780,
+        4740,
         220
       ],
       "credentials": {
@@ -648,7 +659,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        3780,
+        4740,
         -120
       ]
     },
@@ -678,7 +689,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        4020,
+        4980,
         220
       ]
     },
@@ -707,7 +718,7 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        4260,
+        5220,
         0
       ],
       "credentials": {
@@ -716,6 +727,210 @@
           "name": "Seleccionar Google Drive"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.supplier_folder_name || \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1033",
+      "name": "¿Hay contraparte identificada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4020,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1034a",
+              "name": "drive_file_id",
+              "value": "={{ $('Preparar carpeta de contraparte').item.json.drive_file_id }}",
+              "type": "string"
+            },
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1034b",
+              "name": "destination_folder_id",
+              "value": "={{ $('Preparar carpeta de contraparte').item.json.supplier_parent_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1034",
+      "name": "Dejar PDF suelto en procesados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4020,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ ['completed', 'failed'].includes($json.status) ? 'yes' : 'no' }}",
+              "rightValue": "yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1035",
+      "name": "¿Job de extracción terminado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1380,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 5,
+        "unit": "seconds",
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1036",
+      "name": "Esperar resultado PDF API",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1620,
+        180
+      ],
+      "webhookId": "8a204720-1a7c-4acb-bbef-a12355be1036"
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://pdf.solidtec.cl' + $json.status_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1037",
+      "name": "Consultar estado PDF API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1860,
+        180
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer API PDF"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1038",
+      "name": "¿Falló el job PDF API?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1620,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const result = $json.result;\nif (!result || typeof result !== 'object') throw new Error('El job terminó sin resultado de extracción.');\nreturn { json: result };"
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1039",
+      "name": "Normalizar resultado OCR",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1860,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Configurar importación').first().json.laravel_base_url + '/api/v1/automation/ingestions/' + $('Reservar importación en Laravel').item.json.ingestion_id + '/failure' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { job_id: $json.job_id || null, error: String($json.error || $json.message || 'La API de extracción marcó error').slice(0, 1900) } }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1040",
+      "name": "Registrar fallo de extracción en Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1860,
+        -20
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
     }
   ],
   "connections": {
@@ -865,7 +1080,14 @@
       "main": [
         [
           {
-            "node": "¿Es factura? Cotizaciones se omiten",
+            "node": "¿Job de extracción terminado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
             "type": "main",
             "index": 0
           }
@@ -895,6 +1117,13 @@
         [
           {
             "node": "Marcar PDF para carga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
             "type": "main",
             "index": 0
           }
@@ -949,6 +1178,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -960,6 +1196,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -967,7 +1210,7 @@
       "main": [
         [
           {
-            "node": "Buscar carpeta de contraparte",
+            "node": "¿Hay contraparte identificada?",
             "type": "main",
             "index": 0
           }
@@ -1041,6 +1284,122 @@
         [
           {
             "node": "Procesar un PDF a la vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay contraparte identificada?": {
+      "main": [
+        [
+          {
+            "node": "Buscar carpeta de contraparte",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Dejar PDF suelto en procesados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dejar PDF suelto en procesados": {
+      "main": [
+        [
+          {
+            "node": "Mover PDF a procesados/contraparte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Job de extracción terminado?": {
+      "main": [
+        [
+          {
+            "node": "¿Falló el job PDF API?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Esperar resultado PDF API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar resultado PDF API": {
+      "main": [
+        [
+          {
+            "node": "Consultar estado PDF API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar estado PDF API": {
+      "main": [
+        [
+          {
+            "node": "¿Job de extracción terminado?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falló el job PDF API?": {
+      "main": [
+        [
+          {
+            "node": "Registrar fallo de extracción en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Normalizar resultado OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar fallo de extracción en Laravel": {
+      "main": [
+        [
+          {
+            "node": "Procesar un PDF a la vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizar resultado OCR": {
+      "main": [
+        [
+          {
+            "node": "¿Es factura? Cotizaciones se omiten",
             "type": "main",
             "index": 0
           }

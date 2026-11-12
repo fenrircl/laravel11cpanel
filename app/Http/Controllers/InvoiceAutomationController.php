@@ -87,7 +87,7 @@ class InvoiceAutomationController extends Controller
                 ->where('ingestion_id', $row->id)
                 ->orderByDesc('id')
                 ->first(['payload', 'normalized_data']);
-            if (in_array($row->status, ['completed', 'ignored'], true) || $existingExtraction) {
+            if (in_array($row->status, ['completed', 'ignored'], true) || ($existingExtraction && $row->status !== 'failed')) {
                 $invoice = $row->invoice_id
                     ? Factura::with(['proveedor:id,name', 'cliente:id,name'])->find($row->invoice_id)
                     : null;
@@ -97,12 +97,22 @@ class InvoiceAutomationController extends Controller
                 if (is_string($extracted)) {
                     $extracted = json_decode($extracted, true);
                 }
-                $storedCounterparty = data_get($extracted, 'issuer')
-                    ?: data_get($extracted, 'data.issuer')
-                    ?: data_get($extracted, 'supplier_name')
-                    ?: data_get($extracted, 'data.supplier_name')
-                    ?: data_get($extracted, 'recipient')
-                    ?: data_get($extracted, 'data.recipient');
+                $issuer = data_get($extracted, 'issuer') ?: data_get($extracted, 'data.issuer');
+                $recipient = data_get($extracted, 'recipient') ?: data_get($extracted, 'data.recipient');
+                $supplierRut = preg_replace('/[^0-9kK]/', '', (string) (data_get($extracted, 'supplier_rut') ?: data_get($extracted, 'data.supplier_rut')));
+                $customerRut = preg_replace('/[^0-9kK]/', '', (string) (data_get($extracted, 'customer_rut') ?: data_get($extracted, 'data.customer_rut')));
+                $ownRut = preg_replace('/[^0-9kK]/', '', (string) config('services.invoices.own_rut', ''));
+                $isOwnCompany = static fn ($name) => preg_match(
+                    '/^(?:SOCIEDAD\\s+)?ACEROS\\s+ERA(?:\\s+(?:LTDA|LIMITADA))?$/u',
+                    mb_strtoupper(trim((string) $name))
+                ) === 1;
+                $issuerIsOwn = ($ownRut !== '' && strtolower($supplierRut) === strtolower($ownRut)) || $isOwnCompany($issuer);
+                $recipientIsOwn = ($ownRut !== '' && strtolower($customerRut) === strtolower($ownRut)) || $isOwnCompany($recipient);
+                $storedCounterparty = $issuerIsOwn
+                    ? $recipient
+                    : ($recipientIsOwn
+                        ? $issuer
+                        : (data_get($extracted, 'supplier_name') ?: data_get($extracted, 'data.supplier_name') ?: $issuer ?: $recipient));
                 return response()->json([
                     'ingestion_id' => $row->uuid,
                     'status' => $row->status,
@@ -112,7 +122,15 @@ class InvoiceAutomationController extends Controller
                     'counterparty_name' => $invoice?->proveedor?->name ?? $invoice?->cliente?->name ?? $storedCounterparty,
                 ]);
             }
-            DB::table('document_ingestions')->where('id', $row->id)->update(['source_sha256' => $data['sha256'] ?? $row->source_sha256, 'updated_at' => now()]);
+            DB::table('document_ingestions')->where('id', $row->id)->update([
+                'source_sha256' => $data['sha256'] ?? $row->source_sha256,
+                'status' => 'processing',
+                'attempts' => DB::raw('attempts + 1'),
+                'last_error' => null,
+                'lease_until' => null,
+                'updated_at' => now(),
+            ]);
+            $row = DB::table('document_ingestions')->find($row->id);
         } else {
             $id = DB::table('document_ingestions')->insertGetId($key + [
                 'uuid' => (string) Str::uuid(), 'source_sha256' => $data['sha256'] ?? null,
@@ -124,6 +142,30 @@ class InvoiceAutomationController extends Controller
             $row = DB::table('document_ingestions')->find($id);
         }
         return response()->json(['ingestion_id' => $row->uuid, 'status' => $row->status, 'action' => 'process', 'r2_key' => $row->r2_key], 201);
+    }
+
+    public function failIngestion(Request $request, string $ingestion): JsonResponse
+    {
+        $data = $request->validate([
+            'job_id' => ['nullable', 'string', 'max:64'],
+            'error' => ['required', 'string', 'max:2000'],
+        ]);
+        $row = DB::table('document_ingestions')->where('uuid', $ingestion)->first();
+        abort_unless($row, 404, 'Importación no encontrada.');
+
+        if (in_array($row->status, ['completed', 'ignored'], true)) {
+            return response()->json(['ingestion_id' => $row->uuid, 'status' => $row->status, 'action' => 'unchanged']);
+        }
+
+        $jobReference = !empty($data['job_id']) ? ' (job ' . $data['job_id'] . ')' : '';
+        DB::table('document_ingestions')->where('id', $row->id)->update([
+            'status' => 'failed',
+            'last_error' => mb_substr('Falló la extracción asíncrona' . $jobReference . ': ' . $data['error'], 0, 2000),
+            'lease_until' => null,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json(['ingestion_id' => $row->uuid, 'status' => 'failed', 'action' => 'recorded']);
     }
 
     public function storeExtraction(Request $request, string $ingestion): JsonResponse

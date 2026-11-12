@@ -24,6 +24,7 @@ Route::prefix('v1/automation')->middleware(['auth.n8n', 'throttle:60,1'])->group
     Route::get('/documents/pending', [InvoiceAutomationController::class, 'pendingDocuments'])->name('api.v1.automation.documents.pending');
     Route::post('/documents/{file}/download-url', [InvoiceAutomationController::class, 'existingDocumentUrl'])->name('api.v1.automation.documents.download-url');
     Route::post('/ingestions/reserve', [InvoiceAutomationController::class, 'reserveIngestion'])->name('api.v1.automation.ingestions.reserve');
+    Route::post('/ingestions/{ingestion}/failure', [InvoiceAutomationController::class, 'failIngestion'])->name('api.v1.automation.ingestions.failure');
     Route::post('/ingestions/{ingestion}/upload-url', [InvoiceAutomationController::class, 'uploadUrl'])->name('api.v1.automation.ingestions.upload-url');
     Route::put('/ingestions/{ingestion}/result', [InvoiceAutomationController::class, 'storeExtraction'])->name('api.v1.automation.ingestions.result');
     Route::get('/invoices/{factura}/documents', [InvoiceAutomationController::class, 'sourceFiles'])->name('api.v1.automation.invoice-documents.index');

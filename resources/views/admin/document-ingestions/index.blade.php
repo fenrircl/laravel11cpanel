@@ -49,10 +49,13 @@
                 @if(in_array($job->status,['needs_review','failed']) && $job->extraction_payload)
                     @php
                         $invoiceMatch = $job->suggested_invoice;
+                        $suggestedPartyName = $job->suggested_party_name ?? null;
+                        $suggestedPartyRut = $job->suggested_party_rut ?? null;
+                        $suggestedPartyType = $job->suggested_party_type ?? null;
                         $databaseParty = $invoiceMatch?->proveedor ?: $invoiceMatch?->cliente;
                         $databasePartyLabel = $databaseParty ? $databaseParty->name . ($databaseParty->rut ? ' · ' . $databaseParty->rut : '') : 'Sin contraparte asociada';
-                        $proposedPartyLabel = $job->suggested_party_name
-                            ? $job->suggested_party_name . ($job->suggested_party_rut ? ' · ' . $job->suggested_party_rut : '')
+                        $proposedPartyLabel = $suggestedPartyName
+                            ? $suggestedPartyName . ($suggestedPartyRut ? ' · ' . $suggestedPartyRut : '')
                             : 'Sin contraparte identificada';
                         $databaseDate = $invoiceMatch?->date?->format('Y-m-d') ?: '';
                         $databaseAmount = $invoiceMatch?->amount !== null ? (string) $invoiceMatch->amount : '';
@@ -91,12 +94,12 @@
                                                     <tr><th>Folio</th><td>{{ $invoiceMatch->invoice }}</td><td data-preview="invoice_number">{{ old('invoice_number', data_get($job->extracted_data, 'invoice_number')) ?: 'Sin cambio' }}</td><td data-comparison="invoice_number"></td></tr>
                                                     <tr><th>Fecha</th><td>{{ $databaseDate ?: 'Sin fecha' }}</td><td data-preview="invoice_date">{{ old('invoice_date', data_get($job->extracted_data, 'date')) ?: 'Sin cambio' }}</td><td data-comparison="invoice_date"></td></tr>
                                                     <tr><th>Monto</th><td>{{ $databaseAmount !== '' ? '$'.number_format((float)$databaseAmount, 0, ',', '.') : 'Sin monto' }}</td><td data-preview="invoice_amount">{{ old('invoice_amount', data_get($job->extracted_data, 'amount')) !== null ? '$'.number_format((float)old('invoice_amount', data_get($job->extracted_data, 'amount')), 0, ',', '.') : 'Sin cambio' }}</td><td data-comparison="invoice_amount"></td></tr>
-                                                    <tr><th>{{ $job->suggested_party_type ?: 'Contraparte' }}</th><td>{{ $databasePartyLabel }}</td><td data-preview="party">{{ $proposedPartyLabel }}</td><td data-comparison="party"></td></tr>
+                                                    <tr><th>{{ $suggestedPartyType ?: 'Contraparte' }}</th><td>{{ $databasePartyLabel }}</td><td data-preview="party">{{ $proposedPartyLabel }}</td><td data-comparison="party"></td></tr>
                                                 </tbody>
                                             </table>
                                         </div>
-                                        @if($job->suggested_party_rut && !$job->suggested_provider_id && !$job->suggested_client_id)
-                                            <div class="alert alert-warning py-2">El RUT extraído ({{ $job->suggested_party_rut }}) no coincide con un registro existente; revisa la contraparte antes de aprobar.</div>
+                                        @if($suggestedPartyRut && !$job->suggested_provider_id && !$job->suggested_client_id)
+                                            <div class="alert alert-warning py-2">El RUT extraído ({{ $suggestedPartyRut }}) no coincide con un registro existente; revisa la contraparte antes de aprobar.</div>
                                         @endif
                                         <details class="mt-3"><summary>Ver JSON completo de extracción</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:300px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
                                     </div>
