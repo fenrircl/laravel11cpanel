@@ -155,14 +155,21 @@
                                         <tbody>
                                             @foreach($file->audit_history as $event)
                                                 @php
-                                                    $changes = json_decode($event->changes ?: '{}', true) ?: [];
+                                                    $changes = json_decode($event->changes ?: '{}', true);
+                                                    if (is_string($changes)) {
+                                                        $changes = json_decode($changes, true);
+                                                    }
+                                                    $changes = is_array($changes) ? $changes : [];
                                                 @endphp
                                                 <tr>
                                                     <td>{{ $event->created_at }}</td><td>{{ $event->action }}</td>
                                                     <td>
                                                         {{ $event->description }}
                                                         @if($changes)
-                                                            <ul class="small mb-0 mt-1">@foreach($changes as $field => $change)<li><strong>{{ $field }}:</strong> {{ is_scalar($change['from'] ?? null) ? ($change['from'] ?? 'vacío') : json_encode($change['from'] ?? null) }} → {{ is_scalar($change['to'] ?? null) ? ($change['to'] ?? 'vacío') : json_encode($change['to'] ?? null) }}</li>@endforeach</ul>
+                                                            <ul class="small mb-0 mt-1">@foreach($changes as $field => $change)@php
+                                                                $from = is_array($change) ? ($change['from'] ?? null) : null;
+                                                                $to = is_array($change) ? ($change['to'] ?? null) : $change;
+                                                            @endphp<li><strong>{{ $field }}:</strong> {{ is_scalar($from) ? ($from ?? 'vacío') : json_encode($from) }} → {{ is_scalar($to) ? ($to ?? 'vacío') : json_encode($to) }}</li>@endforeach</ul>
                                                         @endif
                                                     </td>
                                                 </tr>
