@@ -70,9 +70,10 @@
                         ? $invoicePreviews
                         : [$job->extracted_data];
                     $invoicePreviews = array_values(array_filter($invoicePreviews, 'is_array'));
+                    $hasMultipleInvoices = count($invoicePreviews) > 1 && (bool) data_get($job->extracted_data, 'invoices');
                 @endphp
                 <button type="button" class="btn btn-sm btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#extracted-items-{{ $job->id }}">
-                    Ver datos e ítems extraídos <span class="badge bg-light text-primary ms-1">{{ count($invoicePreviews) }}</span>
+                    {{ $hasMultipleInvoices ? 'Revisar y seleccionar facturas por página' : 'Ver datos e ítems extraídos' }} <span class="badge bg-light text-primary ms-1">{{ count($invoicePreviews) }}</span>
                 </button>
                 <div class="modal fade" id="extracted-items-{{ $job->id }}" tabindex="-1" aria-labelledby="extracted-items-title-{{ $job->id }}" aria-hidden="true">
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -85,34 +86,38 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                             </div>
                             <div class="modal-body">
+                                @php
+                                    $pageApprovals = data_get($job->extracted_data, 'page_approvals', []);
+                                @endphp
                                 <div class="alert {{ $job->status === 'completed' ? 'alert-success' : 'alert-info' }} py-2">
                                     {{ $job->status === 'completed' ? 'Importación completada. Estos son los datos reconocidos y guardados.' : 'Vista previa de la extracción. Los datos todavía no se han insertado en una factura.' }}
                                 </div>
-                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                @if($hasMultipleInvoices)
                                     <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
                                         @csrf
-                                        @php($pageApprovals = data_get($job->extracted_data, 'page_approvals', []))
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                                             <p class="small text-muted mb-0">Marca las facturas que quieras aplicar e indica el ID interno de cada una. Solo se guardarán las filas seleccionadas.</p>
                                             <button type="button" class="btn btn-sm btn-outline-primary" data-select-all-pages="{{ $job->id }}">Marcar pendientes</button>
                                         </div>
                                 @endif
                                 @forelse($invoicePreviews as $previewIndex => $preview)
-                                    @php($previewItems = data_get($preview, 'line_items', []))
-                                    @php($pageNumber = (int) (data_get($preview, 'page') ?: $previewIndex + 1))
-                                    @php($pageAlreadyApproved = data_get($pageApprovals ?? [], (string)$pageNumber))
-                                    @php($pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string)$pageNumber))
+                                    @php
+                                        $previewItems = data_get($preview, 'line_items', []);
+                                        $pageNumber = (int) (data_get($preview, 'page') ?: $previewIndex + 1);
+                                        $pageAlreadyApproved = data_get($pageApprovals ?? [], (string) $pageNumber);
+                                        $pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string) $pageNumber);
+                                    @endphp
                                     <section class="border rounded p-3 mb-3">
                                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                                             <div class="d-flex align-items-center gap-2">
-                                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                                @if($hasMultipleInvoices)
                                                     <input class="form-check-input mt-0 page-approval-checkbox" type="checkbox" name="pages[]" value="{{ $pageNumber }}" id="page-{{ $job->id }}-{{ $pageNumber }}" @checked(!$pageAlreadyApproved)>
                                                 @endif
                                                 <h3 class="h6 mb-0">{{ count($invoicePreviews) > 1 ? 'Factura / página ' . $pageNumber : 'Resumen de extracción' }}</h3>
                                             </div>
                                             <span class="badge {{ $pageAlreadyApproved ? 'bg-success' : 'bg-light text-dark border' }}">{{ $pageAlreadyApproved ? 'Aplicada a factura ID ' . data_get($pageAlreadyApproved, 'invoice_id', $pageAlreadyApproved) : (is_array($previewItems) ? count($previewItems) : 0) . ' ítems' }}</span>
                                         </div>
-                                        @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                        @if($hasMultipleInvoices)
                                             <div class="row g-2 mb-3">
                                                 <div class="col-md-3"><label class="form-label small" for="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}">ID de factura existente</label><input class="form-control form-control-sm" type="number" min="1" name="invoice_ids[{{ $pageNumber }}]" id="page-invoice-id-{{ $job->id }}-{{ $pageNumber }}" value="{{ old('invoice_ids.' . $pageNumber, is_array($pageAlreadyApproved) ? data_get($pageAlreadyApproved, 'invoice_id') : data_get($pageInvoiceSuggestion, 'id')) }}" placeholder="Ej. 6410">@if($pageInvoiceSuggestion)<div class="form-text text-success">Coincidencia única por folio {{ $pageInvoiceSuggestion['folio'] }}.</div>@else<div class="form-text">Si el folio no coincide, ingresa el ID interno.</div>@endif</div>
                                                 <div class="col-md-3"><label class="form-label small" for="page-number-{{ $job->id }}-{{ $pageNumber }}">Folio</label><input class="form-control form-control-sm" name="invoice_numbers[{{ $pageNumber }}]" id="page-number-{{ $job->id }}-{{ $pageNumber }}" value="{{ data_get($preview, 'invoice_number') }}"></div>
@@ -145,7 +150,9 @@
                                                                 <td>{{ data_get($item, 'quantity') ?? '—' }}</td>
                                                                 <td>{{ data_get($item, 'unit') ?: '—' }}</td>
                                                                 <td>{{ data_get($item, 'unit_price') !== null ? '$ ' . number_format((float)data_get($item, 'unit_price'), 2, ',', '.') : '—' }}</td>
-                                                                @php($lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount'))
+                                                                @php
+                                                                    $lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount');
+                                                                @endphp
                                                                 <td>{{ $lineTotal !== null ? '$ ' . number_format((float)$lineTotal, 0, ',', '.') : '—' }}</td>
                                                             </tr>
                                                         @endforeach
@@ -159,13 +166,13 @@
                                 @empty
                                     <div class="alert alert-warning mb-0">La extracción no contiene datos de factura para previsualizar.</div>
                                 @endforelse
-                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                @if($hasMultipleInvoices)
                                     </form>
                                 @endif
                             </div>
                             <div class="modal-footer justify-content-between">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-                                @if(count($invoicePreviews) > 1 && data_get($job->extracted_data, 'invoices'))
+                                @if($hasMultipleInvoices)
                                     <button type="submit" class="btn btn-success" form="approve-pages-{{ $job->id }}">Aplicar facturas seleccionadas</button>
                                 @endif
                             </div>
