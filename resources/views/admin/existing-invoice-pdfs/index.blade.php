@@ -51,7 +51,9 @@
                                 <div>{{ $file->document_type ?: 'Tipo sin identificar' }}</div>
                                 <div class="small text-muted">Confianza: {{ $file->confidence ?? '—' }}</div>
                                 @if($file->warnings)
-                                    @php($warnings = json_decode($file->warnings, true) ?: [])
+                                    @php
+                                        $warnings = json_decode($file->warnings, true) ?: [];
+                                    @endphp
                                     <details class="small"><summary>Advertencias ({{ count($warnings) }})</summary><ul class="mb-0">@foreach($warnings as $warning)<li>{{ $warning }}</li>@endforeach</ul></details>
                                 @endif
                             @else
@@ -152,7 +154,9 @@
                                         <thead class="table-light"><tr><th>Fecha</th><th>Acción</th><th>Detalle y valores modificados</th></tr></thead>
                                         <tbody>
                                             @foreach($file->audit_history as $event)
-                                                @php($changes = json_decode($event->changes ?: '{}', true) ?: [])
+                                                @php
+                                                    $changes = json_decode($event->changes ?: '{}', true) ?: [];
+                                                @endphp
                                                 <tr>
                                                     <td>{{ $event->created_at }}</td><td>{{ $event->action }}</td>
                                                     <td>
