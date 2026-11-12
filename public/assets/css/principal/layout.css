@@ -352,7 +352,7 @@ body {
     padding: 0.75rem 0.5rem;
 }
 
-.nav-link {
+#sidebar .nav-link {
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 0.875rem 1rem;
     border-radius: 0.5rem;
@@ -365,7 +365,7 @@ body {
     font-weight: 500;
 }
 
-.nav-link::before {
+#sidebar .nav-link::before {
     content: '';
     position: absolute;
     top: 0;
@@ -377,11 +377,11 @@ body {
     z-index: 1;
 }
 
-.nav-link:hover::before {
+#sidebar .nav-link:hover::before {
     left: 100%;
 }
 
-.nav-link:hover {
+#sidebar .nav-link:hover {
     background: linear-gradient(135deg, var(--accent-blue) 0%, var(--secondary-blue) 100%);
     color: var(--white) !important;
     transform: translateX(8px);
@@ -389,7 +389,7 @@ body {
     box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
 }
 
-.nav-link.active {
+#sidebar .nav-link.active {
     background: linear-gradient(135deg, var(--light-blue) 0%, var(--accent-blue) 100%);
     color: var(--white) !important;
     border-color: rgba(255, 255, 255, 0.3);
@@ -397,7 +397,7 @@ body {
     font-weight: 600;
 }
 
-.nav-link.active::after {
+#sidebar .nav-link.active::after {
     content: '';
     position: absolute;
     right: 0;
@@ -409,13 +409,45 @@ body {
     border-radius: 2px 0 0 2px;
 }
 
-.nav-link i {
+#sidebar .nav-link i {
     width: 20px;
     text-align: center;
     flex-shrink: 0;
     font-size: 1.1rem;
     position: relative;
     z-index: 2;
+}
+
+.admin-quick-nav .nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: .55rem .9rem;
+    border: 1px solid #cbd8e8;
+    border-radius: .55rem;
+    background: #f3f7fc;
+    color: #183b63 !important;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.admin-quick-nav .nav-link:hover {
+    background: #e3edf8;
+    border-color: #7da5d1;
+    color: #102f52 !important;
+}
+
+.admin-quick-nav .nav-link.active {
+    background: #174a7e;
+    border-color: #174a7e;
+    color: #fff !important;
+}
+
+.admin-quick-nav .nav-link:focus-visible {
+    outline: 3px solid #e09b24;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px #fff;
 }
 
 .nav-text {

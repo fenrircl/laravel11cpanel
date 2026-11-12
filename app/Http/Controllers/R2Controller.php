@@ -339,11 +339,22 @@ class R2Controller extends Controller
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
             throw $e;
         } catch (\Throwable $e) {
+            $cause = $e;
+            while ($cause->getPrevious()) {
+                $cause = $cause->getPrevious();
+            }
+            $awsCode = method_exists($cause, 'getAwsErrorCode') ? $cause->getAwsErrorCode() : null;
+            $statusCode = method_exists($cause, 'getStatusCode') ? $cause->getStatusCode() : null;
             \Log::error('Error al descargar archivo desde R2', [
                 'original_path' => $path ?? 'null',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'exception' => get_class($cause),
+                'aws_code' => $awsCode,
+                'http_status' => $statusCode,
             ]);
+
+            if (str_contains(get_class($cause), 'S3Exception') || str_contains(get_class($e), 'UnableToCheckExistence')) {
+                abort(503, 'El almacenamiento R2 no está disponible. Intenta nuevamente más tarde.');
+            }
             
             abort(500, 'Error interno al procesar el archivo.');
         }

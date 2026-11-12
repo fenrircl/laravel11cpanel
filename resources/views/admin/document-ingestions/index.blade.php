@@ -5,10 +5,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div><h1 class="h3 mb-1">Mantenedor de jobs</h1><p class="text-muted mb-0">Revisa importaciones, corrige los datos y administra reintentos.</p></div>
     </div>
-    <ul class="nav nav-tabs mb-4" aria-label="Secciones de administración">
-        <li class="nav-item"><a class="nav-link" href="{{ route('admin.system-info.index') }}">Información</a></li>
-        <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('admin.document-ingestions.index') }}">Mantenedor de jobs</a></li>
-    </ul>
+    @include('admin._quick-nav', ['active' => 'jobs'])
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <h2 class="h6 text-muted mb-2">Tipo de documento</h2>

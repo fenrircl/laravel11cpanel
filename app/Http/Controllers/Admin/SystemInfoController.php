@@ -11,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class SystemInfoController extends Controller
@@ -148,6 +149,53 @@ class SystemInfoController extends Controller
         ], $request->user()?->id);
 
         return redirect()->route('admin.system-info.index')->with('success', 'Configuración del asistente actualizada.');
+    }
+
+    public function checkR2(): RedirectResponse
+    {
+        $required = [
+            'AWS_ACCESS_KEY_ID' => config('filesystems.disks.r2.key'),
+            'AWS_SECRET_ACCESS_KEY' => config('filesystems.disks.r2.secret'),
+            'AWS_BUCKET' => config('filesystems.disks.r2.bucket'),
+            'AWS_ENDPOINT' => config('filesystems.disks.r2.endpoint'),
+            'AWS_DEFAULT_REGION' => config('filesystems.disks.r2.region'),
+        ];
+        $missing = array_keys(array_filter($required, fn ($value) => !is_string($value) || trim($value) === ''));
+        if ($missing) {
+            return back()->with('r2_check', [
+                'ok' => false,
+                'message' => 'Configuración incompleta. Faltan: ' . implode(', ', $missing) . '.',
+            ]);
+        }
+
+        try {
+            // ListObjectsV2 con MaxKeys=1: verifica credenciales y lectura sin crear ni modificar objetos.
+            $disk = Storage::disk('r2');
+            $disk->directoryExists('invoice-imports');
+
+            return back()->with('r2_check', [
+                'ok' => true,
+                'message' => 'R2 respondió correctamente a la consulta de solo lectura. El prefijo puede estar vacío; esta comprobación no prueba la firma de una carga PUT.',
+            ]);
+        } catch (\Throwable $exception) {
+            $cause = $exception;
+            while ($cause->getPrevious()) {
+                $cause = $cause->getPrevious();
+            }
+            $awsCode = method_exists($cause, 'getAwsErrorCode') ? $cause->getAwsErrorCode() : null;
+            $statusCode = method_exists($cause, 'getStatusCode') ? $cause->getStatusCode() : null;
+            logger()->warning('Falló la comprobación de solo lectura de R2', [
+                'exception' => get_class($cause),
+                'aws_code' => $awsCode,
+                'http_status' => $statusCode,
+            ]);
+
+            return back()->with('r2_check', [
+                'ok' => false,
+                'message' => 'No se pudo verificar la lectura de R2. Revisa endpoint, región, bucket, credenciales y permiso para listar objetos.'
+                    . ($awsCode ? ' Código: ' . $awsCode . '.' : ''),
+            ]);
+        }
     }
 
     private function readJson(string $path): array

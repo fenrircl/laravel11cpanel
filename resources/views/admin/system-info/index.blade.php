@@ -12,10 +12,7 @@
         </span>
     </div>
 
-    <ul class="nav nav-tabs mb-4" aria-label="Secciones de administración">
-        <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('admin.system-info.index') }}">Información</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ route('admin.document-ingestions.index') }}">Mantenedor de jobs</a></li>
-    </ul>
+    @include('admin._quick-nav', ['active' => 'system'])
 
     <div class="alert alert-info" role="note">
         Las versiones fijadas provienen de <code>composer.lock</code> y <code>package-lock.json</code> subidos al repositorio.
@@ -30,7 +27,7 @@
         <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
     @endif
 
-    <div class="card mb-4">
+    <div class="card mb-4" id="assistant-config">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span class="fw-semibold">Configuración del chatbot</span>
             <span class="badge {{ $assistantEnabled ? 'bg-success' : 'bg-secondary' }}">{{ $assistantEnabled ? 'Habilitado por .env' : 'Deshabilitado por .env' }}</span>
@@ -70,6 +67,20 @@
         </div>
     </div>
 
+    <div class="card mb-4" id="r2-status">
+        <div class="card-header fw-semibold">Almacenamiento de archivos R2</div>
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <p class="mb-1">Comprueba credenciales y acceso de lectura con una consulta pequeña. No crea, modifica ni elimina archivos.</p>
+                <p class="small text-muted mb-0">No valida la firma de carga PUT usada por las URLs prefirmadas.</p>
+                @if(session('r2_check'))
+                    <div class="alert {{ session('r2_check.ok') ? 'alert-success' : 'alert-danger' }} mt-3 mb-0" role="status">{{ session('r2_check.message') }}</div>
+                @endif
+            </div>
+            <form method="POST" action="{{ route('admin.system-info.r2-check') }}">@csrf<button class="btn btn-outline-primary" type="submit">Verificar acceso a R2</button></form>
+        </div>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-md-6">
             <div class="card h-100"><div class="card-body">
@@ -87,7 +98,7 @@
         </div>
     </div>
 
-    <details class="card mb-4">
+    <details class="card mb-4" id="php-runtime">
         <summary class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="fw-semibold">Entorno PHP</span>
             <span class="d-flex gap-2 align-items-center">
@@ -170,7 +181,7 @@
     <div class="card mt-4" id="chat-audit">
         <div class="card-header fw-semibold">Auditoría de uso del chatbot</div>
         <div class="card-body">
-            @if(!$usageTableExists)
+            @if(!($usageTableExists ?? false))
                 <div class="alert alert-warning mb-0">Falta crear <code>assistant_usage_logs</code>. Importa el esquema actualizado <code>docs/sql/assistant-chat-schema.sql</code> desde phpMyAdmin para activar la auditoría.</div>
             @else
                 <div class="mb-4">

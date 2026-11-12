@@ -124,6 +124,13 @@ return [
                 'auth_required' => true
             ],
             [
+                'title' => 'Jobs de importación',
+                'icon' => 'fas fa-tasks',
+                'route' => 'admin.document-ingestions.index',
+                'tooltip' => 'Importaciones y reintentos de documentos',
+                'auth_required' => true
+            ],
+            [
                 'title' => 'Información del sistema',
                 'icon' => 'fas fa-server',
                 'route' => 'admin.system-info.index',
