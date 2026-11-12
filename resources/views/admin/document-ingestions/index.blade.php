@@ -93,6 +93,14 @@
                                     {{ $job->status === 'completed' ? 'Importación completada. Estos son los datos reconocidos y guardados.' : 'Vista previa de la extracción. Los datos todavía no se han insertado en una factura.' }}
                                 </div>
                                 @if($hasMultipleInvoices)
+                                    <div class="d-flex align-items-center gap-2 flex-wrap mb-3 extraction-stepper" data-stepper-for="{{ $job->id }}" data-current-step="0">
+                                        @foreach($invoicePreviews as $stepIndex => $stepPreview)
+                                            <button type="button" class="btn btn-sm {{ $stepIndex === 0 ? 'btn-primary' : 'btn-outline-primary' }} extraction-step-button" data-step-target="{{ $stepIndex }}" aria-current="{{ $stepIndex === 0 ? 'step' : 'false' }}">
+                                                {{ $stepIndex + 1 }}
+                                            </button>
+                                        @endforeach
+                                        <span class="small text-muted ms-1" data-step-status>Página 1 de {{ count($invoicePreviews) }}</span>
+                                    </div>
                                     <form id="approve-pages-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve-pages', $job->id) }}">
                                         @csrf
                                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -107,7 +115,7 @@
                                         $pageAlreadyApproved = data_get($pageApprovals ?? [], (string) $pageNumber);
                                         $pageInvoiceSuggestion = data_get($job->page_invoice_suggestions ?? [], (string) $pageNumber);
                                     @endphp
-                                    <section class="border rounded p-3 mb-3">
+                                    <section class="border rounded p-3 mb-3 {{ $hasMultipleInvoices ? 'extraction-page-step' : '' }}" data-step-index="{{ $previewIndex }}">
                                         <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                                             <div class="d-flex align-items-center gap-2">
                                                 @if($hasMultipleInvoices)
@@ -171,9 +179,15 @@
                                 @endif
                             </div>
                             <div class="modal-footer justify-content-between">
-                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                                 @if($hasMultipleInvoices)
-                                    <button type="submit" class="btn btn-success" form="approve-pages-{{ $job->id }}">Aplicar facturas seleccionadas</button>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-outline-primary" data-step-previous disabled>Anterior</button>
+                                        <button type="button" class="btn btn-primary" data-step-next>Validar y continuar</button>
+                                        <button type="submit" class="btn btn-success d-none" data-step-submit form="approve-pages-{{ $job->id }}">Aplicar facturas seleccionadas</button>
+                                    </div>
+                                @else
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
                                 @endif
                             </div>
                         </div>
@@ -324,11 +338,71 @@ document.addEventListener('show.bs.modal', function (event) {
 
 document.addEventListener('click', function (event) {
     const button = event.target.closest('[data-select-all-pages]');
-    if (!button) return;
-    const modal = button.closest('.modal');
-    modal?.querySelectorAll('.page-approval-checkbox').forEach((checkbox) => {
-        if (!checkbox.closest('section')?.querySelector('.badge.bg-success')) checkbox.checked = true;
+    if (button) {
+        const modal = button.closest('.modal');
+        modal?.querySelectorAll('.page-approval-checkbox').forEach((checkbox) => {
+            if (!checkbox.closest('section')?.querySelector('.badge.bg-success')) checkbox.checked = true;
+        });
+        return;
+    }
+
+    const stepButton = event.target.closest('[data-step-target], [data-step-next], [data-step-previous]');
+    if (!stepButton) return;
+    const modal = stepButton.closest('.modal');
+    const stepper = modal?.querySelector('.extraction-stepper');
+    const steps = modal ? [...modal.querySelectorAll('.extraction-page-step')] : [];
+    if (!stepper || !steps.length) return;
+
+    const current = Number(stepper.dataset.currentStep || 0);
+    let target = stepButton.hasAttribute('data-step-next')
+        ? current + 1
+        : stepButton.hasAttribute('data-step-previous')
+            ? current - 1
+            : Number(stepButton.dataset.stepTarget);
+    target = Math.max(0, Math.min(target, steps.length - 1));
+
+    if (target > current) {
+        const section = steps[current];
+        const checkbox = section.querySelector('.page-approval-checkbox');
+        const page = checkbox?.value;
+        const invoiceId = page ? section.querySelector(`[name="invoice_ids[${page}]"]`) : null;
+        if (checkbox?.checked && !invoiceId?.value.trim()) {
+            const status = stepper.querySelector('[data-step-status]');
+            if (status) {
+                status.textContent = 'Ingresa el ID de factura de esta página antes de continuar.';
+                status.classList.add('text-danger');
+            }
+            invoiceId?.focus();
+            return;
+        }
+    }
+
+    stepper.dataset.currentStep = String(target);
+    steps.forEach((section, index) => section.classList.toggle('d-none', index !== target));
+    stepper.querySelectorAll('.extraction-step-button').forEach((button, index) => {
+        button.classList.toggle('btn-primary', index === target);
+        button.classList.toggle('btn-outline-primary', index !== target);
+        button.setAttribute('aria-current', index === target ? 'step' : 'false');
     });
+
+    const status = stepper.querySelector('[data-step-status]');
+    if (status) {
+        status.textContent = `Página ${target + 1} de ${steps.length}`;
+        status.classList.remove('text-danger');
+    }
+    const previous = modal.querySelector('[data-step-previous]');
+    const next = modal.querySelector('[data-step-next]');
+    const submit = modal.querySelector('[data-step-submit]');
+    if (previous) previous.disabled = target === 0;
+    if (next) next.classList.toggle('d-none', target === steps.length - 1);
+    if (submit) submit.classList.toggle('d-none', target !== steps.length - 1);
+});
+
+document.addEventListener('shown.bs.modal', function (event) {
+    const modal = event.target;
+    if (!modal.matches('[id^="extracted-items-"]')) return;
+    const firstStep = modal.querySelector('.extraction-step-button');
+    firstStep?.click();
 });
 </script>
 @endpush
