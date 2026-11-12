@@ -1,0 +1,125 @@
+{
+  "name": "Importar facturas PDF desde Google Drive",
+  "nodes": [
+    {
+      "parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 15}]}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1001",
+      "name": "Cada 15 minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-900, 0]
+    },
+    {
+      "parameters": {"resource": "fileFolder", "operation": "search", "searchMethod": "advancedSearch", "queryString": "={{ \"'\" + $env.GDRIVE_INVOICE_FOLDER_ID + \"' in parents and trashed = false\" }}", "returnAll": true, "filter": {"folderId": {"__rl": true, "value": "={{ $env.GDRIVE_INVOICE_FOLDER_ID }}", "mode": "id"}, "whatToSearch": "files"}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1002",
+      "name": "Buscar PDFs en carpeta Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [-660, 0],
+      "credentials": {"googleDriveOAuth2Api": {"id": "", "name": "Seleccionar Google Drive"}}
+    },
+    {
+      "parameters": {"conditions": {"options": {"caseSensitive": false}, "conditions": [{"leftValue": "={{ $json.mimeType }}", "rightValue": "application/pdf", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1003",
+      "name": "Solo archivos PDF",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-420, 0]
+    },
+    {
+      "parameters": {"operation": "download", "fileId": {"__rl": true, "value": "={{ $json.id }}", "mode": "id"}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1004",
+      "name": "Descargar PDF desde Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [-180, -100],
+      "credentials": {"googleDriveOAuth2Api": {"id": "", "name": "Seleccionar Google Drive"}}
+    },
+    {
+      "parameters": {"method": "POST", "url": "https://pdf.solidtec.cl/v1/extractions", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "contentType": "multipart-form-data", "bodyParameters": {"parameters": [{"parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data"}, {"name": "document_type", "value": "auto"}, {"name": "locale", "value": "es-CL"}]}, "options": {"timeout": 300000}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1005",
+      "name": "Extraer datos del PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [60, -100],
+      "credentials": {"httpHeaderAuth": {"id": "", "name": "Bearer API PDF"}}
+    },
+    {
+      "parameters": {"conditions": {"options": {"caseSensitive": true}, "conditions": [{"leftValue": "={{ $json.document_type }}", "rightValue": "invoice", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1006",
+      "name": "¿Es factura? Cotizaciones se omiten",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [300, -100]
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/reserve' }}", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ { source: 'drive', external_id: $('Buscar PDFs en carpeta Drive').item.json.id, external_version: $('Buscar PDFs en carpeta Drive').item.json.version || $('Buscar PDFs en carpeta Drive').item.json.modifiedTime, filename: $('Buscar PDFs en carpeta Drive').item.json.name, mime_type: 'application/pdf' } }}", "options": {"timeout": 30000}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1007",
+      "name": "Reservar importación en Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [540, -180],
+      "credentials": {"httpHeaderAuth": {"id": "", "name": "Bearer Laravel n8n"}}
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/' + $json.ingestion_id + '/upload-url' }}", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "options": {"timeout": 30000}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1008",
+      "name": "Solicitar URL firmada R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, -180],
+      "credentials": {"httpHeaderAuth": {"id": "", "name": "Bearer Laravel n8n"}}
+    },
+    {
+      "parameters": {"mode": "combine", "combineBy": "combineByPosition", "options": {}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1012",
+      "name": "Conservar PDF y enlace R2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1000, -350]
+    },
+    {
+      "parameters": {"conditions": {"options": {"caseSensitive": true}, "conditions": [{"leftValue": "={{ $json.action }}", "rightValue": "process", "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1011",
+      "name": "¿Debe procesarse?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [780, -350]
+    },
+    {
+      "parameters": {"method": "PUT", "url": "={{ $json.upload_url }}", "sendBody": true, "contentType": "binaryData", "inputDataFieldName": "data", "options": {"timeout": 120000}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1009",
+      "name": "Subir PDF a R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, -180]
+    },
+    {
+      "parameters": {"method": "PUT", "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/' + $('Reservar importación en Laravel').item.json.ingestion_id + '/result' }}", "authentication": "genericCredentialType", "genericAuthType": "httpHeaderAuth", "sendBody": true, "specifyBody": "json", "jsonBody": "={{ { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...$('Extraer datos del PDF').item.json } }}", "options": {"timeout": 30000}},
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1010",
+      "name": "Guardar extracción en Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, -180],
+      "credentials": {"httpHeaderAuth": {"id": "", "name": "Bearer Laravel n8n"}}
+    }
+  ],
+  "connections": {
+    "Cada 15 minutos": {"main": [[{"node": "Buscar PDFs en carpeta Drive", "type": "main", "index": 0}]]},
+    "Buscar PDFs en carpeta Drive": {"main": [[{"node": "Solo archivos PDF", "type": "main", "index": 0}]]},
+    "Solo archivos PDF": {"main": [[{"node": "Descargar PDF desde Drive", "type": "main", "index": 0}]]},
+    "Extraer datos del PDF": {"main": [[{"node": "¿Es factura? Cotizaciones se omiten", "type": "main", "index": 0}]]},
+    "¿Es factura? Cotizaciones se omiten": {"main": [[{"node": "Reservar importación en Laravel", "type": "main", "index": 0}], []]},
+    "Reservar importación en Laravel": {"main": [[{"node": "¿Debe procesarse?", "type": "main", "index": 0}]]},
+    "¿Debe procesarse?": {"main": [[{"node": "Solicitar URL firmada R2", "type": "main", "index": 0}], []]},
+    "Solicitar URL firmada R2": {"main": [[{"node": "Conservar PDF y enlace R2", "type": "main", "index": 1}]]},
+    "Descargar PDF desde Drive": {"main": [[{"node": "Extraer datos del PDF", "type": "main", "index": 0}, {"node": "Conservar PDF y enlace R2", "type": "main", "index": 0}]]},
+    "Conservar PDF y enlace R2": {"main": [[{"node": "Subir PDF a R2", "type": "main", "index": 0}]]},
+    "Subir PDF a R2": {"main": [[{"node": "Guardar extracción en Laravel", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1", "timezone": "America/Santiago"},
+  "versionId": "d1111111-1111-4111-8111-111111111111",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

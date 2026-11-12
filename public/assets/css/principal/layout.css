@@ -176,6 +176,21 @@ body {
     z-index: 1030; /* por debajo del modal-backdrop (1050) y del modal (1055) */
 }
 
+.header .btn-outline-primary {
+    color: var(--primary-blue);
+    border: 1px solid #b8c7d8;
+    background-color: #fff;
+}
+
+.header .btn-outline-primary:hover,
+.header .btn-outline-primary:focus-visible,
+.header .btn-outline-primary.show,
+.header .btn-outline-primary:active {
+    color: #17385f;
+    border-color: #8da5bf;
+    background-color: #edf3f9;
+}
+
 /* Forzar z-index coherente con Bootstrap 5 para modales */
 .modal {
     z-index: 1055;

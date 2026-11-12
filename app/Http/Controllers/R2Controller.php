@@ -39,8 +39,8 @@ class R2Controller extends Controller
         // Limpiar caracteres de control Unicode adicionales que pueden causar problemas
         $path = preg_replace('/[\x{0080}-\x{009F}]/u', '', $path); // C1 control characters
         
-        // Decodificar la ruta si viene codificada desde la URL
-        $path = urldecode($path);
+        // Laravel/Symfony already decodes route parameters. Do not decode again:
+        // literal '+' and percent sequences are valid characters in legacy keys.
         
         // Asegurar codificación UTF-8 correcta
         if (!mb_check_encoding($path, 'UTF-8')) {
@@ -55,15 +55,6 @@ class R2Controller extends Controller
         
         // Normalizar Unicode para resolver diferencias de acentos
         // NFD (Normalization Form Decomposed) + quitar diacríticos si es necesario
-        $normalizedPath = \Normalizer::normalize($path, \Normalizer::FORM_D);
-        if ($normalizedPath !== $path) {
-            \Log::info('Unicode normalizado', [
-                'original' => $path,
-                'normalized' => $normalizedPath
-            ]);
-            $path = $normalizedPath;
-        }
-        
         // Limpiar espacios adicionales y normalizar
         $path = trim($path);
         
@@ -167,9 +158,11 @@ class R2Controller extends Controller
             $fileName, // Original
             $this->removeAccents($fileName), // Sin acentos
             $this->addCommonAccents($fileName), // Con acentos comunes
-            \Normalizer::normalize($fileName, \Normalizer::FORM_C), // NFC
-            \Normalizer::normalize($fileName, \Normalizer::FORM_D), // NFD
         ];
+        if (class_exists(\Normalizer::class)) {
+            $variations[] = \Normalizer::normalize($fileName, \Normalizer::FORM_C);
+            $variations[] = \Normalizer::normalize($fileName, \Normalizer::FORM_D);
+        }
         
         // Agregar variación sin espacios y con guiones bajos
         foreach ($variations as $var) {
@@ -222,9 +215,12 @@ class R2Controller extends Controller
      */
     private function removeAccents($str)
     {
-        $str = \Normalizer::normalize($str, \Normalizer::FORM_D);
-        $str = preg_replace('/[\x{0300}-\x{036f}]/u', '', $str); // Remove combining diacritical marks
-        return \Normalizer::normalize($str, \Normalizer::FORM_C);
+        if (class_exists(\Normalizer::class)) {
+            $str = \Normalizer::normalize($str, \Normalizer::FORM_D);
+            $str = preg_replace('/[\x{0300}-\x{036f}]/u', '', $str);
+            return \Normalizer::normalize($str, \Normalizer::FORM_C);
+        }
+        return iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $str) ?: $str;
     }
     
     /**
@@ -340,15 +336,53 @@ class R2Controller extends Controller
             // Usar response() para que el navegador maneje el archivo (lo muestra en línea o lo descarga)
             return Storage::disk('r2')->response($path);
             
-        } catch (\Exception $e) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
             \Log::error('Error al descargar archivo desde R2', [
                 'original_path' => $path ?? 'null',
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
             
-            abort(500, 'Error interno al procesar el archivo: ' . $e->getMessage());
+            abort(500, 'Error interno al procesar el archivo.');
         }
+    }
+
+    /** Download through the registry row so URL encoding never mutates the R2 key. */
+    public function downloadRegisteredFile(int $file)
+    {
+        // Read raw DB values to avoid accessors changing bytes in legacy object keys.
+        $record = DB::table('files_registry')->where('id', $file)->first();
+        abort_unless($record, 404, 'Archivo no encontrado.');
+        $key = (string) $record->path;
+        if ($key === '' || str_contains($key, '..')) abort(404, 'Archivo no encontrado.');
+
+        $disk = Storage::disk('r2');
+        $candidate = null;
+        foreach (array_unique([$key, rawurldecode($key)]) as $path) {
+            if ($path !== '' && !str_contains($path, '..') && $disk->exists($path)) {
+                $candidate = $path;
+                break;
+            }
+        }
+        if ($candidate === null && class_exists(\Normalizer::class)) {
+            foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
+                $variant = \Normalizer::normalize($key, $form);
+                if ($variant && !str_contains($variant, '..') && $disk->exists($variant)) {
+                    $candidate = $variant;
+                    break;
+                }
+            }
+        }
+        if ($candidate === null) {
+            \Log::warning('Registered R2 object missing', ['file_registry_id' => $record->id, 'model_type' => $record->model_type, 'model_id' => $record->model_id]);
+            abort(404, 'El archivo asociado no está disponible en R2.');
+        }
+
+        $mime = $record->mime_type ?: $disk->mimeType($candidate) ?: 'application/octet-stream';
+        $filename = preg_replace('/[\x00-\x1F\x7F]/u', '', (string)($record->file_name ?: basename($candidate)));
+        return $disk->response($candidate, $filename ?: basename($candidate), ['Content-Type' => $mime]);
     }
 
     /**

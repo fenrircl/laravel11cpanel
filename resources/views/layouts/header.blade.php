@@ -26,7 +26,7 @@
     <nav>
         @auth
             <div class="dropdown">
-                <button class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle d-flex align-items-center" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-user-circle me-2"></i>
                     <span class="text-truncate" style="max-width: 180px;">{{ Auth::user()->name }}</span>
                 </button>
@@ -44,7 +44,7 @@
                 @csrf
             </form>
         @else
-            <a href="{{ route('login') }}" class="btn btn-outline-light btn-sm">Iniciar sesión</a>
+            <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">Iniciar sesión</a>
         @endauth
     </nav>
 </div>

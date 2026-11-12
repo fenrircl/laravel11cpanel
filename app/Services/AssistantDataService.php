@@ -10,6 +10,7 @@ use App\Models\InvoiceDocumentContext;
 use App\Models\Proveedor;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -229,6 +230,61 @@ class AssistantDataService
             'count' => $invoices->count(),
             'records' => $invoices->map(fn (Factura $invoice) => $this->formatInvoiceDetails($invoice))->all(),
         ];
+    }
+
+    /** Search extracted invoice products using structured rows, never the PDF text. */
+    public function searchInvoiceItems(array $arguments): array
+    {
+        $filters = Validator::make($arguments, [
+            'term' => ['nullable', 'string', 'max:120'], 'party_name' => ['nullable', 'string', 'max:120'],
+            'invoice_number' => ['nullable', 'string', 'max:80'], 'year' => ['nullable', 'integer', 'between:2000,2100'],
+            'limit' => ['required', 'integer', 'min:1', 'max:20'],
+        ])->validate();
+        $term = trim((string)($filters['term'] ?? ''));
+        $query = DB::table('invoice_line_items as li')
+            ->join('invoices as i', 'i.id', '=', 'li.invoice_id')
+            ->join('invoice_extractions as e', function ($join) {
+                $join->on('e.id', '=', 'li.extraction_id')->where('e.is_active', true)->where('e.validation_status', 'validated');
+            })
+            ->leftJoin('providers as p', 'p.id', '=', 'i.provider_id')
+            ->leftJoin('clients as c', 'c.id', '=', 'i.client_id')
+            ->select(['li.description_original', 'li.supplier_sku', 'li.quantity', 'li.unit_price', 'li.total_amount', 'li.currency', 'i.id as invoice_id', 'i.invoice as invoice_number', 'i.date', 'p.name as provider_name', 'c.name as client_name']);
+        if ($term !== '') $query->where(fn ($q) => $q->where('li.description_normalized', 'like', '%'.mb_strtolower($term).'%')->orWhere('li.supplier_sku', 'like', '%'.$term.'%'));
+        if (!empty($filters['invoice_number'])) $query->where('i.invoice', trim($filters['invoice_number']));
+        if (!empty($filters['party_name'])) $query->where(fn ($q) => $q->where('p.name', 'like', '%'.$filters['party_name'].'%')->orWhere('c.name', 'like', '%'.$filters['party_name'].'%'));
+        $year = $filters['year'] ?? now()->year;
+        $query->whereYear('i.date', $year);
+        $rows = $query->orderByDesc('i.date')->limit($filters['limit'])->get();
+        return ['year' => $year, 'count' => $rows->count(), 'items' => $rows->map(fn ($row) => (array)$row)->all()];
+    }
+
+    /** Aggregate every matching extracted line in SQL, independent of the display limit. */
+    public function summarizeInvoiceItems(array $arguments): array
+    {
+        $filters = Validator::make($arguments, [
+            'term' => ['nullable', 'string', 'max:120'], 'party_name' => ['nullable', 'string', 'max:120'],
+            'year' => ['nullable', 'integer', 'between:2000,2100'], 'metric' => ['required', 'in:quantity,total_amount,unit_price'],
+        ])->validate();
+        $term = trim((string)($filters['term'] ?? ''));
+        $query = DB::table('invoice_line_items as li')->join('invoices as i', 'i.id', '=', 'li.invoice_id')
+            ->join('invoice_extractions as e', function ($join) { $join->on('e.id', '=', 'li.extraction_id')->where('e.is_active', true)->where('e.validation_status', 'validated'); })
+            ->leftJoin('providers as p', 'p.id', '=', 'i.provider_id')->leftJoin('clients as c', 'c.id', '=', 'i.client_id')
+            ->whereYear('i.date', $filters['year'] ?? now()->year);
+        if ($term !== '') $query->where(fn ($q) => $q->where('li.description_normalized', 'like', '%'.mb_strtolower($term).'%')->orWhere('li.supplier_sku', 'like', '%'.$term.'%'));
+        if (!empty($filters['party_name'])) $query->where(fn ($q) => $q->where('p.name', 'like', '%'.$filters['party_name'].'%')->orWhere('c.name', 'like', '%'.$filters['party_name'].'%'));
+        $column = $filters['metric'];
+        $groups = $query->selectRaw('li.currency, li.unit_normalized, COUNT(*) as line_count, COUNT('.$column.') as values_count, SUM('.$column.') as sum_value, AVG('.$column.') as average_value, MIN('.$column.') as min_value, MAX('.$column.') as max_value')
+            ->groupBy('li.currency', 'li.unit_normalized')->get()->map(fn ($stats) => [
+                'currency' => $stats->currency, 'unit' => $stats->unit_normalized,
+                'line_count' => (int)$stats->line_count, 'values_count' => (int)$stats->values_count,
+                'sum' => $stats->sum_value === null ? null : (float)$stats->sum_value,
+                'average' => $stats->average_value === null ? null : (float)$stats->average_value,
+                'minimum' => $stats->min_value === null ? null : (float)$stats->min_value,
+                'maximum' => $stats->max_value === null ? null : (float)$stats->max_value,
+            ])->all();
+        return ['year' => $filters['year'] ?? now()->year, 'metric' => $column, 'groups' => $groups,
+            'coverage' => array_sum(array_column($groups, 'line_count')),
+            'note' => 'Agregado SQL sobre líneas extraídas y validadas, agrupado por moneda y unidad; excluye facturas sin detalle procesado.'];
     }
 
     /** Return complete quotation data including its line items. */

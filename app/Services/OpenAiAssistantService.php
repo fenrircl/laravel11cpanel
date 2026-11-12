@@ -134,6 +134,8 @@ class OpenAiAssistantService
                         'render_chart' => $this->renderChart($arguments, $chart),
                         'list_party_records' => $this->data->listPartyRecords($arguments),
                         'invoice_details' => $this->data->invoiceDetails($arguments),
+                        'search_invoice_items' => $this->data->searchInvoiceItems($arguments),
+                        'summarize_invoice_items' => $this->data->summarizeInvoiceItems($arguments),
                         'quotation_details' => $this->data->quotationDetails($arguments),
                         'summarize_quotations' => $this->data->summarizeQuotations($arguments),
                         default => ['error' => 'Consulta no disponible.'],
@@ -341,6 +343,34 @@ class OpenAiAssistantService
                     'required' => ['invoice_id', 'invoice_number'],
                     'additionalProperties' => false,
                 ],
+            ],
+            [
+                'type' => 'function',
+                'name' => 'search_invoice_items',
+                'description' => 'Busca productos y precios extraídos de facturas. Úsala para materiales comprados, códigos, precios históricos y partidas de un folio. Por defecto limita al año actual; devuelve solo filas de detalle, no permite sumar una página parcial como total global.',
+                'strict' => true,
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'term' => ['type' => ['string', 'null'], 'maxLength' => 120],
+                        'party_name' => ['type' => ['string', 'null'], 'maxLength' => 120],
+                        'invoice_number' => ['type' => ['string', 'null'], 'maxLength' => 80],
+                        'year' => ['type' => ['integer', 'null'], 'minimum' => 2000, 'maximum' => 2100],
+                        'limit' => ['type' => 'integer', 'minimum' => 1, 'maximum' => 20],
+                    ],
+                    'required' => ['term', 'party_name', 'invoice_number', 'year', 'limit'],
+                    'additionalProperties' => false,
+                ],
+            ],
+            [
+                'type' => 'function',
+                'name' => 'summarize_invoice_items',
+                'description' => 'Calcula en SQL suma, promedio, mínimo y máximo de cantidad, total de línea o precio unitario para productos de facturas procesadas. Indica cobertura y por defecto usa el año actual.',
+                'strict' => true,
+                'parameters' => ['type' => 'object', 'properties' => [
+                    'term' => ['type' => ['string', 'null'], 'maxLength' => 120], 'party_name' => ['type' => ['string', 'null'], 'maxLength' => 120],
+                    'year' => ['type' => ['integer', 'null'], 'minimum' => 2000, 'maximum' => 2100], 'metric' => ['type' => 'string', 'enum' => ['quantity', 'total_amount', 'unit_price']],
+                ], 'required' => ['term', 'party_name', 'year', 'metric'], 'additionalProperties' => false],
             ],
             [
                 'type' => 'function',

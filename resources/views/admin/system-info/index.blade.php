@@ -18,6 +18,11 @@
         Los paquetes npm se usan durante el build y pueden no estar instalados en cPanel.
     </div>
 
+    <div class="card mb-4"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div><strong>Importación de facturas PDF</strong><div class="small text-muted">Revisa documentos detectados, extracción y asociaciones pendientes.</div></div>
+        <a class="btn btn-outline-primary" href="{{ route('admin.document-ingestions.index') }}">Abrir mantenedor de jobs</a>
+    </div></div>
+
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif

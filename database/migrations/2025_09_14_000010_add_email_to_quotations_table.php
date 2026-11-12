@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
+        if (!Schema::hasTable('quotations')) {
+            return;
+        }
+
         Schema::table('quotations', function (Blueprint $table) {
             if (!Schema::hasColumn('quotations', 'email')) {
                 $table->string('email')->nullable()->after('work');
@@ -16,6 +20,10 @@ return new class extends Migration {
 
     public function down(): void
     {
+        if (!Schema::hasTable('quotations')) {
+            return;
+        }
+
         Schema::table('quotations', function (Blueprint $table) {
             if (Schema::hasColumn('quotations', 'email')) {
                 $table->dropColumn('email');

@@ -897,6 +897,18 @@ class ActionButtonFactory {
 
         // Priorizar archivo desde R2 si existe
         if (factura.has_file && factura.file_path) {
+            if (factura.file_id) {
+                const directUrl = buildApiUrl(`files/registry/${encodeURIComponent(factura.file_id)}/download`);
+                const directLink = document.createElement('a');
+                directLink.href = directUrl;
+                directLink.target = '_blank';
+                directLink.rel = 'noopener noreferrer';
+                document.body.appendChild(directLink);
+                directLink.click();
+                directLink.remove();
+                Swal.fire({title:'Abriendo archivo',text:'El archivo asociado se está abriendo en una nueva pestaña.',icon:'success',timer:2000,showConfirmButton:false});
+                return;
+            }
             // Limpiar y normalizar la ruta del archivo con función mejorada
             let filePath = cleanFilePathForDownload(factura.file_path);
             

@@ -115,6 +115,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     Route::delete('/files/{id}', [R2Controller::class, 'deleteFile'])->name('files.delete');
     Route::delete('/r2/delete/{path}', [R2Controller::class, 'deleteFileByPath'])->where('path', '.*')->name('r2.delete');
     Route::get('/files/download/{path}', [R2Controller::class, 'downloadFile'])->where('path', '.*')->name('files.download');
+    Route::get('/files/registry/{file}/download', [R2Controller::class, 'downloadRegisteredFile'])->whereNumber('file')->name('files.registry.download');
     // Nuevas listas por entidad
     Route::get('/clientes/{cliente}/files', [R2Controller::class, 'listClienteFiles'])->name('clientes.files');
     Route::get('/proveedores/{proveedor}/files', [R2Controller::class, 'listProveedorFiles'])->name('proveedores.files');
@@ -160,6 +161,9 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::post('/audit/{log}/restore', [AuditLogsController::class, 'restore'])->name('audit.restore');
         Route::get('/system-info', [\App\Http\Controllers\Admin\SystemInfoController::class, 'index'])->name('system-info.index');
         Route::put('/system-info/assistant', [\App\Http\Controllers\Admin\SystemInfoController::class, 'updateAssistantSettings'])->name('system-info.assistant.update');
+        Route::get('/document-ingestions', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'index'])->name('document-ingestions.index');
+        Route::post('/document-ingestions/{ingestion}/approve', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'approve'])->name('document-ingestions.approve');
+        Route::post('/document-ingestions/{ingestion}/retry', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'retry'])->name('document-ingestions.retry');
     });
 
     // Charts

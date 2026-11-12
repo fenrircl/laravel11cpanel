@@ -65,4 +65,10 @@ return [
         'email_search_timeout' => (int) env('N8N_EMAIL_SEARCH_TIMEOUT', 25),
     ],
 
+    'invoices' => [
+        'own_rut' => env('INVOICE_OWN_RUT'),
+        'minimum_extraction_confidence' => (float) env('INVOICE_MIN_EXTRACTION_CONFIDENCE', 0.80),
+        'auto_create_providers' => (bool) env('INVOICE_AUTO_CREATE_PROVIDERS', true),
+    ],
+
 ];

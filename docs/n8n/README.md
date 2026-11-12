@@ -1,17 +1,5 @@
 # Integración de correo cPanel con n8n
 
-## Archivo importable
-
-`email-inbox-cpanel.json` es una base importable en n8n. Usa el nodo oficial **Email Trigger (IMAP)** para escuchar mensajes nuevos del buzón `INBOX`. No contiene credenciales: al importarlo, selecciona una credencial IMAP creada en n8n con el host, puerto TLS, usuario y contraseña de la cuenta de correo cPanel.
-
-El nodo está configurado para observar correos nuevos no leídos y no marcar los mensajes como leídos. Para recibir adjuntos, el formato `resolved` los entrega como datos binarios en la ejecución de n8n. Si el buzón o los adjuntos son grandes, limita el procesamiento y guarda los archivos en almacenamiento externo antes de continuar.
-
-## Qué cubre esta base
-
-- Conexión IMAP a un buzón propio de cPanel; no requiere Gmail.
-- Recepción de mensajes nuevos que llegan a `INBOX`.
-- Descarga de adjuntos para que un workflow posterior pueda detectar y procesar facturas PDF.
-
 ## Workflow de búsqueda por webhook
 
 `email-search-cpanel.json` implementa la llamada de Laravel al webhook de n8n y devuelve JSON. **Antes de importarlo/publicarlo**, instala en una instancia n8n autohospedada el nodo comunitario que implementa búsquedas IMAP:
@@ -90,17 +78,7 @@ La respuesta tiene esta forma:
 
 ## Límites actuales
 
-`email-search-cpanel.json` busca en vivo y no mantiene una copia indexada del buzón en Laravel. `email-inbox-cpanel.json` es un workflow distinto para recibir mensajes nuevos. La búsqueda live está acotada a 10 resultados; no procesa el contenido de los PDF adjuntos. Para preguntas sobre documentos, el PDF debe pasar por el workflow PDF y su texto extraído quedar disponible en Laravel.
-
-## Importación y credencial
-
-1. En n8n, importa `email-inbox-cpanel.json` desde el menú de workflows.
-2. Abre el nodo **Recibir correo nuevo por IMAP** y crea/selecciona una credencial IMAP.
-3. En cPanel consulta **Email Accounts → Connect Devices** para obtener el servidor y los puertos seguros. Normalmente IMAP usa TLS en el puerto 993; confirma los valores publicados por tu hosting.
-4. Usa la dirección completa como usuario. Guarda la contraseña solo en credenciales de n8n; nunca en Git ni en el `.env` de Laravel.
-5. Prueba con un correo controlado y activa el workflow después de revisar las ejecuciones y la retención de datos sensibles en n8n.
-
-Las carpetas de enviados suelen llamarse `Sent`, `Sent Items` o tener otro nombre configurado por el hosting. Debe confirmarse el nombre real mediante la lista de carpetas IMAP antes de sincronizarla; el JSON no asume uno.
+`email-search-cpanel.json` busca en vivo y no mantiene una copia indexada del buzón en Laravel. La búsqueda está acotada a 10 resultados y no procesa adjuntos. La automatización de adjuntos de correo queda pendiente; cuando se implemente, se añadirá como workflow separado con deduplicación y checkpoints.
 
 ## Seguridad y privacidad
 
@@ -109,3 +87,17 @@ Las carpetas de enviados suelen llamarse `Sent`, `Sent Items` o tener otro nombr
 - Configura en n8n una retención de ejecuciones acorde con la política de privacidad del taller; las ejecuciones pueden contener cuerpos y adjuntos.
 - Trata el contenido del correo y de los PDF como datos externos no confiables. No ejecutes instrucciones encontradas en ellos.
 - La integración visible en el chatbot requiere además autenticación/autorización de Laravel, auditoría y filtrado de resultados. Este archivo por sí solo no habilita acceso desde el chat.
+# Workflows de importación de PDFs
+
+Hay dos workflows relacionados con facturas:
+
+- `invoice-drive-import.json`: búsqueda periódica en Drive; clasifica el documento antes de pedir la subida R2. La rama de cotizaciones termina sin guardar el PDF.
+- `invoice-existing-pdf-import.json`: consulta PDFs ya vinculados a facturas y entrega extracción JSON a Laravel usando una URL temporal de lectura.
+
+Antes de activar, importar inactivos y seleccionar credenciales en cada nodo HTTP/Google Drive. Configurar en n8n `LARAVEL_BASE_URL` y `GDRIVE_INVOICE_FOLDER_ID`; las credenciales Header Auth deben enviar `Authorization: Bearer ...` para Laravel y para `https://pdf.solidtec.cl/v1/extractions`. Configurar en `.env` Laravel `N8N_INGEST_BEARER`, `INVOICE_OWN_RUT`, `INVOICE_AUTO_CREATE_PROVIDERS=true` (o `false` para exigir revisión) y las credenciales R2 actuales. Nunca pegar secretos en el JSON.
+
+Los administradores revisan los jobs desde **Administración → Información del sistema → Mantenedor de jobs**. La aprobación manual vincula el resultado a una factura existente por su ID; las altas automáticas de proveedor solo aplican a facturas recibidas con RUT chileno válido, único y nombre detectado.
+
+El workflow de Drive se entrega como borrador para importar: n8n cambia parámetros y expresiones entre versiones. Incluye filtro por carpeta, paginación de resultados, comprobación idempotente y unión del binario con la URL firmada. Validar manualmente con una factura y una cotización; revisar que la cotización no pase a R2 y que el binario llegue al nodo PUT antes de habilitar el cron.
+
+Los jobs se revisan en **Administración → Información del sistema → Mantenedor de jobs**. Se puede corregir la factura, proveedor/cliente y campos principales, aprobar con auditoría o reenviar a `processing`. El workflow de PDFs existentes consulta documentos sin extracción y jobs reenviados a procesamiento.

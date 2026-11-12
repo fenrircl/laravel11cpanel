@@ -30,7 +30,7 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     
     <!-- Estilos principales y comunes -->
-    <link href="{{ asset('assets/css/principal/layout.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/principal/layout.css') }}?v={{ filemtime(public_path('assets/css/principal/layout.css')) }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/tablas.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/comun/buscador.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/chatbot.css') }}?v={{ filemtime(public_path('assets/css/chatbot.css')) }}" rel="stylesheet">

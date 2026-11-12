@@ -77,6 +77,7 @@ class FacturasController extends Controller
                               $factura->has_pdf = $factura->has_pdf;
                               $factura->pdf_processed = $factura->pdf_processed;
                               $factura->file_path = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
+                              $factura->file_id = $factura->archivo?->id;
                               return $factura;
                           });
         
@@ -102,6 +103,7 @@ class FacturasController extends Controller
                               $arr['pdf_processed'] = $factura->pdf_processed;
                               // Asegurar codificación UTF-8 correcta para la ruta del archivo
                               $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
+                              $arr['file_id'] = $factura->archivo?->id;
                               // Forzar amount entero en la respuesta
                               $arr['amount'] = (int) round($factura->amount);
                               return $arr;
@@ -129,6 +131,7 @@ class FacturasController extends Controller
                               $arr['pdf_processed'] = $factura->pdf_processed;
                               // Asegurar codificación UTF-8 correcta para la ruta del archivo
                               $arr['file_path'] = $factura->archivo ? mb_convert_encoding($factura->archivo->path, 'UTF-8', 'auto') : null;
+                              $arr['file_id'] = $factura->archivo?->id;
                               // Forzar amount entero en la respuesta
                               $arr['amount'] = (int) round($factura->amount);
                               return $arr;

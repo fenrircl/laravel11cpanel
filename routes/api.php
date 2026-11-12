@@ -21,6 +21,11 @@ Route::prefix('v1/assistant')->middleware(['assistant.enabled', 'auth.chat-api',
 });
 
 Route::prefix('v1/automation')->middleware(['auth.n8n', 'throttle:60,1'])->group(function () {
+    Route::get('/documents/pending', [InvoiceAutomationController::class, 'pendingDocuments'])->name('api.v1.automation.documents.pending');
+    Route::post('/documents/{file}/download-url', [InvoiceAutomationController::class, 'existingDocumentUrl'])->name('api.v1.automation.documents.download-url');
+    Route::post('/ingestions/reserve', [InvoiceAutomationController::class, 'reserveIngestion'])->name('api.v1.automation.ingestions.reserve');
+    Route::post('/ingestions/{ingestion}/upload-url', [InvoiceAutomationController::class, 'uploadUrl'])->name('api.v1.automation.ingestions.upload-url');
+    Route::put('/ingestions/{ingestion}/result', [InvoiceAutomationController::class, 'storeExtraction'])->name('api.v1.automation.ingestions.result');
     Route::get('/invoices/{factura}/documents', [InvoiceAutomationController::class, 'sourceFiles'])->name('api.v1.automation.invoice-documents.index');
     Route::put('/invoices/{factura}/documents/{file}/markdown', [InvoiceAutomationController::class, 'storeMarkdown'])->name('api.v1.automation.invoice-documents.store');
 });
