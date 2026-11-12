@@ -382,12 +382,19 @@ class R2Controller extends Controller
         abort_unless($record, 404, 'Archivo no encontrado.');
         $key = (string) $record->path;
         if ($key === '' || $this->hasTraversalSegment($key)) abort(404, 'Archivo no encontrado.');
+        $decodedKey = $this->decodeLegacyPath($key);
+        if ($this->hasTraversalSegment($decodedKey)) abort(404, 'Archivo no encontrado.');
 
         $disk = Storage::disk('r2');
         $candidate = null;
-        $pathVariants = [$key, trim($key), $this->normalizePath($key)];
+        $pathVariants = [$key, trim($key), $decodedKey, trim($decodedKey), $this->normalizePath($decodedKey)];
         if (str_contains($key, '%')) {
             $decoded = rawurldecode($key);
+            $pathVariants[] = $decoded;
+            $pathVariants[] = $this->normalizePath($decoded);
+        }
+        if (str_contains($decodedKey, '%')) {
+            $decoded = rawurldecode($decodedKey);
             $pathVariants[] = $decoded;
             $pathVariants[] = $this->normalizePath($decoded);
         }
@@ -410,7 +417,10 @@ class R2Controller extends Controller
         // a filename whose accent/spacing-normalized form matches.
         if ($candidate === null) {
             try {
-                $candidate = $this->findAlternativeFilePath($key);
+                $candidate = $this->findAlternativeFilePath($decodedKey);
+                if ($candidate === null) {
+                    $candidate = $this->findAlternativeFilePath($this->normalizePath($decodedKey));
+                }
             } catch (\Throwable $exception) {
                 \Log::notice('No se pudo buscar una variante Unicode de ruta R2', [
                     'file_registry_id' => $record->id,
@@ -421,7 +431,7 @@ class R2Controller extends Controller
         }
         if ($candidate === null && class_exists(\Normalizer::class)) {
             foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
-                $variant = \Normalizer::normalize($key, $form);
+                $variant = \Normalizer::normalize($decodedKey, $form);
                 if (!$variant || $this->hasTraversalSegment($variant)) continue;
                 try {
                     if ($disk->exists($variant)) {
@@ -499,6 +509,21 @@ class R2Controller extends Controller
 
         return in_array('..', explode('/', $normalizedSeparators), true)
             || in_array('.', explode('/', $normalizedSeparators), true);
+    }
+
+    private function decodeLegacyPath(string $path): string
+    {
+        // Some legacy file_registry rows were stored as UTF-16LE bytes in a UTF-8
+        // column. Decode that representation before stripping controls, preserving
+        // accented letters and combining marks in the actual R2 object key.
+        if (str_contains($path, "\0") && function_exists('mb_convert_encoding')) {
+            $decoded = mb_convert_encoding($path, 'UTF-8', 'UTF-16LE');
+            if ($decoded !== '' && !str_contains($decoded, "\0") && mb_check_encoding($decoded, 'UTF-8')) {
+                return $decoded;
+            }
+        }
+
+        return $path;
     }
 
     /**
