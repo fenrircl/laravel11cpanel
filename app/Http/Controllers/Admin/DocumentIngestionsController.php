@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Factura;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,7 @@ class DocumentIngestionsController extends Controller
             $job = DB::table('document_ingestions')->where('id', $ingestion)->lockForUpdate()->firstOrFail();
             $extraction = DB::table('invoice_extractions')->where('ingestion_id', $job->id)->lockForUpdate()->firstOrFail();
             $invoice = Factura::findOrFail($data['invoice_id']);
+            $invoiceBefore = $invoice->fresh()->toArray();
             $changes = [];
             if (isset($data['provider_id'])) $changes += ['provider_id' => $data['provider_id'], 'client_id' => null];
             if (isset($data['client_id'])) $changes += ['client_id' => $data['client_id'], 'provider_id' => null];
@@ -126,6 +128,21 @@ class DocumentIngestionsController extends Controller
                     'total_amount' => $line['total_amount'] ?? null, 'currency' => $normalized['currency'] ?? null,
                     'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE), 'created_at' => now(), 'updated_at' => now()]);
             }
+            $invoiceAfter = $invoice->fresh()->toArray();
+            $auditChanges = AuditLogger::simpleDiff($invoiceBefore, $invoiceAfter);
+            $auditChanges['line_items'] = [
+                'from' => 'Detalle anterior de la extracción',
+                'to' => count(array_filter($items, fn ($line) => is_array($line) && !empty($line['description']))) . ' ítem(s) guardado(s) desde extracción #' . $extraction->id,
+            ];
+            AuditLogger::log($request, 'approve_extraction', 'facturas', $invoice->id,
+                'Aprobó la extracción #' . $extraction->id . ' y aplicó sus valores a la factura #' . $invoice->invoice . '.',
+                [
+                    'model' => Factura::class,
+                    'data_before' => $invoiceBefore,
+                    'data_after' => $invoiceAfter,
+                    'changes' => $auditChanges,
+                    'reversible' => false,
+                ]);
             DB::table('document_ingestions')->where('id', $job->id)->update(['invoice_id' => $invoice->id, 'status' => 'completed', 'last_error' => null, 'updated_at' => now()]);
             DB::table('audit_logs')->insert(['user_id' => $request->user()->id, 'action' => 'approve', 'module' => 'document_ingestions',
                 'entity_id' => (string)$job->id, 'description' => "Aprobó importación {$job->uuid}, la vinculó a factura {$invoice->invoice} y aplicó correcciones administrativas.",
