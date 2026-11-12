@@ -427,9 +427,56 @@ class R2Controller extends Controller
             abort(404, 'El archivo asociado no está disponible en R2.');
         }
 
-        $mime = $record->mime_type ?: $disk->mimeType($candidate) ?: 'application/octet-stream';
-        $filename = preg_replace('/[\x00-\x1F\x7F]/u', '', (string)($record->file_name ?: basename($candidate)));
-        return $disk->response($candidate, $filename ?: basename($candidate), ['Content-Type' => $mime]);
+        $filename = $this->safeDownloadFilename($record->file_name ?? null, $candidate);
+        $mime = $this->safeDownloadMime(
+            $record->mime_type ?? null,
+            $disk->mimeType($candidate),
+            $filename,
+            $candidate
+        );
+
+        return $disk->response($candidate, $filename, ['Content-Type' => $mime]);
+    }
+
+    private function safeDownloadMime(?string $storedMime, ?string $detectedMime, string $filename, string $path): string
+    {
+        foreach ([$storedMime, $detectedMime] as $mime) {
+            if (!is_string($mime)) {
+                continue;
+            }
+
+            $mime = strtolower(trim(explode(';', $mime, 2)[0]));
+            if (preg_match('/\A[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+\z/i', $mime) === 1) {
+                return $mime;
+            }
+        }
+
+        if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) === 'pdf'
+            || strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf') {
+            return 'application/pdf';
+        }
+
+        return 'application/octet-stream';
+    }
+
+    private function safeDownloadFilename(?string $storedName, string $path): string
+    {
+        $filename = $storedName ?: basename($path);
+        // Header values must be valid UTF-8 and free of control bytes (including NUL/CR/LF).
+        if (function_exists('mb_convert_encoding')) {
+            $filename = mb_convert_encoding($filename, 'UTF-8', 'UTF-8');
+        } elseif (preg_match('//u', $filename) !== 1 && function_exists('iconv')) {
+            $filename = iconv('UTF-8', 'UTF-8//IGNORE', $filename) ?: '';
+        }
+        $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename) ?? '';
+        $filename = trim($filename);
+
+        if ($filename === '') {
+            $filename = preg_replace('/[\x00-\x1F\x7F]/', '', basename($path)) ?? '';
+            $filename = trim($filename);
+        }
+
+        return $filename !== '' ? $filename : 'documento.pdf';
     }
 
     private function hasTraversalSegment(string $path): bool
