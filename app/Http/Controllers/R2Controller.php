@@ -340,11 +340,25 @@ class R2Controller extends Controller
             throw $e;
         } catch (\Throwable $e) {
             $cause = $e;
+            $awsCode = null;
+            $statusCode = null;
+            for ($current = $e; $current; $current = $current->getPrevious()) {
+                if (method_exists($current, 'getAwsErrorCode')) {
+                    $awsCode = $current->getAwsErrorCode() ?: $awsCode;
+                }
+                if (method_exists($current, 'getStatusCode')) {
+                    $statusCode = $current->getStatusCode() ?: $statusCode;
+                }
+                if (method_exists($current, 'getResponse') && ($response = $current->getResponse())) {
+                    $statusCode = $response->getStatusCode() ?: $statusCode;
+                    if (preg_match('/<(?:[A-Za-z0-9_]+:)?Code>\s*([A-Za-z0-9_-]{1,80})\s*<\//', (string) $response->getBody(), $matches)) {
+                        $awsCode = $matches[1];
+                    }
+                }
+            }
             while ($cause->getPrevious()) {
                 $cause = $cause->getPrevious();
             }
-            $awsCode = method_exists($cause, 'getAwsErrorCode') ? $cause->getAwsErrorCode() : null;
-            $statusCode = method_exists($cause, 'getStatusCode') ? $cause->getStatusCode() : null;
             \Log::error('Error al descargar archivo desde R2', [
                 'original_path' => $path ?? 'null',
                 'exception' => get_class($cause),

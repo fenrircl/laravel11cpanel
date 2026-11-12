@@ -194,24 +194,43 @@ class SystemInfoController extends Controller
                     : 'R2 respondió la consulta de lectura, pero el último archivo registrado no existe en el bucket. Revisa la ruta guardada. No se modificó ningún archivo.',
             ]);
         } catch (\Throwable $exception) {
-            $cause = $exception;
-            while ($cause->getPrevious()) {
-                $cause = $cause->getPrevious();
-            }
-            $awsCode = method_exists($cause, 'getAwsErrorCode') ? $cause->getAwsErrorCode() : null;
-            $statusCode = method_exists($cause, 'getStatusCode') ? $cause->getStatusCode() : null;
+            $details = $this->r2FailureDetails($exception);
             logger()->warning('Falló la comprobación de solo lectura de R2', [
-                'exception' => get_class($cause),
-                'aws_code' => $awsCode,
-                'http_status' => $statusCode,
+                'exception' => $details['exception'],
+                'aws_code' => $details['aws_code'],
+                'http_status' => $details['http_status'],
             ]);
 
             return back()->with('r2_check', [
                 'ok' => false,
-                'message' => 'No se pudo verificar la lectura de R2. Revisa endpoint, región, bucket, credenciales y permiso s3:GetObject.'
-                    . ($awsCode ? ' Código: ' . $awsCode . '.' : ''),
+                'message' => 'No se pudo verificar la lectura de R2.'
+                    . ($details['aws_code'] ? ' Código: ' . $details['aws_code'] . '.' : '')
+                    . ($details['http_status'] ? ' HTTP ' . $details['http_status'] . '.' : '')
+                    . ' Revisa endpoint, región, bucket, credenciales y permiso s3:GetObject.',
             ]);
         }
+    }
+
+    private function r2FailureDetails(\Throwable $exception): array
+    {
+        $details = ['exception' => get_class($exception), 'aws_code' => null, 'http_status' => null];
+        for ($cause = $exception; $cause; $cause = $cause->getPrevious()) {
+            if (method_exists($cause, 'getAwsErrorCode')) {
+                $details['aws_code'] = $cause->getAwsErrorCode() ?: $details['aws_code'];
+            }
+            if (method_exists($cause, 'getStatusCode')) {
+                $details['http_status'] = $cause->getStatusCode() ?: $details['http_status'];
+            }
+            if (method_exists($cause, 'getResponse') && ($response = $cause->getResponse())) {
+                $details['http_status'] = $response->getStatusCode() ?: $details['http_status'];
+                $body = (string) $response->getBody();
+                if (preg_match('/<(?:[A-Za-z0-9_]+:)?Code>\s*([A-Za-z0-9_-]{1,80})\s*<\//', $body, $matches)) {
+                    $details['aws_code'] = $matches[1];
+                }
+            }
+        }
+
+        return $details;
     }
 
     private function readJson(string $path): array
