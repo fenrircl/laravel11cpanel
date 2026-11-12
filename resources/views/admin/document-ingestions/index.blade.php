@@ -21,7 +21,7 @@
         @foreach(['needs_review'=>'Revisión','failed'=>'Fallidos','processing'=>'Procesando','completed'=>'Completados','ignored'=>'Omitidos'] as $key=>$label)
             <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$key, 'type'=>$type])) }}">{{ $label }}</a>
         @endforeach
-        <a class="btn btn-sm {{ !$status?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['type'=>$type])) }}">Todos</a>
+        <a class="btn btn-sm {{ !$status?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['type'=>$type])) }}">Todos (sin omitidos)</a>
     </div>
     @forelse($jobs as $job)
         <article class="card mb-3">
@@ -38,14 +38,38 @@
                     <div class="row g-2 small">
                         <div class="col-md-3"><span class="text-muted">Emisor:</span> {{ data_get($job->extracted_data, 'issuer') ?: 'No identificado' }}</div>
                         <div class="col-md-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($job->extracted_data, 'supplier_rut') ?: 'No identificado' }}</div>
-                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient') ?: 'No identificado' }}</div>
+                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient') ?: (data_get($job->extracted_data, 'invoices') ? 'Varias facturas; revisar coincidencias por página' : 'No identificado') }}</div>
                         <div class="col-md-3"><span class="text-muted">RUT cliente:</span> {{ data_get($job->extracted_data, 'customer_rut') ?: 'No identificado' }}</div>
                     </div>
+                    @if(!empty($job->counterparty_name_matches))
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm table-bordered align-middle mb-0 bg-white">
+                                <thead class="table-light"><tr><th>Página</th><th>Nombre extraído</th><th>Coincidencia en sistema</th><th>Tipo</th><th>Coincidencia</th></tr></thead>
+                                <tbody>
+                                    @foreach($job->counterparty_name_matches as $partyMatch)
+                                        <tr>
+                                            <td>{{ $partyMatch['page'] ?: '—' }} @if($partyMatch['invoice_number'])<span class="text-muted">· Factura {{ $partyMatch['invoice_number'] }}</span>@endif</td>
+                                            <td>{{ $partyMatch['extracted_name'] ?: '—' }}</td>
+                                            <td>{{ $partyMatch['matched_name'] }} @if($partyMatch['matched_rut'])<span class="text-muted">· {{ $partyMatch['matched_rut'] }}</span>@endif</td>
+                                            <td>{{ $partyMatch['type'] }}</td>
+                                            <td><span class="badge bg-success">{{ $partyMatch['method'] }}</span></td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @elseif(data_get($job->extracted_data, 'invoices'))
+                        <div class="small text-muted mt-2">No se encontró una coincidencia única de proveedor o cliente para las facturas individuales.</div>
+                    @endif
                 </div>
                 @if($job->warnings)<div class="alert alert-warning py-2"><strong>Advertencias:</strong> {{ implode(' · ', (array)json_decode($job->warnings, true)) }}</div>@endif
                 @if($job->last_error)<div class="alert alert-danger py-2">{{ $job->last_error }}</div>@endif
                 <details class="mb-3"><summary>Ver datos extraídos</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
-                @if($job->file_registry_id)<a class="btn btn-sm btn-outline-primary mb-2" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file' => $job->file_registry_id]) }}">Abrir PDF</a>@endif
+                @if($job->file_registry_id || $job->r2_key)
+                    <a class="btn btn-sm btn-outline-primary mb-2" target="_blank" rel="noopener" href="{{ route('admin.document-ingestions.pdf', ['ingestion' => $job->id]) }}">Ver PDF en R2</a>
+                @else
+                    <span class="badge bg-light text-muted border mb-2">PDF no disponible en R2</span>
+                @endif
                 @if(in_array($job->status,['needs_review','failed']) && $job->extraction_payload)
                     @php
                         $invoiceMatch = $job->suggested_invoice;
@@ -116,6 +140,12 @@
                 @endif
                 @if(in_array($job->status,['needs_review','failed']))
                     <form method="POST" action="{{ route('admin.document-ingestions.retry',$job->id) }}" class="mt-2">@csrf<button class="btn btn-outline-secondary btn-sm" type="submit">Enviar a cola de reintento</button></form>
+                @endif
+                @if(!$job->file_registry_id && !$job->invoice_id && $job->status !== 'ignored')
+                    <form method="POST" action="{{ route('admin.document-ingestions.discard', $job->id) }}" class="mt-2" onsubmit="return confirm('Se eliminará el PDF de R2 y el job quedará como omitido. ¿Quieres continuar?')">
+                        @csrf @method('DELETE')
+                        <button class="btn btn-outline-danger btn-sm" type="submit">Descartar PDF y eliminar de R2</button>
+                    </form>
                 @endif
             </div>
         </article>

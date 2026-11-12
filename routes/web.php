@@ -163,6 +163,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::put('/system-info/assistant', [\App\Http\Controllers\Admin\SystemInfoController::class, 'updateAssistantSettings'])->name('system-info.assistant.update');
         Route::post('/system-info/r2-check', [\App\Http\Controllers\Admin\SystemInfoController::class, 'checkR2'])->name('system-info.r2-check');
         Route::get('/document-ingestions', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'index'])->name('document-ingestions.index');
+        Route::get('/document-ingestions/{ingestion}/pdf', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'downloadPdf'])->whereNumber('ingestion')->name('document-ingestions.pdf');
+        Route::delete('/document-ingestions/{ingestion}', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'discard'])->whereNumber('ingestion')->name('document-ingestions.discard');
         Route::get('/existing-invoice-pdfs', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'index'])->name('existing-invoice-pdfs.index');
         Route::post('/existing-invoice-pdfs/{file}/process', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'process'])->name('existing-invoice-pdfs.process');
         Route::post('/existing-invoice-pdfs/{file}/retry', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'retry'])->name('existing-invoice-pdfs.retry');

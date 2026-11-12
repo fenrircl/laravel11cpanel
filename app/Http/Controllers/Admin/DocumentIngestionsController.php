@@ -8,6 +8,7 @@ use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class DocumentIngestionsController extends Controller
@@ -21,6 +22,7 @@ class DocumentIngestionsController extends Controller
         $jobs = DB::table('document_ingestions as j')->leftJoin('invoice_extractions as e', 'e.ingestion_id', '=', 'j.id')
             ->select('j.*', 'e.document_type', 'e.confidence', 'e.warnings', 'e.normalized_data', 'e.payload as extraction_payload', 'e.validation_status')
             ->when($status, fn ($q) => $q->where('j.status', $status))
+            ->when(!$status, fn ($q) => $q->where('j.status', '<>', 'ignored'))
             ->when($type, fn ($q) => $type === 'unclassified'
                 ? $q->where(fn ($query) => $query->whereNull('e.document_type')->orWhere('e.document_type', ''))
                 : $q->where('e.document_type', $type))
@@ -29,7 +31,26 @@ class DocumentIngestionsController extends Controller
         $providers = DB::table('providers')->orderBy('name')->get(['id', 'name', 'rut']);
         $clients = DB::table('clients')->orderBy('name')->get(['id', 'name', 'rut']);
         $ownRut = $this->normalizeRut((string) config('services.invoices.own_rut', ''));
-        $jobs->getCollection()->transform(function ($job) use ($providers, $clients, $ownRut) {
+        $normalizeRut = fn (string $rut): string => $this->normalizeRut($rut);
+        $normalizeName = static function (?string $name): string {
+            $ascii = \Illuminate\Support\Str::ascii(mb_strtolower(trim((string) $name)));
+            return (string) preg_replace('/[^a-z0-9]/', '', $ascii);
+        };
+        $findParty = function ($parties, string $rut, ?string $name) use ($normalizeRut, $normalizeName) {
+            if ($rut !== '') {
+                $match = $parties->first(fn ($party) => $normalizeRut((string) $party->rut) === $rut);
+                if ($match) return ['party' => $match, 'method' => 'RUT'];
+            }
+
+            $nameKey = $normalizeName($name);
+            if ($nameKey === '') return ['party' => null, 'method' => null];
+            $matches = $parties->filter(fn ($party) => $normalizeName((string) $party->name) === $nameKey)->values();
+            return $matches->count() === 1
+                ? ['party' => $matches->first(), 'method' => 'nombre normalizado']
+                : ['party' => null, 'method' => null];
+        };
+
+        $jobs->getCollection()->transform(function ($job) use ($providers, $clients, $ownRut, $normalizeName, $findParty) {
             $job->extracted_data = json_decode($job->normalized_data ?: '{}', true) ?: [];
             $folio = trim((string) data_get($job->extracted_data, 'invoice_number', ''));
             $invoiceColumns = ['id', 'invoice', 'client_id', 'provider_id', 'date', 'amount'];
@@ -54,16 +75,24 @@ class DocumentIngestionsController extends Controller
 
             $supplierRut = $this->normalizeRut((string) data_get($job->extracted_data, 'supplier_rut', ''));
             $customerRut = $this->normalizeRut((string) data_get($job->extracted_data, 'customer_rut', ''));
-            $provider = $supplierRut !== '' ? $providers->first(fn ($row) => $this->normalizeRut((string) $row->rut) === $supplierRut) : null;
-            $client = $customerRut !== '' ? $clients->first(fn ($row) => $this->normalizeRut((string) $row->rut) === $customerRut) : null;
-            if ($ownRut !== '' && $customerRut === $ownRut) {
+            $issuer = data_get($job->extracted_data, 'issuer') ?: data_get($job->extracted_data, 'supplier_name');
+            $recipient = data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient');
+            $providerMatch = $findParty($providers, $supplierRut, is_string($issuer) ? $issuer : null);
+            $clientMatch = $findParty($clients, $customerRut, is_string($recipient) ? $recipient : null);
+            $provider = $providerMatch['party'];
+            $client = $clientMatch['party'];
+            $isOwnName = fn ($name) => in_array($normalizeName(is_string($name) ? $name : null), [
+                'sociedadaceroseralimitada', 'sociedadaceroseraltda', 'aceroseralimitada', 'aceroseraltda',
+            ], true);
+
+            if (($ownRut !== '' && $customerRut === $ownRut) || $isOwnName($recipient)) {
                 $job->suggested_provider_id = $provider?->id;
-                $job->suggested_party_name = data_get($job->extracted_data, 'issuer');
+                $job->suggested_party_name = $issuer;
                 $job->suggested_party_rut = data_get($job->extracted_data, 'supplier_rut');
                 $job->suggested_party_type = 'Proveedor';
-            } elseif ($ownRut !== '' && $supplierRut === $ownRut) {
+            } elseif (($ownRut !== '' && $supplierRut === $ownRut) || $isOwnName($issuer)) {
                 $job->suggested_client_id = $client?->id;
-                $job->suggested_party_name = data_get($job->extracted_data, 'recipient');
+                $job->suggested_party_name = $recipient;
                 $job->suggested_party_rut = data_get($job->extracted_data, 'customer_rut');
                 $job->suggested_party_type = 'Cliente';
             } elseif ($provider && !$client) {
@@ -76,6 +105,44 @@ class DocumentIngestionsController extends Controller
                 $job->suggested_party_name = data_get($job->extracted_data, 'recipient');
                 $job->suggested_party_rut = data_get($job->extracted_data, 'customer_rut');
                 $job->suggested_party_type = 'Cliente';
+            }
+
+            $job->counterparty_name_matches = [];
+            $invoiceEntries = data_get($job->extracted_data, 'invoices', []);
+            if (is_array($invoiceEntries)) {
+                foreach ($invoiceEntries as $index => $entry) {
+                    if (!is_array($entry)) continue;
+                    $entryIssuer = data_get($entry, 'issuer') ?: data_get($entry, 'supplier_name');
+                    $entryRecipient = data_get($entry, 'customer_name') ?: data_get($entry, 'recipient');
+                    $entrySupplierRut = $this->normalizeRut((string) data_get($entry, 'supplier_rut', ''));
+                    $entryCustomerRut = $this->normalizeRut((string) data_get($entry, 'customer_rut', ''));
+                    $issuerIsOwn = ($ownRut !== '' && $entrySupplierRut === $ownRut) || $isOwnName($entryIssuer);
+                    $recipientIsOwn = ($ownRut !== '' && $entryCustomerRut === $ownRut) || $isOwnName($entryRecipient);
+
+                    $candidates = [];
+                    if ($issuerIsOwn) {
+                        $candidates[] = ['Cliente', $clients, $entryCustomerRut, $entryRecipient];
+                    } elseif ($recipientIsOwn) {
+                        $candidates[] = ['Proveedor', $providers, $entrySupplierRut, $entryIssuer];
+                    } else {
+                        $candidates[] = ['Proveedor', $providers, $entrySupplierRut, $entryIssuer];
+                        $candidates[] = ['Cliente', $clients, $entryCustomerRut, $entryRecipient];
+                    }
+
+                    foreach ($candidates as [$partyType, $partyList, $partyRut, $partyName]) {
+                        $partyMatch = $findParty($partyList, $partyRut, is_string($partyName) ? $partyName : null);
+                        if (!$partyMatch['party']) continue;
+                        $job->counterparty_name_matches[] = [
+                            'page' => data_get($entry, 'page', $index + 1),
+                            'invoice_number' => data_get($entry, 'invoice_number'),
+                            'type' => $partyType,
+                            'extracted_name' => $partyName,
+                            'matched_name' => $partyMatch['party']->name,
+                            'matched_rut' => $partyMatch['party']->rut,
+                            'method' => $partyMatch['method'],
+                        ];
+                    }
+                }
             }
 
             return $job;
@@ -159,6 +226,79 @@ class DocumentIngestionsController extends Controller
     {
         DB::table('document_ingestions')->where('id', $ingestion)->whereIn('status', ['failed', 'needs_review'])->update(['status' => 'processing', 'attempts' => DB::raw('attempts + 1'), 'last_error' => null, 'updated_at' => now()]);
         return back()->with('success', 'Job reabierto para reintento desde n8n.');
+    }
+
+    public function downloadPdf(int $ingestion)
+    {
+        $job = DB::table('document_ingestions')->where('id', $ingestion)->first();
+        abort_unless($job, 404, 'Importación no encontrada.');
+
+        if ($job->file_registry_id) {
+            return redirect()->route('files.registry.download', ['file' => $job->file_registry_id]);
+        }
+
+        $key = (string) ($job->r2_key ?? '');
+        abort_if($key === '' || str_contains($key, "\0") || preg_match('/(^|\/)(\.\.?)(\/|$)|[\x00-\x1F\x7F]/', $key), 404, 'El PDF no está disponible en R2.');
+
+        try {
+            $disk = Storage::disk('r2');
+            abort_unless($disk->exists($key), 404, 'El PDF no está disponible en R2.');
+            $filename = preg_replace('/[\x00-\x1F\x7F"\\\\]/', '', (string) ($job->filename ?: basename($key))) ?: 'documento.pdf';
+
+            return $disk->response($key, $filename, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . addcslashes($filename, '"\\') . '"',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+            abort(503, 'No se pudo leer el PDF desde R2.');
+        }
+    }
+
+    public function discard(Request $request, int $ingestion): RedirectResponse
+    {
+        $job = DB::table('document_ingestions')->where('id', $ingestion)->first();
+        abort_unless($job, 404, 'Importación no encontrada.');
+
+        if ($job->file_registry_id || $job->invoice_id) {
+            return back()->withErrors(['discard' => 'No se puede descartar desde aquí un PDF ya vinculado a una factura o al registro de archivos.']);
+        }
+        if ($job->status === 'processing' && $job->lease_until && now()->lt($job->lease_until)) {
+            return back()->withErrors(['discard' => 'El job sigue en procesamiento. Espera a que finalice o expire antes de descartarlo.']);
+        }
+
+        $key = (string) ($job->r2_key ?? '');
+        if ($key !== '') {
+            if (str_contains($key, "\0") || preg_match('/(^|\/)(\.\.?)(\/|$)|[\x00-\x1F\x7F]/', $key)) {
+                return back()->withErrors(['discard' => 'La ruta del archivo no es válida; no se eliminó ningún objeto.']);
+            }
+            if (DB::table('files_registry')->where('path', $key)->exists()) {
+                return back()->withErrors(['discard' => 'El objeto está referenciado por el registro de archivos y no se eliminará.']);
+            }
+            try {
+                $disk = Storage::disk('r2');
+                if ($disk->exists($key) && !$disk->delete($key)) {
+                    return back()->withErrors(['discard' => 'R2 no confirmó la eliminación; el job se mantiene sin cambios.']);
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+                return back()->withErrors(['discard' => 'No se pudo eliminar el PDF de R2; el job se mantiene sin cambios.']);
+            }
+        }
+
+        DB::table('document_ingestions')->where('id', $job->id)->update([
+            'status' => 'ignored',
+            'last_error' => 'Descartado manualmente desde administración; el objeto de R2 fue eliminado si estaba disponible.',
+            'lease_until' => null,
+            'updated_at' => now(),
+        ]);
+        AuditLogger::log($request, 'discard_pdf', 'document_ingestions', $job->id,
+            'Descartó la importación ' . $job->uuid . ' y eliminó su objeto R2 cuando estaba disponible.');
+
+        return back()->with('success', 'PDF descartado y retirado de la lista general. El registro queda disponible en el filtro “Omitidos”.');
     }
 
     private function normalizeRut(string $rut): string
