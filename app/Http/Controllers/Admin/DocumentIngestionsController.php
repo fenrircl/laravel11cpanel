@@ -98,7 +98,7 @@ class DocumentIngestionsController extends Controller
             }
 
             if ($folio !== '') {
-                $folioCandidates = array_values(array_unique([$folio, preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio]));
+                $folioCandidates = array_values(array_unique([$folio, preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $folio) ?? $folio]));
                 $matchesQuery = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])->whereIn('invoice', $folioCandidates);
                 if ($job->suggested_client_id) $matchesQuery->where('client_id', $job->suggested_client_id);
                 elseif ($job->suggested_provider_id) $matchesQuery->where('provider_id', $job->suggested_provider_id);
@@ -119,7 +119,7 @@ class DocumentIngestionsController extends Controller
                     $folio = trim((string) data_get($entry, 'invoice_number', ''));
                     if ($folio === '') continue;
                     $folioCandidates[] = $folio;
-                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio;
+                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $folio) ?? $folio;
                     if ($withoutPrefix !== $folio) $folioCandidates[] = $withoutPrefix;
                 }
                 $folioRows = $folioCandidates
@@ -131,7 +131,7 @@ class DocumentIngestionsController extends Controller
                     if (!is_array($entry)) continue;
                     $page = (int) (data_get($entry, 'page') ?: $index + 1);
                     $folio = trim((string) data_get($entry, 'invoice_number', ''));
-                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*/iu', '', $folio) ?? $folio;
+                    $withoutPrefix = preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $folio) ?? $folio;
                     $folioMatches = $foliosByNumber->get($folio, collect())->concat($foliosByNumber->get($withoutPrefix, collect()))->unique('id')->values();
                     $job->page_invoice_suggestions[$page] = $folioMatches->count() === 1
                         ? ['id' => $folioMatches->first()->id, 'folio' => $folioMatches->first()->invoice]
@@ -202,7 +202,8 @@ class DocumentIngestionsController extends Controller
             $extraction = DB::table('invoice_extractions')->where('ingestion_id', $job->id)->lockForUpdate()->firstOrFail();
             $normalized = json_decode($extraction->normalized_data ?: '{}', true) ?: [];
             $number = trim($data['invoice_number']);
-            $folioCandidates = array_values(array_unique([$number, preg_replace('/^N\s*[°º]?\s*/iu', '', $number) ?? $number]));
+            $number = preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $number) ?? $number;
+            $folioCandidates = array_values(array_unique([$number, preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $number) ?? $number]));
             $partyType = !empty($data['client_id']) ? 'client' : (!empty($data['provider_id']) ? 'provider' : null);
             $partyId = (int) ($data['client_id'] ?? $data['provider_id'] ?? 0);
             $query = Factura::query()->whereIn('invoice', $folioCandidates);
@@ -337,6 +338,7 @@ class DocumentIngestionsController extends Controller
                 if (!isset($byPage[$page])) throw ValidationException::withMessages(['pages' => "No se encontró la factura de la página {$page} en la extracción."]);
                 $entry = $byPage[$page];
                 $number = trim((string) ($data['invoice_numbers'][$page] ?? data_get($entry, 'invoice_number', '')));
+                $number = preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $number) ?? $number;
                 if ($number === '') throw ValidationException::withMessages(['pages' => "Ingresa el número de factura de la página {$page}."]);
                 $date = $data['invoice_dates'][$page] ?? data_get($entry, 'date');
                 $amount = $data['invoice_amounts'][$page] ?? data_get($entry, 'amount');
@@ -352,7 +354,7 @@ class DocumentIngestionsController extends Controller
                     $partyId = 0;
                 }
 
-                $folioCandidates = [$number, preg_replace('/^N\s*[°º]?\s*/iu', '', $number) ?? $number];
+                $folioCandidates = [$number, preg_replace('/^N\s*[°º]?\s*(?=\d)/iu', '', $number) ?? $number];
                 $folioCandidates = array_values(array_unique(array_filter($folioCandidates)));
                 $invoiceQuery = Factura::query()->whereIn('invoice', $folioCandidates);
                 if ($partyId) {
@@ -500,17 +502,27 @@ class DocumentIngestionsController extends Controller
         try {
             $disk = Storage::disk('r2');
             abort_unless($disk->exists($key), 404, 'El PDF no está disponible en R2.');
-            $filename = preg_replace('/[\x00-\x1F\x7F"\\\\]/', '', (string) ($job->filename ?: basename($key))) ?: 'documento.pdf';
+            $filename = (string) ($job->filename ?: basename($key));
+            $filename = function_exists('mb_convert_encoding')
+                ? mb_convert_encoding($filename, 'UTF-8', 'UTF-8')
+                : (preg_match('//u', $filename) === 1 ? $filename : (iconv('UTF-8', 'UTF-8//IGNORE', $filename) ?: ''));
+            $filename = preg_replace('/[\x00-\x1F\x7F"\\\\]/', '', $filename) ?: 'documento.pdf';
+            $asciiFilename = \Illuminate\Support\Str::ascii($filename);
+            $asciiFilename = preg_replace('/[^A-Za-z0-9._ -]/', '', $asciiFilename) ?: 'documento.pdf';
 
-            return $disk->response($key, $filename, [
+            return $disk->response($key, $asciiFilename, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . addcslashes($filename, '"\\') . '"',
+                'Content-Disposition' => 'inline; filename="' . addcslashes($asciiFilename, '"\\') . '"',
                 'X-Content-Type-Options' => 'nosniff',
             ]);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
-            report($exception);
+            \Log::error('No se pudo servir PDF de importación', [
+                'ingestion_id' => $job->id,
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]);
             abort(503, 'No se pudo leer el PDF desde R2.');
         }
     }
