@@ -26,7 +26,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -760,
+        -980,
         0
       ]
     },
@@ -46,7 +46,7 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -1000,
+        -1200,
         0
       ]
     },
@@ -71,8 +71,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        -520,
-        0
+        -260,
+        -120
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -105,7 +105,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -280,
+        -60,
         0
       ]
     },
@@ -123,8 +123,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        250,
-        0
+        900,
+        -120
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -167,8 +167,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        0
+        1140,
+        -120
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -204,8 +204,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        750,
-        0
+        1380,
+        -120
       ]
     },
     {
@@ -226,7 +226,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1000,
+        420,
         0
       ],
       "credentials": {
@@ -251,8 +251,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1500,
-        0
+        1620,
+        -240
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -272,8 +272,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2000,
-        -120
+        2100,
+        -180
       ]
     },
     {
@@ -300,7 +300,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1250,
+        660,
         0
       ]
     },
@@ -320,8 +320,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2500,
-        -120
+        2580,
+        -180
       ]
     },
     {
@@ -342,7 +342,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2750,
+        2820,
         -120
       ],
       "credentials": {
@@ -362,32 +362,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        0,
+        180,
         0
-      ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "8a204720-1a7c-4acb-bbef-a12355be1014",
-              "name": "action",
-              "value": "skip",
-              "type": "string"
-            }
-          ]
-        },
-        "includeOtherFields": false,
-        "options": {}
-      },
-      "id": "8a204720-1a7c-4acb-bbef-a12355be1014",
-      "name": "Marcar documento omitido",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1000,
-        220
       ]
     },
     {
@@ -410,8 +386,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1750,
-        0
+        1860,
+        -240
       ]
     },
     {
@@ -438,9 +414,312 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2250,
+        2340,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"'\" + $('Configurar importación').first().json.gdrive_folder_id + \"' in parents and name = 'procesados' and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "={{ $('Configurar importación').first().json.gdrive_folder_id }}",
+            "mode": "id"
+          },
+          "whatToSearch": "folders"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1020",
+      "name": "Buscar carpeta procesados",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -740,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Seleccionar Google Drive"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id || \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1023",
+      "name": "¿Existe carpeta procesados?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "procesados",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": {
+            "__rl": true,
+            "value": "root",
+            "mode": "id"
+          },
+          "mode": "id"
+        },
+        "options": {
+          "simplifyOutput": true
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1024",
+      "name": "Crear carpeta procesados",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -300,
+        220
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Seleccionar Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const reservation = $('Reservar importación en Laravel').item.json;\nconst extraction = reservation.action === 'skip' ? null : $('Extraer datos del PDF').item.json;\nconst data = extraction?.data || {};\nconst rawName = reservation.action === 'skip'\n  ? reservation.counterparty_name\n  : (data.issuer || data.supplier_name || data.recipient || reservation.counterparty_name);\nconst safeName = String(rawName || 'Sin proveedor')\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .replace(/[\\\\\\/:*?\"<>|#%{}~&']/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 80) || 'Sin proveedor';\nreturn { json: { drive_file_id: $('Buscar PDFs en carpeta Drive').item.json.id, supplier_folder_name: safeName, supplier_parent_id: ( $('Crear carpeta procesados').isExecuted ? $('Crear carpeta procesados').first().json.id : $('Buscar carpeta procesados').first().json.id ) } };"
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1025",
+      "name": "Preparar carpeta de contraparte",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3060,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"'\" + $json.supplier_parent_id + \"' in parents and name = '\" + $json.supplier_folder_name + \"' and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {
+          "folderId": {
+            "__rl": true,
+            "value": "={{ $json.supplier_parent_id }}",
+            "mode": "id"
+          },
+          "whatToSearch": "folders"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1026",
+      "name": "Buscar carpeta de contraparte",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3300,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Seleccionar Google Drive"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id || \"\" }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1027",
+      "name": "¿Existe carpeta de contraparte?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "={{ $('Preparar carpeta de contraparte').item.json.supplier_folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Preparar carpeta de contraparte').item.json.supplier_parent_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "simplifyOutput": true
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1028",
+      "name": "Crear carpeta de contraparte",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3780,
+        220
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Seleccionar Google Drive"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1029a",
+              "name": "drive_file_id",
+              "value": "={{ $('Preparar carpeta de contraparte').item.json.drive_file_id }}",
+              "type": "string"
+            },
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1029b",
+              "name": "destination_folder_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1029",
+      "name": "Usar carpeta existente",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3780,
         -120
       ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1030a",
+              "name": "drive_file_id",
+              "value": "={{ $('Preparar carpeta de contraparte').item.json.drive_file_id }}",
+              "type": "string"
+            },
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1030b",
+              "name": "destination_folder_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1030",
+      "name": "Usar carpeta recién creada",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.drive_file_id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.destination_folder_id }}",
+          "mode": "id"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1031",
+      "name": "Mover PDF a procesados/contraparte",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4260,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "",
+          "name": "Seleccionar Google Drive"
+        }
+      }
     }
   ],
   "connections": {
@@ -456,6 +735,46 @@
       ]
     },
     "Configurar importación": {
+      "main": [
+        [
+          {
+            "node": "Buscar carpeta procesados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar carpeta procesados": {
+      "main": [
+        [
+          {
+            "node": "¿Existe carpeta procesados?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Existe carpeta procesados?": {
+      "main": [
+        [
+          {
+            "node": "Buscar PDFs en carpeta Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear carpeta procesados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear carpeta procesados": {
       "main": [
         [
           {
@@ -485,32 +804,16 @@
             "type": "main",
             "index": 0
           }
-        ]
+        ],
+        []
       ]
     },
-    "Extraer datos del PDF": {
+    "Procesar un PDF a la vez": {
       "main": [
-        [
-          {
-            "node": "¿Es factura? Cotizaciones se omiten",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "¿Es factura? Cotizaciones se omiten": {
-      "main": [
+        [],
         [
           {
             "node": "Reservar importación en Laravel",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Marcar documento omitido",
             "type": "main",
             "index": 0
           }
@@ -532,25 +835,14 @@
       "main": [
         [
           {
-            "node": "Solicitar URL firmada R2",
+            "node": "Descargar PDF desde Drive",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Conservar PDF y enlace R2",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Solicitar URL firmada R2": {
-      "main": [
-        [
-          {
-            "node": "Marcar PDF para carga",
+            "node": "Preparar carpeta de contraparte",
             "type": "main",
             "index": 0
           }
@@ -573,11 +865,80 @@
         ]
       ]
     },
+    "Extraer datos del PDF": {
+      "main": [
+        [
+          {
+            "node": "¿Es factura? Cotizaciones se omiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es factura? Cotizaciones se omiten": {
+      "main": [
+        [
+          {
+            "node": "Solicitar URL firmada R2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Guardar extracción en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar URL firmada R2": {
+      "main": [
+        [
+          {
+            "node": "Marcar PDF para carga",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar PDF para carga": {
+      "main": [
+        [
+          {
+            "node": "Conservar PDF y enlace R2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
     "Conservar PDF y enlace R2": {
       "main": [
         [
           {
             "node": "¿Subir PDF a R2?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Subir PDF a R2?": {
+      "main": [
+        [
+          {
+            "node": "Subir PDF a R2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Procesar un PDF a la vez",
             "type": "main",
             "index": 0
           }
@@ -595,60 +956,92 @@
         ]
       ]
     },
-    "Procesar un PDF a la vez": {
-      "main": [
-        [],
-        [
-          {
-            "node": "Descargar PDF desde Drive",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Guardar extracción en Laravel": {
       "main": [
         [
           {
-            "node": "Procesar un PDF a la vez",
+            "node": "Preparar carpeta de contraparte",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Marcar documento omitido": {
+    "Preparar carpeta de contraparte": {
       "main": [
         [
           {
-            "node": "Conservar PDF y enlace R2",
+            "node": "Buscar carpeta de contraparte",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
     },
-    "Marcar PDF para carga": {
+    "Buscar carpeta de contraparte": {
       "main": [
         [
           {
-            "node": "Conservar PDF y enlace R2",
+            "node": "¿Existe carpeta de contraparte?",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
     },
-    "¿Subir PDF a R2?": {
+    "¿Existe carpeta de contraparte?": {
       "main": [
         [
           {
-            "node": "Subir PDF a R2",
+            "node": "Usar carpeta existente",
             "type": "main",
             "index": 0
           }
         ],
+        [
+          {
+            "node": "Crear carpeta de contraparte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear carpeta de contraparte": {
+      "main": [
+        [
+          {
+            "node": "Usar carpeta recién creada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usar carpeta existente": {
+      "main": [
+        [
+          {
+            "node": "Mover PDF a procesados/contraparte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Usar carpeta recién creada": {
+      "main": [
+        [
+          {
+            "node": "Mover PDF a procesados/contraparte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mover PDF a procesados/contraparte": {
+      "main": [
         [
           {
             "node": "Procesar un PDF a la vez",

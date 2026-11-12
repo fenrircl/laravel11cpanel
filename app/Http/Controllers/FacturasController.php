@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth as AuthFacade;
+use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogger;
 
 class FacturasController extends Controller
@@ -272,10 +273,65 @@ class FacturasController extends Controller
         $factura->has_file = $factura->archivo ? true : false;
         $factura->file_path = $factura->archivo->path ?? null;
 
+        $fileIds = $factura->archivos->pluck('id');
+        $latestExtraction = DB::table('invoice_extractions')
+            ->where(function ($query) use ($factura, $fileIds) {
+                $query->where('invoice_id', $factura->id);
+                if ($fileIds->isNotEmpty()) {
+                    $query->orWhereIn('file_registry_id', $fileIds);
+                }
+            })
+            ->orderByDesc('id')
+            ->first(['warnings', 'document_type', 'confidence', 'payload', 'normalized_data', 'file_registry_id']);
+
+        $invoiceExtractionWarnings = [];
+        $invoiceExtractionSource = null;
+        $invoiceExtractionAdditionalData = [];
+        $invoiceExtractionLineItems = [];
+        if ($latestExtraction) {
+            $decodedWarnings = json_decode((string) ($latestExtraction->warnings ?? '[]'), true);
+            if (is_string($decodedWarnings)) {
+                $decodedWarnings = json_decode($decodedWarnings, true);
+            }
+            $invoiceExtractionWarnings = is_array($decodedWarnings)
+                ? array_values(array_filter($decodedWarnings, 'is_string'))
+                : [];
+
+            $payload = json_decode((string) ($latestExtraction->payload ?? '{}'), true);
+            if (is_string($payload)) {
+                $payload = json_decode($payload, true);
+            }
+            $invoiceExtractionSource = data_get($payload, 'source.filename');
+
+            $normalizedData = json_decode((string) ($latestExtraction->normalized_data ?? '{}'), true);
+            if (is_string($normalizedData)) {
+                $normalizedData = json_decode($normalizedData, true);
+            }
+            $extractedData = is_array($normalizedData) && $normalizedData !== []
+                ? $normalizedData
+                : (array) data_get($payload, 'data', []);
+            $invoiceExtractionLineItems = is_array($extractedData['line_items'] ?? null)
+                ? $extractedData['line_items']
+                : [];
+
+            // Los datos principales ya están visibles en el encabezado y resumen.
+            // El resto de valores extraídos se conserva aquí, sin limitarse a warnings.
+            $invoiceMainFields = [
+                'invoice_number', 'customer_rut', 'supplier_rut', 'date', 'amount',
+                'issuer', 'recipient', 'customer_name', 'supplier_name', 'line_items',
+            ];
+            foreach ($extractedData as $key => $value) {
+                if (in_array($key, $invoiceMainFields, true) || $value === null || $value === '' || $value === []) {
+                    continue;
+                }
+                $invoiceExtractionAdditionalData[$key] = $value;
+            }
+        }
+
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json(['factura' => $factura]);
         }
-        return view('facturas.show', compact('factura'));
+        return view('facturas.show', compact('factura', 'latestExtraction', 'invoiceExtractionWarnings', 'invoiceExtractionSource', 'invoiceExtractionAdditionalData', 'invoiceExtractionLineItems'));
     }
 
     /**

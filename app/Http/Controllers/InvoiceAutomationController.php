@@ -83,8 +83,34 @@ class InvoiceAutomationController extends Controller
         $key = ['source' => $data['source'], 'external_id' => $data['external_id'], 'external_version' => $data['external_version'] ?? ''];
         $row = DB::table('document_ingestions')->where($key)->first();
         if ($row) {
-            if ($row->status === 'completed') {
-                return response()->json(['ingestion_id' => $row->uuid, 'status' => 'completed', 'action' => 'skip', 'invoice_id' => $row->invoice_id, 'file_id' => $row->file_registry_id]);
+            $existingExtraction = DB::table('invoice_extractions')
+                ->where('ingestion_id', $row->id)
+                ->orderByDesc('id')
+                ->first(['payload', 'normalized_data']);
+            if (in_array($row->status, ['completed', 'ignored'], true) || $existingExtraction) {
+                $invoice = $row->invoice_id
+                    ? Factura::with(['proveedor:id,name', 'cliente:id,name'])->find($row->invoice_id)
+                    : null;
+                $extracted = $existingExtraction
+                    ? json_decode((string) ($existingExtraction->normalized_data ?: $existingExtraction->payload), true)
+                    : [];
+                if (is_string($extracted)) {
+                    $extracted = json_decode($extracted, true);
+                }
+                $storedCounterparty = data_get($extracted, 'issuer')
+                    ?: data_get($extracted, 'data.issuer')
+                    ?: data_get($extracted, 'supplier_name')
+                    ?: data_get($extracted, 'data.supplier_name')
+                    ?: data_get($extracted, 'recipient')
+                    ?: data_get($extracted, 'data.recipient');
+                return response()->json([
+                    'ingestion_id' => $row->uuid,
+                    'status' => $row->status,
+                    'action' => 'skip',
+                    'invoice_id' => $row->invoice_id,
+                    'file_id' => $row->file_registry_id,
+                    'counterparty_name' => $invoice?->proveedor?->name ?? $invoice?->cliente?->name ?? $storedCounterparty,
+                ]);
             }
             DB::table('document_ingestions')->where('id', $row->id)->update(['source_sha256' => $data['sha256'] ?? $row->source_sha256, 'updated_at' => now()]);
         } else {
