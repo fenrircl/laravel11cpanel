@@ -175,7 +175,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/reserve' }}",
+        "url": "https://intranet.acerosera.cl/api/v1/automation/ingestions/reserve",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -203,7 +203,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/' + $('Reservar reproceso').item.json.ingestion_id + '/result' }}",
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/ingestions/' + $('Reservar reproceso').item.json.ingestion_id + '/result' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,

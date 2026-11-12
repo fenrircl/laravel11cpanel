@@ -381,22 +381,44 @@ class R2Controller extends Controller
         $record = DB::table('files_registry')->where('id', $file)->first();
         abort_unless($record, 404, 'Archivo no encontrado.');
         $key = (string) $record->path;
-        if ($key === '' || str_contains($key, '..')) abort(404, 'Archivo no encontrado.');
+        if ($key === '' || $this->hasTraversalSegment($key)) abort(404, 'Archivo no encontrado.');
 
         $disk = Storage::disk('r2');
         $candidate = null;
-        foreach (array_unique([$key, rawurldecode($key)]) as $path) {
-            if ($path !== '' && !str_contains($path, '..') && $disk->exists($path)) {
-                $candidate = $path;
-                break;
+        $pathVariants = [$key, trim($key), $this->normalizePath($key)];
+        if (str_contains($key, '%')) {
+            $decoded = rawurldecode($key);
+            $pathVariants[] = $decoded;
+            $pathVariants[] = $this->normalizePath($decoded);
+        }
+        foreach (array_unique($pathVariants) as $path) {
+            if ($path === '' || $this->hasTraversalSegment($path)) continue;
+            try {
+                if ($disk->exists($path)) {
+                    $candidate = $path;
+                    break;
+                }
+            } catch (\League\Flysystem\CorruptedPathDetected $exception) {
+                \Log::notice('Se omitió una variante de ruta R2 inválida', [
+                    'file_registry_id' => $record->id,
+                    'path_sha256' => hash('sha256', $path),
+                ]);
             }
         }
         if ($candidate === null && class_exists(\Normalizer::class)) {
             foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
                 $variant = \Normalizer::normalize($key, $form);
-                if ($variant && !str_contains($variant, '..') && $disk->exists($variant)) {
-                    $candidate = $variant;
-                    break;
+                if (!$variant || $this->hasTraversalSegment($variant)) continue;
+                try {
+                    if ($disk->exists($variant)) {
+                        $candidate = $variant;
+                        break;
+                    }
+                } catch (\League\Flysystem\CorruptedPathDetected $exception) {
+                    \Log::notice('Se omitió una variante Unicode de ruta R2 inválida', [
+                        'file_registry_id' => $record->id,
+                        'path_sha256' => hash('sha256', $variant),
+                    ]);
                 }
             }
         }
@@ -408,6 +430,14 @@ class R2Controller extends Controller
         $mime = $record->mime_type ?: $disk->mimeType($candidate) ?: 'application/octet-stream';
         $filename = preg_replace('/[\x00-\x1F\x7F]/u', '', (string)($record->file_name ?: basename($candidate)));
         return $disk->response($candidate, $filename ?: basename($candidate), ['Content-Type' => $mime]);
+    }
+
+    private function hasTraversalSegment(string $path): bool
+    {
+        $normalizedSeparators = str_replace('\\', '/', $path);
+
+        return in_array('..', explode('/', $normalizedSeparators), true)
+            || in_array('.', explode('/', $normalizedSeparators), true);
     }
 
     /**

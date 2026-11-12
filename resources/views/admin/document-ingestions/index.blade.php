@@ -38,7 +38,7 @@
                     <div class="row g-2 small">
                         <div class="col-md-3"><span class="text-muted">Emisor:</span> {{ data_get($job->extracted_data, 'issuer') ?: 'No identificado' }}</div>
                         <div class="col-md-3"><span class="text-muted">RUT proveedor:</span> {{ data_get($job->extracted_data, 'supplier_rut') ?: 'No identificado' }}</div>
-                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: 'No identificado' }}</div>
+                        <div class="col-md-3"><span class="text-muted">Cliente:</span> {{ data_get($job->extracted_data, 'customer_name') ?: data_get($job->extracted_data, 'recipient') ?: 'No identificado' }}</div>
                         <div class="col-md-3"><span class="text-muted">RUT cliente:</span> {{ data_get($job->extracted_data, 'customer_rut') ?: 'No identificado' }}</div>
                     </div>
                 </div>
@@ -47,18 +47,66 @@
                 <details class="mb-3"><summary>Ver datos extraídos</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:360px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
                 @if($job->file_registry_id)<a class="btn btn-sm btn-outline-primary mb-2" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file' => $job->file_registry_id]) }}">Abrir PDF</a>@endif
                 @if(in_array($job->status,['needs_review','failed']) && $job->extraction_payload)
-                    <form method="POST" action="{{ route('admin.document-ingestions.approve',$job->id) }}" class="row g-2 align-items-end">
+                    @php
+                        $invoiceMatch = $job->suggested_invoice;
+                        $databaseParty = $invoiceMatch?->proveedor ?: $invoiceMatch?->cliente;
+                        $databasePartyLabel = $databaseParty ? $databaseParty->name . ($databaseParty->rut ? ' · ' . $databaseParty->rut : '') : 'Sin contraparte asociada';
+                        $proposedPartyLabel = $job->suggested_party_name
+                            ? $job->suggested_party_name . ($job->suggested_party_rut ? ' · ' . $job->suggested_party_rut : '')
+                            : 'Sin contraparte identificada';
+                        $databaseDate = $invoiceMatch?->date?->format('Y-m-d') ?: '';
+                        $databaseAmount = $invoiceMatch?->amount !== null ? (string) $invoiceMatch->amount : '';
+                    @endphp
+                    <form id="approve-job-{{ $job->id }}" method="POST" action="{{ route('admin.document-ingestions.approve',$job->id) }}" class="row g-2 align-items-end">
                         @csrf
-                        <div class="col-md-4"><label class="form-label" for="invoice-{{ $job->id }}">ID de factura existente</label><input class="form-control" type="number" min="1" name="invoice_id" id="invoice-{{ $job->id }}" value="{{ $job->suggested_invoice_id }}" required><div class="form-text">El sistema sugiere el ID cuando el folio coincide con una sola factura.</div></div>
-                        <div class="col-md-4"><label class="form-label" for="provider-{{ $job->id }}">Corregir proveedor (opcional)</label><select class="form-select" name="provider_id" id="provider-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($providers as $provider)<option value="{{ $provider->id }}">{{ $provider->name }} · {{ $provider->rut }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label" for="client-{{ $job->id }}">Corregir cliente (opcional)</label><select class="form-select" name="client_id" id="client-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($clients as $client)<option value="{{ $client->id }}">{{ $client->name }} · {{ $client->rut }}</option>@endforeach</select></div>
-                        <div class="col-md-4"><label class="form-label">Número de factura corregido</label><input class="form-control" name="invoice_number" maxlength="80" value="{{ data_get(json_decode($job->normalized_data ?: '{}', true), 'invoice_number') }}"></div>
-                        <div class="col-md-4"><label class="form-label">Fecha corregida</label><input class="form-control" type="date" name="invoice_date" value="{{ data_get(json_decode($job->normalized_data ?: '{}', true), 'date') }}"></div>
-                        <div class="col-md-4"><label class="form-label">Monto corregido</label><input class="form-control" type="number" min="0" step="1" name="invoice_amount" value="{{ data_get(json_decode($job->normalized_data ?: '{}', true), 'amount') }}"></div>
-                        <div class="col-12"><button class="btn btn-primary" type="submit">Guardar cambios, asociar y aprobar</button></div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-{{ $job->id }}">ID de factura existente</label><input class="form-control" type="number" min="1" name="invoice_id" id="invoice-{{ $job->id }}" value="{{ old('invoice_id', $job->suggested_invoice_id) }}" required><div class="form-text">Se sugiere por ID interno o coincidencia única de folio.</div></div>
+                        <div class="col-md-4"><label class="form-label" for="provider-{{ $job->id }}">Proveedor</label><select class="form-select" name="provider_id" id="provider-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($providers as $provider)<option value="{{ $provider->id }}" @selected((int) old('provider_id', $job->suggested_provider_id ?? 0) === (int) $provider->id)>{{ $provider->name }} · {{ $provider->rut }}</option>@endforeach</select>@if($job->suggested_provider_id)<div class="form-text text-success">Preseleccionado desde el RUT extraído.</div>@endif</div>
+                        <div class="col-md-4"><label class="form-label" for="client-{{ $job->id }}">Cliente</label><select class="form-select" name="client_id" id="client-{{ $job->id }}"><option value="">Sin cambio</option>@foreach($clients as $client)<option value="{{ $client->id }}" @selected((int) old('client_id', $job->suggested_client_id ?? 0) === (int) $client->id)>{{ $client->name }} · {{ $client->rut }}</option>@endforeach</select>@if($job->suggested_client_id)<div class="form-text text-success">Preseleccionado desde el RUT extraído.</div>@endif</div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-number-{{ $job->id }}">Número de factura corregido</label><input class="form-control" id="invoice-number-{{ $job->id }}" name="invoice_number" maxlength="80" value="{{ old('invoice_number', data_get($job->extracted_data, 'invoice_number')) }}"></div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-date-{{ $job->id }}">Fecha corregida</label><input class="form-control" id="invoice-date-{{ $job->id }}" type="date" name="invoice_date" value="{{ old('invoice_date', data_get($job->extracted_data, 'date')) }}"></div>
+                        <div class="col-md-4"><label class="form-label" for="invoice-amount-{{ $job->id }}">Monto corregido</label><input class="form-control" id="invoice-amount-{{ $job->id }}" type="number" min="0" step="1" name="invoice_amount" value="{{ old('invoice_amount', data_get($job->extracted_data, 'amount')) }}"></div>
+                        <div class="col-12">
+                            @if($invoiceMatch)
+                                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#invoice-match-{{ $job->id }}">Comparar datos y aprobar</button>
+                            @else
+                                <button class="btn btn-primary" type="submit">Asociar y aprobar</button>
+                            @endif
+                        </div>
                     </form>
-                    @if($job->suggested_invoice_id)
-                        <div class="small text-success mt-2">Coincidencia única por folio: factura ID {{ $job->suggested_invoice_id }}.</div>
+                    @if($invoiceMatch)
+                        <div class="small text-success mt-2">{{ $job->invoice_id ? 'Factura interna ya asociada' : 'Coincidencia única por folio' }}: factura ID {{ $job->suggested_invoice_id }}.</div>
+                        <div class="modal fade" id="invoice-match-{{ $job->id }}" tabindex="-1" aria-labelledby="invoice-match-title-{{ $job->id }}" aria-hidden="true" data-form-id="approve-job-{{ $job->id }}" data-database-party="{{ $databasePartyLabel }}">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <div><h2 class="modal-title h5 mb-1" id="invoice-match-title-{{ $job->id }}">Comparar antes de aprobar</h2><div class="small text-muted">Factura interna ID {{ $invoiceMatch->id }} · PDF {{ $job->filename }}</div></div>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p class="small text-muted">La columna «Actual» muestra lo guardado en el sistema. «Se guardará» refleja los valores del formulario que se aplicarán al aprobar.</p>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered align-middle">
+                                                <thead class="table-light"><tr><th>Dato</th><th>Factura actual</th><th>Se guardará</th><th>Resultado</th></tr></thead>
+                                                <tbody>
+                                                    <tr><th>Folio</th><td>{{ $invoiceMatch->invoice }}</td><td data-preview="invoice_number">{{ old('invoice_number', data_get($job->extracted_data, 'invoice_number')) ?: 'Sin cambio' }}</td><td data-comparison="invoice_number"></td></tr>
+                                                    <tr><th>Fecha</th><td>{{ $databaseDate ?: 'Sin fecha' }}</td><td data-preview="invoice_date">{{ old('invoice_date', data_get($job->extracted_data, 'date')) ?: 'Sin cambio' }}</td><td data-comparison="invoice_date"></td></tr>
+                                                    <tr><th>Monto</th><td>{{ $databaseAmount !== '' ? '$'.number_format((float)$databaseAmount, 0, ',', '.') : 'Sin monto' }}</td><td data-preview="invoice_amount">{{ old('invoice_amount', data_get($job->extracted_data, 'amount')) !== null ? '$'.number_format((float)old('invoice_amount', data_get($job->extracted_data, 'amount')), 0, ',', '.') : 'Sin cambio' }}</td><td data-comparison="invoice_amount"></td></tr>
+                                                    <tr><th>{{ $job->suggested_party_type ?: 'Contraparte' }}</th><td>{{ $databasePartyLabel }}</td><td data-preview="party">{{ $proposedPartyLabel }}</td><td data-comparison="party"></td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        @if($job->suggested_party_rut && !$job->suggested_provider_id && !$job->suggested_client_id)
+                                            <div class="alert alert-warning py-2">El RUT extraído ({{ $job->suggested_party_rut }}) no coincide con un registro existente; revisa la contraparte antes de aprobar.</div>
+                                        @endif
+                                        <details class="mt-3"><summary>Ver JSON completo de extracción</summary><pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:300px;overflow:auto">{{ json_encode(json_decode($job->extraction_payload ?: '{}', true), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre></details>
+                                    </div>
+                                    <div class="modal-footer justify-content-between">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Volver y corregir</button>
+                                        <button type="submit" form="approve-job-{{ $job->id }}" class="btn btn-success">Confirmar vínculo y aprobar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     @elseif($job->invoice_matches_count > 1)
                         <div class="small text-warning mt-2">Hay varias facturas con este folio; confirma manualmente el ID correcto.</div>
                     @endif
@@ -74,3 +122,56 @@
     {{ $jobs->links() }}
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('show.bs.modal', function (event) {
+    const modal = event.target;
+    if (!modal.matches('[id^="invoice-match-"]')) return;
+
+    const form = document.getElementById(modal.dataset.formId);
+    if (!form) return;
+
+    const provider = form.elements.namedItem('provider_id');
+    const client = form.elements.namedItem('client_id');
+    let party = modal.dataset.databaseParty || 'Sin contraparte asociada';
+    if (provider?.value) party = provider.options[provider.selectedIndex].text;
+    else if (client?.value) party = client.options[client.selectedIndex].text;
+
+    const proposals = {
+        invoice_number: form.elements.namedItem('invoice_number')?.value || 'Sin cambio',
+        invoice_date: form.elements.namedItem('invoice_date')?.value || 'Sin cambio',
+        invoice_amount: form.elements.namedItem('invoice_amount')?.value || 'Sin cambio',
+        party
+    };
+
+    Object.entries(proposals).forEach(([field, value]) => {
+        const target = modal.querySelector(`[data-preview="${field}"]`);
+        if (target) target.textContent = value;
+        const result = modal.querySelector(`[data-comparison="${field}"]`);
+        const actualCell = target?.previousElementSibling;
+        if (!result || !actualCell) return;
+
+        const actual = actualCell.textContent.trim();
+        const normalize = (text) => text.trim().toLocaleLowerCase().replace(/[.$\s]/g, '');
+        const same = normalize(actual) === normalize(value);
+        let label = same ? 'Coincide · sin cambio' : 'Se reemplazará';
+        let badge = same ? 'bg-success' : 'bg-warning text-dark';
+        if (value === 'Sin cambio') {
+            label = 'Se conserva';
+            badge = 'bg-secondary';
+        } else if (field === 'party' && actual === 'Sin contraparte asociada') {
+            label = 'Se asociará';
+            badge = 'bg-info text-dark';
+        }
+
+        result.textContent = label;
+        result.className = '';
+        const badgeElement = document.createElement('span');
+        badgeElement.className = `badge ${badge}`;
+        badgeElement.textContent = label;
+        result.replaceChildren(badgeElement);
+    });
+});
+</script>
+@endpush

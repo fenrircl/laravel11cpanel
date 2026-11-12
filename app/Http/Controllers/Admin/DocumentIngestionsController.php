@@ -27,12 +27,50 @@ class DocumentIngestionsController extends Controller
             ->orderByDesc('j.updated_at')->paginate(30)->withQueryString();
         $providers = DB::table('providers')->orderBy('name')->get(['id', 'name', 'rut']);
         $clients = DB::table('clients')->orderBy('name')->get(['id', 'name', 'rut']);
-        $jobs->getCollection()->transform(function ($job) {
+        $ownRut = $this->normalizeRut((string) config('services.invoices.own_rut', ''));
+        $jobs->getCollection()->transform(function ($job) use ($providers, $clients, $ownRut) {
             $job->extracted_data = json_decode($job->normalized_data ?: '{}', true) ?: [];
             $folio = trim((string) data_get($job->extracted_data, 'invoice_number', ''));
-            $matches = $folio === '' ? collect() : Factura::query()->where('invoice', $folio)->limit(2)->get(['id']);
-            $job->invoice_matches_count = $matches->count();
-            $job->suggested_invoice_id = $job->invoice_id ?: ($matches->count() === 1 ? (int) $matches->first()->id : null);
+            $invoiceColumns = ['id', 'invoice', 'client_id', 'provider_id', 'date', 'amount'];
+            $job->invoice_matches_count = 0;
+            $job->suggested_invoice = null;
+            if ($job->invoice_id) {
+                $job->suggested_invoice = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])
+                    ->find($job->invoice_id, $invoiceColumns);
+                $job->invoice_matches_count = $job->suggested_invoice ? 1 : 0;
+            } elseif ($folio !== '') {
+                $matches = Factura::query()->with(['cliente:id,name,rut', 'proveedor:id,name,rut'])
+                    ->where('invoice', $folio)->limit(2)->get($invoiceColumns);
+                $job->invoice_matches_count = $matches->count();
+                $job->suggested_invoice = $matches->count() === 1 ? $matches->first() : null;
+            }
+            $job->suggested_invoice_id = $job->suggested_invoice?->id;
+
+            $supplierRut = $this->normalizeRut((string) data_get($job->extracted_data, 'supplier_rut', ''));
+            $customerRut = $this->normalizeRut((string) data_get($job->extracted_data, 'customer_rut', ''));
+            $provider = $supplierRut !== '' ? $providers->first(fn ($row) => $this->normalizeRut((string) $row->rut) === $supplierRut) : null;
+            $client = $customerRut !== '' ? $clients->first(fn ($row) => $this->normalizeRut((string) $row->rut) === $customerRut) : null;
+            if ($ownRut !== '' && $customerRut === $ownRut) {
+                $job->suggested_provider_id = $provider?->id;
+                $job->suggested_party_name = data_get($job->extracted_data, 'issuer');
+                $job->suggested_party_rut = data_get($job->extracted_data, 'supplier_rut');
+                $job->suggested_party_type = 'Proveedor';
+            } elseif ($ownRut !== '' && $supplierRut === $ownRut) {
+                $job->suggested_client_id = $client?->id;
+                $job->suggested_party_name = data_get($job->extracted_data, 'recipient');
+                $job->suggested_party_rut = data_get($job->extracted_data, 'customer_rut');
+                $job->suggested_party_type = 'Cliente';
+            } elseif ($provider && !$client) {
+                $job->suggested_provider_id = $provider->id;
+                $job->suggested_party_name = data_get($job->extracted_data, 'issuer');
+                $job->suggested_party_rut = data_get($job->extracted_data, 'supplier_rut');
+                $job->suggested_party_type = 'Proveedor';
+            } elseif ($client && !$provider) {
+                $job->suggested_client_id = $client->id;
+                $job->suggested_party_name = data_get($job->extracted_data, 'recipient');
+                $job->suggested_party_rut = data_get($job->extracted_data, 'customer_rut');
+                $job->suggested_party_type = 'Cliente';
+            }
 
             return $job;
         });
@@ -99,5 +137,10 @@ class DocumentIngestionsController extends Controller
     {
         DB::table('document_ingestions')->where('id', $ingestion)->whereIn('status', ['failed', 'needs_review'])->update(['status' => 'processing', 'attempts' => DB::raw('attempts + 1'), 'last_error' => null, 'updated_at' => now()]);
         return back()->with('success', 'Job reabierto para reintento desde n8n.');
+    }
+
+    private function normalizeRut(string $rut): string
+    {
+        return strtolower((string) preg_replace('/[^0-9k]/i', '', $rut));
     }
 }

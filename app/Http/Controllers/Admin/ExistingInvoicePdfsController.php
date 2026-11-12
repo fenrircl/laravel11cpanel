@@ -62,8 +62,10 @@ class ExistingInvoicePdfsController extends Controller
     {
         $record = DB::table('files_registry')->where('id', $file)->where('model_type', 'App\\Invoice')->first();
         abort_unless($record, 404, 'PDF asociado a una factura no encontrado.');
-        $isPdf = strtolower((string) $record->mime_type) === 'application/pdf'
-            || strtolower((string) pathinfo($record->file_name ?: $record->path, PATHINFO_EXTENSION)) === 'pdf';
+        $mime = strtolower(trim(explode(';', (string) $record->mime_type)[0]));
+        $isPdf = in_array($mime, ['application/pdf', 'application/x-pdf'], true)
+            || strtolower((string) pathinfo((string) $record->file_name, PATHINFO_EXTENSION)) === 'pdf'
+            || strtolower((string) pathinfo((string) $record->path, PATHINFO_EXTENSION)) === 'pdf';
         abort_unless($isPdf, 422, 'El archivo asociado no es un PDF.');
 
         $webhookUrl = trim((string) config('services.n8n.existing_pdf_process_webhook_url', ''));
