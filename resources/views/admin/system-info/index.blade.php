@@ -71,7 +71,7 @@
         <div class="card-header fw-semibold">Almacenamiento de archivos R2</div>
         <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
-                <p class="mb-1">Comprueba credenciales y acceso de lectura con una consulta pequeña. No crea, modifica ni elimina archivos.</p>
+                <p class="mb-1">Comprueba la lectura de un archivo ya registrado usando la misma consulta que la descarga. No crea, modifica ni elimina archivos.</p>
                 <p class="small text-muted mb-0">No valida la firma de carga PUT usada por las URLs prefirmadas.</p>
                 @if(session('r2_check'))
                     <div class="alert {{ session('r2_check.ok') ? 'alert-success' : 'alert-danger' }} mt-3 mb-0" role="status">{{ session('r2_check.message') }}</div>

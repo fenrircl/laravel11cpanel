@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\FilesRegistry;
 use App\Http\Controllers\Controller;
 use Composer\InstalledVersions;
 use App\Services\AssistantSettingsService;
@@ -169,13 +170,28 @@ class SystemInfoController extends Controller
         }
 
         try {
-            // ListObjectsV2 con MaxKeys=1: verifica credenciales y lectura sin crear ni modificar objetos.
+            // HEAD sobre una clave real prueba el acceso usado por las descargas y no requiere ListBucket.
+            $probePath = FilesRegistry::query()
+                ->whereNotNull('path')
+                ->where('path', '<>', '')
+                ->orderByDesc('id')
+                ->value('path');
+
+            if (!is_string($probePath) || $probePath === '') {
+                return back()->with('r2_check', [
+                    'ok' => false,
+                    'message' => 'No hay rutas de archivos registradas para comprobar el acceso de lectura. Registra un archivo primero.',
+                ]);
+            }
+
             $disk = Storage::disk('r2');
-            $disk->directoryExists('invoice-imports');
+            $exists = $disk->exists($probePath);
 
             return back()->with('r2_check', [
                 'ok' => true,
-                'message' => 'R2 respondió correctamente a la consulta de solo lectura. El prefijo puede estar vacío; esta comprobación no prueba la firma de una carga PUT.',
+                'message' => $exists
+                    ? 'Acceso de lectura a R2 verificado con un archivo registrado. No se modificó ningún archivo.'
+                    : 'R2 respondió la consulta de lectura, pero el último archivo registrado no existe en el bucket. Revisa la ruta guardada. No se modificó ningún archivo.',
             ]);
         } catch (\Throwable $exception) {
             $cause = $exception;
@@ -192,7 +208,7 @@ class SystemInfoController extends Controller
 
             return back()->with('r2_check', [
                 'ok' => false,
-                'message' => 'No se pudo verificar la lectura de R2. Revisa endpoint, región, bucket, credenciales y permiso para listar objetos.'
+                'message' => 'No se pudo verificar la lectura de R2. Revisa endpoint, región, bucket, credenciales y permiso s3:GetObject.'
                     . ($awsCode ? ' Código: ' . $awsCode . '.' : ''),
             ]);
         }
