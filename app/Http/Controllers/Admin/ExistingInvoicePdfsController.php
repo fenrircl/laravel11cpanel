@@ -43,6 +43,7 @@ class ExistingInvoicePdfsController extends Controller
                 'i.id as invoice_id', 'i.invoice as invoice_number', 'i.date as invoice_date', 'i.amount as invoice_amount',
                 'c.name as client_name', 'p.name as provider_name',
                 'e.id as extraction_id', 'e.document_type', 'e.confidence', 'e.validation_status', 'e.warnings',
+                'e.normalized_data as extracted_normalized_data', 'e.payload as extraction_payload', 'e.processed_at as extraction_processed_at',
                 'j.status as ingestion_status', 'j.last_error', 'lc.line_count',
             ])
             ->selectRaw("CASE WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
@@ -55,6 +56,25 @@ class ExistingInvoicePdfsController extends Controller
             ->when($status === 'processed', fn ($q) => $q->where('e.validation_status', 'validated'));
 
         $files = $query->orderByDesc('f.created_at')->paginate(30)->withQueryString();
+
+        $pageRows = $files->getCollection();
+        $invoiceIds = $pageRows->pluck('invoice_id')->filter()->unique()->values();
+        $extractionIds = $pageRows->pluck('extraction_id')->filter()->unique()->values();
+        $auditHistory = $invoiceIds->isEmpty() ? collect() : DB::table('audit_logs')
+            ->where('module', 'facturas')->whereIn('entity_id', $invoiceIds->map(fn ($id) => (string) $id))
+            ->orderByDesc('id')->get(['entity_id', 'action', 'description', 'changes', 'created_at'])->groupBy('entity_id');
+        $savedLineItems = $extractionIds->isEmpty() ? collect() : DB::table('invoice_line_items')
+            ->whereIn('extraction_id', $extractionIds)->orderBy('line_number')->get([
+                'extraction_id', 'line_number', 'description_original', 'supplier_sku', 'quantity',
+                'unit_original', 'unit_price', 'total_amount', 'currency',
+            ])->groupBy('extraction_id');
+        $pageRows->transform(function ($row) use ($auditHistory, $savedLineItems) {
+            $row->extracted_data = json_decode($row->extracted_normalized_data ?: '{}', true) ?: [];
+            $row->audit_history = $auditHistory->get((string) $row->invoice_id, collect())->take(5);
+            $row->saved_line_items = $savedLineItems->get($row->extraction_id, collect());
+
+            return $row;
+        });
 
         return view('admin.existing-invoice-pdfs.index', compact('files', 'status'));
     }

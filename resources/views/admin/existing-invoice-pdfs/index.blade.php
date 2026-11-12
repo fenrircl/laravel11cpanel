@@ -27,6 +27,8 @@
                         <td>
                             <strong>{{ $file->file_name ?: basename((string)$file->path) }}</strong>
                             <div class="small text-muted">Factura #{{ $file->invoice_number }} · ID {{ $file->invoice_id }}</div>
+                            <a class="small" href="{{ route('facturas.show', $file->invoice_id) }}">Ver factura</a>
+                            <span class="small text-muted">·</span>
                             <a class="small" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file'=>$file->file_id]) }}">Abrir PDF</a>
                         </td>
                         <td>{{ $file->provider_name ?: $file->client_name ?: 'Sin contraparte' }}</td>
@@ -69,6 +71,9 @@
                             @else
                                 <span class="text-muted small">—</span>
                             @endif
+                            @if($file->extraction_id)
+                                <button class="btn btn-sm btn-outline-secondary mt-1" type="button" data-bs-toggle="modal" data-bs-target="#saved-extraction-{{ $file->file_id }}">Datos e historial</button>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -77,6 +82,95 @@
             </tbody>
         </table>
     </div>
+    @foreach($files as $file)
+        @if($file->extraction_id)
+            @php
+                $extracted = $file->extracted_data;
+                $extractedParty = data_get($extracted, 'issuer') ?: data_get($extracted, 'recipient');
+                $extractedRut = data_get($extracted, 'supplier_rut') ?: data_get($extracted, 'customer_rut');
+                $currentParty = $file->provider_name ?: $file->client_name ?: 'Sin contraparte';
+            @endphp
+            <div class="modal fade" id="saved-extraction-{{ $file->file_id }}" tabindex="-1" aria-labelledby="saved-extraction-title-{{ $file->file_id }}" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div>
+                                <h2 class="modal-title fs-5" id="saved-extraction-title-{{ $file->file_id }}">Datos de la factura #{{ $file->invoice_number }}</h2>
+                                <div class="small text-muted">{{ $file->file_name }} · Extracción {{ $file->extraction_id }} · {{ $file->extraction_processed_at ?: 'Sin fecha de validación' }}</div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <a class="btn btn-primary btn-sm" href="{{ route('facturas.show', $file->invoice_id) }}">Abrir factura</a>
+                                <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file'=>$file->file_id]) }}">Abrir PDF</a>
+                                <span class="badge {{ $file->validation_status === 'validated' ? 'bg-success' : 'bg-warning text-dark' }} align-self-center">{{ $file->validation_status === 'validated' ? 'Validada' : 'Requiere revisión' }}</span>
+                            </div>
+
+                            <h3 class="h6">Factura actual y datos extraídos</h3>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm table-bordered align-middle">
+                                    <thead class="table-light"><tr><th>Dato</th><th>Guardado en factura</th><th>Extraído del PDF</th></tr></thead>
+                                    <tbody>
+                                        <tr><th>Folio</th><td>{{ $file->invoice_number }}</td><td>{{ data_get($extracted, 'invoice_number') ?: 'No identificado' }}</td></tr>
+                                        <tr><th>Fecha</th><td>{{ $file->invoice_date ?: 'Sin fecha' }}</td><td>{{ data_get($extracted, 'date') ?: 'No identificada' }}</td></tr>
+                                        <tr><th>Monto</th><td>{{ $file->invoice_amount !== null ? '$'.number_format((float)$file->invoice_amount, 0, ',', '.') : 'Sin monto' }}</td><td>{{ data_get($extracted, 'amount') !== null ? '$'.number_format((float)data_get($extracted, 'amount'), 0, ',', '.') : 'No identificado' }}</td></tr>
+                                        <tr><th>Contraparte</th><td>{{ $currentParty }}</td><td>{{ $extractedParty ?: 'No identificada' }}{{ $extractedRut ? ' · '.$extractedRut : '' }}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h3 class="h6">Ítems guardados</h3>
+                            @if($file->saved_line_items->isNotEmpty())
+                                <div class="table-responsive mb-4">
+                                    <table class="table table-sm table-striped align-middle">
+                                        <thead><tr><th>#</th><th>Descripción</th><th>SKU</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario</th><th>Total</th></tr></thead>
+                                        <tbody>
+                                            @foreach($file->saved_line_items as $line)
+                                                <tr><td>{{ $line->line_number }}</td><td>{{ $line->description_original }}</td><td>{{ $line->supplier_sku ?: '—' }}</td><td>{{ $line->quantity ?? '—' }}</td><td>{{ $line->unit_original ?: '—' }}</td><td>{{ $line->unit_price !== null ? number_format((float)$line->unit_price, 0, ',', '.') : '—' }}</td><td>{{ $line->total_amount !== null ? number_format((float)$line->total_amount, 0, ',', '.') : '—' }} {{ $line->currency }}</td></tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted small mb-4">Esta extracción no tiene ítems guardados.</p>
+                            @endif
+
+                            <h3 class="h6">Historial de cambios de la factura</h3>
+                            @if($file->audit_history->isNotEmpty())
+                                <div class="table-responsive mb-4">
+                                    <table class="table table-sm table-bordered">
+                                        <thead class="table-light"><tr><th>Fecha</th><th>Acción</th><th>Detalle y valores modificados</th></tr></thead>
+                                        <tbody>
+                                            @foreach($file->audit_history as $event)
+                                                @php($changes = json_decode($event->changes ?: '{}', true) ?: [])
+                                                <tr>
+                                                    <td>{{ $event->created_at }}</td><td>{{ $event->action }}</td>
+                                                    <td>
+                                                        {{ $event->description }}
+                                                        @if($changes)
+                                                            <ul class="small mb-0 mt-1">@foreach($changes as $field => $change)<li><strong>{{ $field }}:</strong> {{ is_scalar($change['from'] ?? null) ? ($change['from'] ?? 'vacío') : json_encode($change['from'] ?? null) }} → {{ is_scalar($change['to'] ?? null) ? ($change['to'] ?? 'vacío') : json_encode($change['to'] ?? null) }}</li>@endforeach</ul>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted small mb-4">No hay eventos de auditoría de cambios para esta factura.</p>
+                            @endif
+
+                            <details>
+                                <summary>Ver JSON completo de la extracción</summary>
+                                <pre class="bg-light border rounded p-3 mt-2 small" style="white-space:pre-wrap;max-height:320px;overflow:auto">{{ json_encode($extracted, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+    @endforeach
     <div class="existing-pdf-pagination">
         {{ $files->onEachSide(1)->links('pagination::bootstrap-5') }}
     </div>
