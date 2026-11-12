@@ -14,8 +14,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        240,
-        360
+        0,
+        0
       ]
     },
     {
@@ -28,8 +28,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
-        360
+        260,
+        0
       ]
     },
     {
@@ -46,8 +46,8 @@
       "type": "n8n-nodes-imap-ai.imap",
       "typeVersion": 1,
       "position": [
-        740,
-        220
+        540,
+        -180
       ]
     },
     {
@@ -64,8 +64,8 @@
       "type": "n8n-nodes-imap-ai.imap",
       "typeVersion": 1,
       "position": [
-        740,
-        500
+        540,
+        180
       ]
     },
     {
@@ -78,8 +78,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1620,
-        220
+        1580,
+        -180
       ],
       "alwaysOutputData": true
     },
@@ -93,8 +93,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1620,
-        500
+        1580,
+        180
       ],
       "alwaysOutputData": true
     },
@@ -108,7 +108,7 @@
       "typeVersion": 3.2,
       "position": [
         1840,
-        360
+        0
       ]
     },
     {
@@ -121,8 +121,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2050,
-        360
+        2100,
+        0
       ]
     },
     {
@@ -138,8 +138,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2260,
-        360
+        2360,
+        0
       ]
     },
     {
@@ -152,8 +152,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        220
+        800,
+        -180
       ]
     },
     {
@@ -166,8 +166,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        500
+        800,
+        180
       ]
     },
     {
@@ -200,8 +200,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1160,
-        220
+        1060,
+        -180
       ]
     },
     {
@@ -234,8 +234,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1160,
-        500
+        1060,
+        180
       ]
     },
     {
@@ -249,8 +249,8 @@
       "type": "n8n-nodes-imap-ai.imap",
       "typeVersion": 1,
       "position": [
-        1380,
-        300
+        1320,
+        -180
       ],
       "onError": "continueRegularOutput"
     },
@@ -265,8 +265,8 @@
       "type": "n8n-nodes-imap-ai.imap",
       "typeVersion": 1,
       "position": [
-        1380,
-        580
+        1320,
+        180
       ],
       "onError": "continueRegularOutput"
     }

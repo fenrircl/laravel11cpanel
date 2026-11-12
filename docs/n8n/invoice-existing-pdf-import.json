@@ -1,15 +1,298 @@
 {
   "name": "Procesar PDFs existentes de facturas en R2",
   "nodes": [
-    {"parameters":{"rule":{"interval":[{"field":"hours","hoursInterval":6}]}},"id":"9a204720-1a7c-4acb-bbef-a12355be2001","name":"Cada 6 horas","type":"n8n-nodes-base.scheduleTrigger","typeVersion":1.2,"position":[-800,0]},
-    {"parameters":{"url":"={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/pending?limit=25' }}","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","options":{"timeout":30000}},"id":"9a204720-1a7c-4acb-bbef-a12355be2002","name":"Listar PDFs pendientes","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[-560,0],"credentials":{"httpHeaderAuth":{"id":"","name":"Bearer Laravel n8n"}}},
-    {"parameters":{"fieldToSplitOut":"data","options":{}},"id":"9a204720-1a7c-4acb-bbef-a12355be2003","name":"Un PDF por item","type":"n8n-nodes-base.splitOut","typeVersion":1,"position":[-320,0]},
-    {"parameters":{"method":"POST","url":"={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/' + $json.file_id + '/download-url' }}","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","options":{"timeout":30000}},"id":"9a204720-1a7c-4acb-bbef-a12355be2004","name":"Solicitar enlace temporal","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[-80,0],"credentials":{"httpHeaderAuth":{"id":"","name":"Bearer Laravel n8n"}}},
-    {"parameters":{"url":"={{ $json.download_url }}","options":{"response":{"response":{"responseFormat":"file","outputPropertyName":"data"}}}},"id":"9a204720-1a7c-4acb-bbef-a12355be2005","name":"Descargar desde R2","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[160,0]},
-    {"parameters":{"method":"POST","url":"https://pdf.solidtec.cl/v1/extractions","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","sendBody":true,"contentType":"multipart-form-data","bodyParameters":{"parameters":[{"parameterType":"formBinaryData","name":"file","inputDataFieldName":"data"},{"name":"document_type","value":"invoice"},{"name":"locale","value":"es-CL"}]},"options":{"timeout":300000}},"id":"9a204720-1a7c-4acb-bbef-a12355be2006","name":"Extraer datos PDF","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[400,0],"credentials":{"httpHeaderAuth":{"id":"","name":"Bearer API PDF"}}},
-    {"parameters":{"method":"POST","url":"={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/reserve' }}","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","sendBody":true,"specifyBody":"json","jsonBody":"={{ {source:'registered_pdf',external_id:String($('Un PDF por item').item.json.file_id),external_version:String($('Un PDF por item').item.json.created_at || ''),invoice_id:$('Un PDF por item').item.json.invoice_id,file_registry_id:$('Un PDF por item').item.json.file_id,filename:$('Un PDF por item').item.json.file_name,mime_type:'application/pdf',size_bytes:$('Un PDF por item').item.json.size} }}","options":{"timeout":30000}},"id":"9a204720-1a7c-4acb-bbef-a12355be2007","name":"Reservar reproceso","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[640,0],"credentials":{"httpHeaderAuth":{"id":"","name":"Bearer Laravel n8n"}}},
-    {"parameters":{"method":"PUT","url":"={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/' + $('Reservar reproceso').item.json.ingestion_id + '/result' }}","authentication":"genericCredentialType","genericAuthType":"httpHeaderAuth","sendBody":true,"specifyBody":"json","jsonBody":"={{ {adapter_version:'pdf-api-1.0-to-invoice-v1',...$('Extraer datos PDF').item.json} }}","options":{"timeout":30000}},"id":"9a204720-1a7c-4acb-bbef-a12355be2008","name":"Guardar JSON en Laravel","type":"n8n-nodes-base.httpRequest","typeVersion":4.2,"position":[880,0],"credentials":{"httpHeaderAuth":{"id":"","name":"Bearer Laravel n8n"}}}
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2001",
+      "name": "Cada 6 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/pending?limit=25' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2002",
+      "name": "Listar PDFs pendientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2003",
+      "name": "Un PDF por item",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/documents/' + $json.file_id + '/download-url' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2004",
+      "name": "Solicitar enlace temporal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        780,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.download_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2005",
+      "name": "Descargar desde R2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://pdf.solidtec.cl/v1/extractions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "document_type",
+              "value": "invoice"
+            },
+            {
+              "name": "locale",
+              "value": "es-CL"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2006",
+      "name": "Extraer datos PDF",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer API PDF"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/reserve' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {source:'registered_pdf',external_id:String($('Un PDF por item').item.json.file_id),external_version:String($('Un PDF por item').item.json.created_at || ''),invoice_id:$('Un PDF por item').item.json.invoice_id,file_registry_id:$('Un PDF por item').item.json.file_id,filename:$('Un PDF por item').item.json.file_name,mime_type:'application/pdf',size_bytes:$('Un PDF por item').item.json.size} }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2007",
+      "name": "Reservar reproceso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $env.LARAVEL_BASE_URL + '/api/v1/automation/ingestions/' + $('Reservar reproceso').item.json.ingestion_id + '/result' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {adapter_version:'pdf-api-1.0-to-invoice-v1',...$('Extraer datos PDF').item.json} }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2008",
+      "name": "Guardar JSON en Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    }
   ],
-  "connections":{"Cada 6 horas":{"main":[[{"node":"Listar PDFs pendientes","type":"main","index":0}]]},"Listar PDFs pendientes":{"main":[[{"node":"Un PDF por item","type":"main","index":0}]]},"Un PDF por item":{"main":[[{"node":"Solicitar enlace temporal","type":"main","index":0}]]},"Solicitar enlace temporal":{"main":[[{"node":"Descargar desde R2","type":"main","index":0}]]},"Descargar desde R2":{"main":[[{"node":"Extraer datos PDF","type":"main","index":0}]]},"Extraer datos PDF":{"main":[[{"node":"Reservar reproceso","type":"main","index":0}]]},"Reservar reproceso":{"main":[[{"node":"Guardar JSON en Laravel","type":"main","index":0}]]}},
-  "active":false,"settings":{"executionOrder":"v1","timezone":"America/Santiago"},"versionId":"d2222222-2222-4222-8222-222222222222","meta":{"templateCredsSetupCompleted":false},"tags":[]
+  "connections": {
+    "Cada 6 horas": {
+      "main": [
+        [
+          {
+            "node": "Listar PDFs pendientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Listar PDFs pendientes": {
+      "main": [
+        [
+          {
+            "node": "Un PDF por item",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Un PDF por item": {
+      "main": [
+        [
+          {
+            "node": "Solicitar enlace temporal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitar enlace temporal": {
+      "main": [
+        [
+          {
+            "node": "Descargar desde R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar desde R2": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer datos PDF": {
+      "main": [
+        [
+          {
+            "node": "Reservar reproceso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reservar reproceso": {
+      "main": [
+        [
+          {
+            "node": "Guardar JSON en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Santiago"
+  },
+  "versionId": "d2222222-2222-4222-8222-222222222222",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
 }

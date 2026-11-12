@@ -71,74 +71,80 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-xl-3">
-            <div class="card h-100"><div class="card-body">
-                <div class="text-muted small">PHP del servidor</div>
-                <div class="fs-4 fw-semibold">{{ PHP_VERSION }}</div>
-                <div class="small text-muted">Requisito del proyecto: {{ $phpConstraint }} · {{ $phpSapi }}</div>
-            </div></div>
-        </div>
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-md-6">
             <div class="card h-100"><div class="card-body">
                 <div class="text-muted small">Laravel activo</div>
                 <div class="fs-4 fw-semibold">{{ $laravelVersion }}</div>
                 <div class="small text-muted">Cargado desde vendor</div>
             </div></div>
         </div>
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-md-6">
             <div class="card h-100"><div class="card-body">
                 <div class="text-muted small">Base de datos configurada</div>
                 <div class="fs-4 fw-semibold">{{ $databaseDriver }}</div>
                 <div class="small text-muted">Se muestra el driver, no las credenciales</div>
             </div></div>
         </div>
-        <div class="col-sm-6 col-xl-3">
-            <div class="card h-100"><div class="card-body">
-                <div class="text-muted small">Extensiones requeridas</div>
-                <div class="fs-4 fw-semibold">{{ collect($extensions)->where('loaded', true)->count() }}/{{ count($extensions) }}</div>
-                <div class="small text-muted">Cargadas en PHP</div>
-            </div></div>
-        </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">Extensiones PHP</div>
-        <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>Extensión</th><th>Estado</th></tr></thead>
-                <tbody>
-                    @foreach($extensions as $extension)
-                        <tr>
-                            <td><code>{{ $extension['name'] }}</code></td>
-                            <td><span class="badge {{ $extension['loaded'] ? 'bg-success' : 'bg-danger' }}">{{ $extension['loaded'] ? 'Disponible' : 'Falta' }}</span></td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <details class="card mb-4">
+        <summary class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="fw-semibold">Entorno PHP</span>
+            <span class="d-flex gap-2 align-items-center">
+                <span class="badge {{ $phpSupported ? 'bg-success' : 'bg-danger' }}">PHP {{ PHP_VERSION }}</span>
+                <span class="badge bg-secondary">{{ collect($extensions)->where('loaded', true)->count() }}/{{ count($extensions) }} extensiones</span>
+            </span>
+        </summary>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><div class="border rounded p-3 h-100">
+                    <div class="small text-muted">Requisito del proyecto</div>
+                    <div class="fw-semibold">{{ $phpConstraint }}</div>
+                    <div class="small text-muted">SAPI: {{ $phpSapi }}</div>
+                </div></div>
+                <div class="col-md-6"><div class="border rounded p-3 h-100">
+                    <div class="small text-muted">Estado de compatibilidad</div>
+                    <div class="fw-semibold">{{ $phpSupported ? 'La versión cumple el requisito' : 'La versión no cumple el requisito' }}</div>
+                    <div class="small text-muted">Extensiones cargadas: {{ collect($extensions)->where('loaded', true)->count() }} de {{ count($extensions) }}</div>
+                </div></div>
+            </div>
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">Dependencias PHP de producción</div>
-        <div class="table-responsive">
-            <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>Paquete</th><th>Requisito</th><th>Fijada en lock</th><th>Instalada en vendor</th><th>Despliegue</th></tr></thead>
-                <tbody>
-                    @forelse($phpPackages as $package)
-                        <tr>
-                            <td><code>{{ $package['name'] }}</code></td>
-                            <td>{{ $package['constraint'] }}</td>
-                            <td>{{ $package['locked'] }}</td>
-                            <td>{{ $package['installed'] }}</td>
-                            <td><span class="badge {{ $package['matches'] ? 'bg-success' : 'bg-warning text-dark' }}">{{ $package['matches'] ? 'Coincide' : 'Revisar' }}</span></td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="text-muted">No se encontraron dependencias Composer.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+            <h2 class="h6 mb-2">Extensiones PHP requeridas</h2>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead><tr><th>Extensión</th><th>Estado</th></tr></thead>
+                    <tbody>
+                        @foreach($extensions as $extension)
+                            <tr>
+                                <td><code>{{ $extension['name'] }}</code></td>
+                                <td><span class="badge {{ $extension['loaded'] ? 'bg-success' : 'bg-danger' }}">{{ $extension['loaded'] ? 'Disponible' : 'Falta' }}</span></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <h2 class="h6 mb-2">Dependencias PHP de producción</h2>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                    <thead><tr><th>Paquete</th><th>Requisito</th><th>Fijada en lock</th><th>Instalada en vendor</th><th>Despliegue</th></tr></thead>
+                    <tbody>
+                        @forelse($phpPackages as $package)
+                            <tr>
+                                <td><code>{{ $package['name'] }}</code></td>
+                                <td>{{ $package['constraint'] }}</td>
+                                <td>{{ $package['locked'] }}</td>
+                                <td>{{ $package['installed'] }}</td>
+                                <td><span class="badge {{ $package['matches'] ? 'bg-success' : 'bg-warning text-dark' }}">{{ $package['matches'] ? 'Coincide' : 'Revisar' }}</span></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="text-muted">No se encontraron dependencias Composer.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+    </details>
 
     <div class="card">
         <div class="card-header fw-semibold">Dependencias JavaScript directas (build)</div>
