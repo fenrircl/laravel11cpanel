@@ -37,5 +37,35 @@
             </div>
         </div>
     </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h4 class="h6 mb-0">Archivos adjuntos</h4>
+            <span class="badge text-bg-secondary">{{ $factura->archivos->count() }}</span>
+        </div>
+        <div class="card-body">
+            @if($factura->archivos->isNotEmpty())
+                <div class="list-group list-group-flush">
+                    @foreach($factura->archivos as $archivo)
+                        <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-semibold">{{ $archivo->file_name ?: basename((string) $archivo->path) }}</div>
+                                <div class="small text-muted">
+                                    {{ $archivo->size ? number_format($archivo->size / 1024, 0, ',', '.') . ' KB · ' : '' }}
+                                    {{ $archivo->created_at ?: 'Fecha no registrada' }}
+                                </div>
+                            </div>
+                            <a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener"
+                               href="{{ route('files.registry.download', ['file' => $archivo->id]) }}">
+                                Abrir archivo
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-muted mb-0">No hay archivos asociados a esta factura.</p>
+            @endif
+        </div>
+    </div>
 </div>
 @endsection
