@@ -27,7 +27,11 @@
                         <td>
                             <strong>{{ $file->file_name ?: basename((string)$file->path) }}</strong>
                             <div class="small text-muted">Factura #{{ $file->invoice_number }} · ID {{ $file->invoice_id }}</div>
-                            <a class="small" href="{{ route('facturas.show', $file->invoice_id) }}">Ver factura</a>
+                            @if($file->extraction_id)
+                                <button class="btn btn-link btn-sm p-0 align-baseline" type="button" data-bs-toggle="modal" data-bs-target="#saved-extraction-{{ $file->file_id }}">Ver factura</button>
+                            @else
+                                <a class="small" href="{{ route('facturas.show', $file->invoice_id) }}">Ver factura</a>
+                            @endif
                             <span class="small text-muted">·</span>
                             <a class="small" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file'=>$file->file_id]) }}">Abrir PDF</a>
                         </td>
@@ -82,9 +86,6 @@
                             @else
                                 <span class="text-muted small">—</span>
                             @endif
-                            @if($file->extraction_id)
-                                <button class="btn btn-sm btn-outline-secondary mt-1" type="button" data-bs-toggle="modal" data-bs-target="#saved-extraction-{{ $file->file_id }}">Datos e historial</button>
-                            @endif
                         </td>
                     </tr>
                 @empty
@@ -113,7 +114,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="d-flex flex-wrap gap-2 mb-3">
-                                <a class="btn btn-primary btn-sm" href="{{ route('facturas.show', $file->invoice_id) }}">Abrir factura</a>
+                                <a class="btn btn-primary btn-sm" target="_blank" rel="noopener" href="{{ route('facturas.show', $file->invoice_id) }}">Abrir ficha completa</a>
                                 <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener" href="{{ route('files.registry.download', ['file'=>$file->file_id]) }}">Abrir PDF</a>
                                 <span class="badge {{ $file->validation_status === 'validated' ? 'bg-success' : 'bg-warning text-dark' }} align-self-center">{{ $file->validation_status === 'validated' ? 'Validada' : 'Requiere revisión' }}</span>
                             </div>
