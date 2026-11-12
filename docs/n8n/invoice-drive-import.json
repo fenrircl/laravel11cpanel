@@ -114,7 +114,7 @@
         "operation": "download",
         "fileId": {
           "__rl": true,
-          "value": "={{ $json.id }}",
+        "value": "={{ $('Buscar PDFs en carpeta Drive').item.json.id }}",
           "mode": "id"
         }
       },
@@ -489,15 +489,11 @@
           "value": "My Drive",
           "mode": "list"
         },
-        "folderId": {
-          "__rl": true,
-          "value": {
-            "__rl": true,
-            "value": "root",
-            "mode": "id"
-          },
-          "mode": "id"
-        },
+      "folderId": {
+        "__rl": true,
+        "value": "root",
+        "mode": "id"
+      },
         "options": {
           "simplifyOutput": true
         }
