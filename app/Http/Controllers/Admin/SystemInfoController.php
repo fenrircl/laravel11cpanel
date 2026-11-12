@@ -129,6 +129,14 @@ class SystemInfoController extends Controller
             'usageLogs' => $usageLogs,
             'usageTotals' => $usageTotals,
             'quotaUsers' => $quotaUsers,
+            'r2Configuration' => [
+                'bucket' => config('filesystems.disks.r2.bucket') ?: 'No configurado',
+                'endpoint_host' => parse_url((string) config('filesystems.disks.r2.endpoint'), PHP_URL_HOST) ?: 'No configurado',
+                'region' => config('filesystems.disks.r2.region') ?: 'No configurada',
+                'access_key_set' => filled(config('filesystems.disks.r2.key')),
+                'secret_set' => filled(config('filesystems.disks.r2.secret')),
+                'config_cached' => app()->configurationIsCached(),
+            ],
             'asset_css' => ['comun/tablas'],
         ]);
     }
@@ -197,6 +205,7 @@ class SystemInfoController extends Controller
             $details = $this->r2FailureDetails($exception);
             logger()->warning('Falló la comprobación de solo lectura de R2', [
                 'exception' => $details['exception'],
+                'exception_chain' => $details['exception_chain'],
                 'aws_code' => $details['aws_code'],
                 'http_status' => $details['http_status'],
             ]);
@@ -213,8 +222,9 @@ class SystemInfoController extends Controller
 
     private function r2FailureDetails(\Throwable $exception): array
     {
-        $details = ['exception' => get_class($exception), 'aws_code' => null, 'http_status' => null];
+        $details = ['exception' => get_class($exception), 'exception_chain' => [], 'aws_code' => null, 'http_status' => null];
         for ($cause = $exception; $cause; $cause = $cause->getPrevious()) {
+            $details['exception_chain'][] = get_class($cause);
             if (method_exists($cause, 'getAwsErrorCode')) {
                 $details['aws_code'] = $cause->getAwsErrorCode() ?: $details['aws_code'];
             }
@@ -229,6 +239,8 @@ class SystemInfoController extends Controller
                 }
             }
         }
+
+        $details['exception_chain'] = array_values(array_unique($details['exception_chain']));
 
         return $details;
     }

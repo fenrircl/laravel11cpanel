@@ -73,6 +73,13 @@
             <div>
                 <p class="mb-1">Comprueba la lectura de un archivo ya registrado usando la misma consulta que la descarga. No crea, modifica ni elimina archivos.</p>
                 <p class="small text-muted mb-0">No valida la firma de carga PUT usada por las URLs prefirmadas.</p>
+                <dl class="row small mt-3 mb-0">
+                    <dt class="col-sm-4">Bucket</dt><dd class="col-sm-8"><code>{{ $r2Configuration['bucket'] }}</code></dd>
+                    <dt class="col-sm-4">Endpoint</dt><dd class="col-sm-8"><code>{{ $r2Configuration['endpoint_host'] }}</code></dd>
+                    <dt class="col-sm-4">Región</dt><dd class="col-sm-8"><code>{{ $r2Configuration['region'] }}</code></dd>
+                    <dt class="col-sm-4">Access key / Secret</dt><dd class="col-sm-8">{{ $r2Configuration['access_key_set'] ? 'Access key configurada' : 'Access key ausente' }} · {{ $r2Configuration['secret_set'] ? 'Secret configurado' : 'Secret ausente' }}</dd>
+                    <dt class="col-sm-4">Caché de configuración</dt><dd class="col-sm-8">{{ $r2Configuration['config_cached'] ? 'Activa (los cambios en .env no se aplican hasta limpiar la caché)' : 'Inactiva' }}</dd>
+                </dl>
                 @if(session('r2_check'))
                     <div class="alert {{ session('r2_check.ok') ? 'alert-success' : 'alert-danger' }} mt-3 mb-0" role="status">{{ session('r2_check.message') }}</div>
                 @endif
