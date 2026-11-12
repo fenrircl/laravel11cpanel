@@ -33,7 +33,7 @@
                         <td>
                             @php($statusLabel = ['pending'=>'Pendiente','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallido','processed'=>'Procesado'][$file->processing_status] ?? $file->processing_status)
                             <span class="badge {{ $file->processing_status==='processed'?'bg-success':($file->processing_status==='needs_review'?'bg-warning text-dark':($file->processing_status==='failed'?'bg-danger':($file->processing_status==='processing'?'bg-info text-dark':'bg-secondary'))) }}">{{ $statusLabel }}</span>
-                            @if($file->last_error)<div class="small text-danger mt-1">{{ $file->last_error }}</div>@endif
+                            @if($file->processing_error)<div class="small text-danger mt-1">{{ $file->processing_error }}</div>@endif
                         </td>
                         <td>
                             @if($file->extraction_id)

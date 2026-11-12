@@ -175,7 +175,9 @@ class InvoiceAutomationController extends Controller
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['status' => 'needs_review', 'last_error' => 'El PDF no está cargado en R2 ni asociado a un archivo existente.', 'updated_at' => now()]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'pdf_not_uploaded_or_registered']);
         }
-        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $counterpartyRut, $isPurchase) {
+        $currency = $this->normalizeCurrencyCode($payload['currency'] ?? null);
+        try {
+        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $counterpartyRut, $isPurchase, $currency) {
         $partyId = $this->partyIdForRut($counterpartyRut, $isPurchase);
         $counterpartyTable = $isPurchase ? 'providers' : 'clients';
         $rutMatches = DB::table($counterpartyTable)->whereRaw("REPLACE(REPLACE(REPLACE(LOWER(rut), '.', ''), '-', ''), ' ', '') = ?", [strtolower($counterpartyRut)])->count();
@@ -278,13 +280,46 @@ class InvoiceAutomationController extends Controller
                     'description_normalized' => mb_strtolower(trim((string)$line['description'])),
                     'supplier_sku' => isset($line['code']) ? mb_substr((string)$line['code'], 0, 191) : null,
                     'quantity' => $line['quantity'] ?? null, 'unit_price' => $line['unit_price'] ?? null,
-                    'total_amount' => $line['total_amount'] ?? null, 'currency' => $payload['currency'] ?? null,
+                    'total_amount' => $line['total_amount'] ?? null, 'currency' => $currency,
                     'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE), 'created_at' => now(), 'updated_at' => now()]);
             }
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['invoice_id' => $invoice->id,
             'file_registry_id' => $fileId, 'status' => 'completed', 'updated_at' => now()]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'completed', 'action' => 'updated', 'invoice_id' => $invoice->id, 'extraction_id' => $extractionId]);
         });
+        } catch (\Throwable $exception) {
+            report($exception);
+            DB::table('document_ingestions')->where('id', $ingest->id)->update([
+                'status' => 'failed',
+                'last_error' => 'Laravel no pudo guardar completamente la extracción. Revisa el registro de errores y reintenta.',
+                'lease_until' => null,
+                'updated_at' => now(),
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    private function normalizeCurrencyCode(mixed $currency): ?string
+    {
+        if (!is_string($currency) || trim($currency) === '') {
+            return null;
+        }
+
+        $normalized = mb_strtolower(trim($currency));
+        $knownCurrencies = [
+            'peso' => 'CLP', 'pesos' => 'CLP', 'peso chileno' => 'CLP', 'pesos chilenos' => 'CLP',
+            'clp' => 'CLP', 'chilean peso' => 'CLP', 'chilean pesos' => 'CLP',
+            'dolar' => 'USD', 'dólar' => 'USD', 'dolares' => 'USD', 'dólares' => 'USD', 'usd' => 'USD',
+            'euro' => 'EUR', 'euros' => 'EUR', 'eur' => 'EUR',
+        ];
+
+        if (isset($knownCurrencies[$normalized])) {
+            return $knownCurrencies[$normalized];
+        }
+
+        $code = strtoupper($normalized);
+        return preg_match('/^[A-Z]{3}$/', $code) === 1 ? $code : null;
     }
 
     private function partyIdForRut(string $rut, bool $provider): ?int

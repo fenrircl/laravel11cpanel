@@ -513,11 +513,20 @@ class R2Controller extends Controller
 
     private function decodeLegacyPath(string $path): string
     {
-        // Some legacy file_registry rows were stored as UTF-16LE bytes in a UTF-8
-        // column. Decode that representation before stripping controls, preserving
-        // accented letters and combining marks in the actual R2 object key.
+        // Some legacy file_registry rows were stored as UTF-16 bytes in a UTF-8
+        // column. Detect byte order from the NUL positions before decoding; using
+        // the wrong endianness turns an ASCII path into unrelated CJK characters.
         if (str_contains($path, "\0") && function_exists('mb_convert_encoding')) {
-            $decoded = mb_convert_encoding($path, 'UTF-8', 'UTF-16LE');
+            $evenNuls = 0;
+            $oddNuls = 0;
+            $sampleLength = min(strlen($path), 64);
+            for ($i = 0; $i < $sampleLength; $i++) {
+                if ($path[$i] === "\0") {
+                    $i % 2 === 0 ? $evenNuls++ : $oddNuls++;
+                }
+            }
+            $encoding = $evenNuls > $oddNuls ? 'UTF-16BE' : 'UTF-16LE';
+            $decoded = mb_convert_encoding($path, 'UTF-8', $encoding);
             if ($decoded !== '' && !str_contains($decoded, "\0") && mb_check_encoding($decoded, 'UTF-8')) {
                 return $decoded;
             }

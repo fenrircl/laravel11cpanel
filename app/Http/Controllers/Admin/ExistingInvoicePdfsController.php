@@ -45,11 +45,12 @@ class ExistingInvoicePdfsController extends Controller
                 'e.id as extraction_id', 'e.document_type', 'e.confidence', 'e.validation_status', 'e.warnings',
                 'j.status as ingestion_status', 'j.last_error', 'lc.line_count',
             ])
-            ->selectRaw("CASE WHEN j.status = 'processing' THEN 'processing' WHEN j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status");
+            ->selectRaw("CASE WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
+            ->selectRaw("CASE WHEN j.status = 'processing' AND (j.lease_until IS NULL OR j.lease_until <= CURRENT_TIMESTAMP) THEN 'n8n no confirmó el resultado antes de vencer el tiempo de procesamiento.' ELSE j.last_error END as processing_error");
 
         $query->when($status === 'pending', fn ($q) => $q->whereNull('e.id')->whereNull('j.id'))
-            ->when($status === 'processing', fn ($q) => $q->where('j.status', 'processing'))
-            ->when($status === 'failed', fn ($q) => $q->where('j.status', 'failed'))
+            ->when($status === 'processing', fn ($q) => $q->where('j.status', 'processing')->where('j.lease_until', '>', now()))
+            ->when($status === 'failed', fn ($q) => $q->where(fn ($failed) => $failed->where('j.status', 'failed')->orWhere(fn ($expired) => $expired->where('j.status', 'processing')->where(fn ($lease) => $lease->whereNull('j.lease_until')->orWhere('j.lease_until', '<=', now())))))
             ->when($status === 'needs_review', fn ($q) => $q->where(fn ($sub) => $sub->whereNotNull('e.id')->where('e.validation_status', '<>', 'validated')->orWhere('j.status', 'needs_review')))
             ->when($status === 'processed', fn ($q) => $q->where('e.validation_status', 'validated'));
 
