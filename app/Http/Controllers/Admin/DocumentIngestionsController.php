@@ -14,14 +14,20 @@ class DocumentIngestionsController extends Controller
     public function index(Request $request): View
     {
         $status = $request->query('status');
+        $type = $request->query('type');
+        $types = DB::table('invoice_extractions')->whereNotNull('document_type')->where('document_type', '<>', '')
+            ->distinct()->orderBy('document_type')->pluck('document_type');
         $jobs = DB::table('document_ingestions as j')->leftJoin('invoice_extractions as e', 'e.ingestion_id', '=', 'j.id')
             ->select('j.*', 'e.document_type', 'e.confidence', 'e.warnings', 'e.normalized_data', 'e.payload as extraction_payload', 'e.validation_status')
             ->when($status, fn ($q) => $q->where('j.status', $status))
+            ->when($type, fn ($q) => $type === 'unclassified'
+                ? $q->where(fn ($query) => $query->whereNull('e.document_type')->orWhere('e.document_type', ''))
+                : $q->where('e.document_type', $type))
             ->orderByRaw("CASE WHEN j.status='needs_review' THEN 0 WHEN j.status='failed' THEN 1 ELSE 2 END")
             ->orderByDesc('j.updated_at')->paginate(30)->withQueryString();
         $providers = DB::table('providers')->orderBy('name')->get(['id', 'name', 'rut']);
         $clients = DB::table('clients')->orderBy('name')->get(['id', 'name', 'rut']);
-        return view('admin.document-ingestions.index', compact('jobs', 'status', 'providers', 'clients'));
+        return view('admin.document-ingestions.index', compact('jobs', 'status', 'type', 'types', 'providers', 'clients'));
     }
 
     public function approve(Request $request, int $ingestion): RedirectResponse

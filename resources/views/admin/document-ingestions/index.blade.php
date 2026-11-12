@@ -3,16 +3,28 @@
 @section('content')
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <div><h1 class="h3 mb-1">Importaciones de documentos</h1><p class="text-muted mb-0">Revisa la extracción y asocia los jobs pendientes a la factura correcta.</p></div>
-        <a class="btn btn-outline-secondary" href="{{ route('admin.system-info.index') }}">Información del sistema</a>
+        <div><h1 class="h3 mb-1">Mantenedor de jobs</h1><p class="text-muted mb-0">Revisa importaciones, corrige los datos y administra reintentos.</p></div>
     </div>
+    <ul class="nav nav-tabs mb-4" aria-label="Secciones de administración">
+        <li class="nav-item"><a class="nav-link" href="{{ route('admin.system-info.index') }}">Información</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('admin.document-ingestions.index') }}">Mantenedor de jobs</a></li>
+    </ul>
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+    <h2 class="h6 text-muted mb-2">Tipo de documento</h2>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <a class="btn btn-sm {{ !$type?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$status])) }}">Todos los tipos</a>
+        @foreach($types as $documentType)
+            <a class="btn btn-sm {{ $type===$documentType?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$status, 'type'=>$documentType])) }}">{{ $documentType }}</a>
+        @endforeach
+        <a class="btn btn-sm {{ $type==='unclassified'?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$status, 'type'=>'unclassified'])) }}">Sin clasificar</a>
+    </div>
+    <h2 class="h6 text-muted mb-2">Estado</h2>
     <div class="d-flex gap-2 flex-wrap mb-3">
         @foreach(['needs_review'=>'Revisión','failed'=>'Fallidos','processing'=>'Procesando','completed'=>'Completados','ignored'=>'Omitidos'] as $key=>$label)
-            <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index',['status'=>$key]) }}">{{ $label }}</a>
+            <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$key, 'type'=>$type])) }}">{{ $label }}</a>
         @endforeach
-        <a class="btn btn-sm {{ !$status?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index') }}">Todos</a>
+        <a class="btn btn-sm {{ !$status?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['type'=>$type])) }}">Todos</a>
     </div>
     @forelse($jobs as $job)
         <article class="card mb-3">

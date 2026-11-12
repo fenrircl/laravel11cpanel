@@ -188,7 +188,7 @@
           },
           "conditions": [
             {
-              "leftValue": "={{ $json.document_type }}",
+              "leftValue": "={{ ($json.document_type === 'invoice' || $json.document_type === 'receipt' || ($json.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test($json.raw_text || '') && !/COTIZACI[ÓO]N/i.test($json.raw_text || ''))) ? 'invoice' : 'skip' }}",
               "rightValue": "invoice",
               "operator": {
                 "type": "string",
@@ -272,8 +272,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1750,
-        -140
+        2000,
+        -120
       ]
     },
     {
@@ -320,8 +320,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2000,
-        -140
+        2500,
+        -120
       ]
     },
     {
@@ -332,7 +332,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...$('Extraer datos del PDF').item.json } }}",
+        "jsonBody": "={{ (() => { const result = $('Extraer datos del PDF').item.json; const text = result.raw_text || ''; const looksLikeInvoice = result.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test(text) && !/COTIZACI[ÓO]N/i.test(text); return { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...result, document_type: looksLikeInvoice ? 'invoice' : result.document_type }; })() }}",
         "options": {
           "timeout": 30000
         }
@@ -342,8 +342,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2250,
-        -140
+        2750,
+        -120
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -364,6 +364,82 @@
       "position": [
         0,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1014",
+              "name": "action",
+              "value": "skip",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1014",
+      "name": "Marcar documento omitido",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1000,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8a204720-1a7c-4acb-bbef-a12355be1015",
+              "name": "action",
+              "value": "process",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1015",
+      "name": "Marcar PDF para carga",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1750,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "process",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "8a204720-1a7c-4acb-bbef-a12355be1016",
+      "name": "¿Subir PDF a R2?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2250,
+        -120
       ]
     }
   ],
@@ -434,7 +510,7 @@
         ],
         [
           {
-            "node": "Procesar un PDF a la vez",
+            "node": "Marcar documento omitido",
             "type": "main",
             "index": 0
           }
@@ -463,9 +539,9 @@
         ],
         [
           {
-            "node": "Procesar un PDF a la vez",
+            "node": "Conservar PDF y enlace R2",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -474,9 +550,9 @@
       "main": [
         [
           {
-            "node": "Conservar PDF y enlace R2",
+            "node": "Marcar PDF para carga",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
@@ -501,7 +577,7 @@
       "main": [
         [
           {
-            "node": "Subir PDF a R2",
+            "node": "¿Subir PDF a R2?",
             "type": "main",
             "index": 0
           }
@@ -533,6 +609,46 @@
     },
     "Guardar extracción en Laravel": {
       "main": [
+        [
+          {
+            "node": "Procesar un PDF a la vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar documento omitido": {
+      "main": [
+        [
+          {
+            "node": "Conservar PDF y enlace R2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Marcar PDF para carga": {
+      "main": [
+        [
+          {
+            "node": "Conservar PDF y enlace R2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "¿Subir PDF a R2?": {
+      "main": [
+        [
+          {
+            "node": "Subir PDF a R2",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Procesar un PDF a la vez",

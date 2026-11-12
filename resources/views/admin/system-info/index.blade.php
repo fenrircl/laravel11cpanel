@@ -12,16 +12,16 @@
         </span>
     </div>
 
+    <ul class="nav nav-tabs mb-4" aria-label="Secciones de administración">
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="{{ route('admin.system-info.index') }}">Información</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ route('admin.document-ingestions.index') }}">Mantenedor de jobs</a></li>
+    </ul>
+
     <div class="alert alert-info" role="note">
         Las versiones fijadas provienen de <code>composer.lock</code> y <code>package-lock.json</code> subidos al repositorio.
         Esto permite corroborar qué versiones contiene el despliegue; no consulta internet para determinar si existe una versión más nueva.
         Los paquetes npm se usan durante el build y pueden no estar instalados en cPanel.
     </div>
-
-    <div class="card mb-4"><div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div><strong>Importación de facturas PDF</strong><div class="small text-muted">Revisa documentos detectados, extracción y asociaciones pendientes.</div></div>
-        <a class="btn btn-outline-primary" href="{{ route('admin.document-ingestions.index') }}">Abrir mantenedor de jobs</a>
-    </div></div>
 
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
