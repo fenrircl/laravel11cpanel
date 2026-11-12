@@ -50,7 +50,18 @@
                         <td>{{ (int)($file->line_count ?? 0) }}</td>
                         <td>{{ $file->uploaded_at }}</td>
                         <td>
-                            @if($file->processing_status !== 'processed' && $file->processing_status !== 'processing')
+                            @if($file->processing_status === 'processing')
+                                <div class="d-flex flex-wrap gap-1">
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Iniciar otra ejecución ahora? La ejecución actual de n8n podría seguir activa.');">
+                                        @csrf
+                                        <button class="btn btn-sm btn-outline-primary" type="submit">Reintentar</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Cancelar el job en Laravel y liberar el bloqueo? Esto no detiene automáticamente n8n.');">
+                                        @csrf
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button>
+                                    </form>
+                                </div>
+                            @elseif($file->processing_status !== 'processed')
                                 <form method="POST" action="{{ route('admin.existing-invoice-pdfs.process', ['file'=>$file->file_id]) }}">
                                     @csrf
                                     <button class="btn btn-sm {{ $file->processing_status==='pending'?'btn-primary':'btn-outline-primary' }}" type="submit">{{ $file->processing_status==='pending'?'Procesar':'Reintentar' }}</button>

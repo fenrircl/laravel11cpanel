@@ -165,6 +165,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::get('/document-ingestions', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'index'])->name('document-ingestions.index');
         Route::get('/existing-invoice-pdfs', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'index'])->name('existing-invoice-pdfs.index');
         Route::post('/existing-invoice-pdfs/{file}/process', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'process'])->name('existing-invoice-pdfs.process');
+        Route::post('/existing-invoice-pdfs/{file}/retry', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'retry'])->name('existing-invoice-pdfs.retry');
+        Route::post('/existing-invoice-pdfs/{file}/cancel', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'cancel'])->name('existing-invoice-pdfs.cancel');
         Route::post('/document-ingestions/{ingestion}/approve', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'approve'])->name('document-ingestions.approve');
         Route::post('/document-ingestions/{ingestion}/retry', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'retry'])->name('document-ingestions.retry');
     });

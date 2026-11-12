@@ -380,72 +380,8 @@ class R2Controller extends Controller
         // Read raw DB values to avoid accessors changing bytes in legacy object keys.
         $record = DB::table('files_registry')->where('id', $file)->first();
         abort_unless($record, 404, 'Archivo no encontrado.');
-        $key = (string) $record->path;
-        if ($key === '' || $this->hasTraversalSegment($key)) abort(404, 'Archivo no encontrado.');
-        $decodedKey = $this->decodeLegacyPath($key);
-        if ($this->hasTraversalSegment($decodedKey)) abort(404, 'Archivo no encontrado.');
-
         $disk = Storage::disk('r2');
-        $candidate = null;
-        $pathVariants = [$key, trim($key), $decodedKey, trim($decodedKey), $this->normalizePath($decodedKey)];
-        if (str_contains($key, '%')) {
-            $decoded = rawurldecode($key);
-            $pathVariants[] = $decoded;
-            $pathVariants[] = $this->normalizePath($decoded);
-        }
-        if (str_contains($decodedKey, '%')) {
-            $decoded = rawurldecode($decodedKey);
-            $pathVariants[] = $decoded;
-            $pathVariants[] = $this->normalizePath($decoded);
-        }
-        foreach (array_unique($pathVariants) as $path) {
-            if ($path === '' || $this->hasTraversalSegment($path)) continue;
-            try {
-                if ($disk->exists($path)) {
-                    $candidate = $path;
-                    break;
-                }
-            } catch (\League\Flysystem\CorruptedPathDetected $exception) {
-                \Log::notice('Se omitió una variante de ruta R2 inválida', [
-                    'file_registry_id' => $record->id,
-                    'path_sha256' => hash('sha256', $path),
-                ]);
-            }
-        }
-        // Older registry rows can contain a filename with a different accent/encoding
-        // than the object key in R2. Search only the same parent directory and accept
-        // a filename whose accent/spacing-normalized form matches.
-        if ($candidate === null) {
-            try {
-                $candidate = $this->findAlternativeFilePath($decodedKey);
-                if ($candidate === null) {
-                    $candidate = $this->findAlternativeFilePath($this->normalizePath($decodedKey));
-                }
-            } catch (\Throwable $exception) {
-                \Log::notice('No se pudo buscar una variante Unicode de ruta R2', [
-                    'file_registry_id' => $record->id,
-                    'path_sha256' => hash('sha256', $key),
-                    'exception' => get_class($exception),
-                ]);
-            }
-        }
-        if ($candidate === null && class_exists(\Normalizer::class)) {
-            foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
-                $variant = \Normalizer::normalize($decodedKey, $form);
-                if (!$variant || $this->hasTraversalSegment($variant)) continue;
-                try {
-                    if ($disk->exists($variant)) {
-                        $candidate = $variant;
-                        break;
-                    }
-                } catch (\League\Flysystem\CorruptedPathDetected $exception) {
-                    \Log::notice('Se omitió una variante Unicode de ruta R2 inválida', [
-                        'file_registry_id' => $record->id,
-                        'path_sha256' => hash('sha256', $variant),
-                    ]);
-                }
-            }
-        }
+        $candidate = $this->resolveRegisteredR2Path($record, $disk);
         if ($candidate === null) {
             \Log::warning('Registered R2 object missing', ['file_registry_id' => $record->id, 'model_type' => $record->model_type, 'model_id' => $record->model_id]);
             abort(404, 'El archivo asociado no está disponible en R2.');
@@ -460,6 +396,75 @@ class R2Controller extends Controller
         );
 
         return $disk->response($candidate, $filename, ['Content-Type' => $mime]);
+    }
+
+    public function registeredR2Path(int $file): string
+    {
+        $record = DB::table('files_registry')->where('id', $file)->first();
+        abort_unless($record, 404, 'Archivo no encontrado.');
+        $candidate = $this->resolveRegisteredR2Path($record, Storage::disk('r2'));
+        abort_unless($candidate !== null, 404, 'El archivo asociado no está disponible en R2.');
+
+        return $candidate;
+    }
+
+    private function resolveRegisteredR2Path(object $record, $disk): ?string
+    {
+        $key = (string) $record->path;
+        if ($key === '' || $this->hasTraversalSegment($key)) return null;
+        $decodedKey = $this->decodeLegacyPath($key);
+        if ($this->hasTraversalSegment($decodedKey)) return null;
+
+        $pathVariants = [$key, trim($key), $decodedKey, trim($decodedKey), $this->normalizePath($decodedKey)];
+        foreach ([$key, $decodedKey] as $encodedPath) {
+            if (str_contains($encodedPath, '%')) {
+                $decoded = rawurldecode($encodedPath);
+                $pathVariants[] = $decoded;
+                $pathVariants[] = $this->normalizePath($decoded);
+            }
+        }
+        foreach (array_unique($pathVariants) as $path) {
+            if ($path === '' || $this->hasTraversalSegment($path)) continue;
+            try {
+                if ($disk->exists($path)) return $path;
+            } catch (\League\Flysystem\CorruptedPathDetected $exception) {
+                \Log::notice('Se omitió una variante de ruta R2 inválida', [
+                    'file_registry_id' => $record->id,
+                    'path_sha256' => hash('sha256', $path),
+                ]);
+            }
+        }
+
+        // Search the same parent directory for an accent/spacing-equivalent key.
+        foreach ([$decodedKey, $this->normalizePath($decodedKey)] as $searchPath) {
+            try {
+                $candidate = $this->findAlternativeFilePath($searchPath);
+                if ($candidate !== null) return $candidate;
+            } catch (\Throwable $exception) {
+                \Log::notice('No se pudo buscar una variante Unicode de ruta R2', [
+                    'file_registry_id' => $record->id,
+                    'path_sha256' => hash('sha256', $key),
+                    'exception' => get_class($exception),
+                ]);
+            }
+        }
+
+        if (class_exists(\Normalizer::class)) {
+            foreach ([\Normalizer::FORM_C, \Normalizer::FORM_D] as $form) {
+                $variant = \Normalizer::normalize($decodedKey, $form);
+                if (!$variant || $this->hasTraversalSegment($variant)) continue;
+                try {
+                    if ($disk->exists($variant)) return $variant;
+                } catch (\League\Flysystem\CorruptedPathDetected $exception) {
+                    \Log::notice('Se omitió una variante Unicode de ruta R2 inválida', [
+                        'file_registry_id' => $record->id,
+                        'path_sha256' => hash('sha256', $variant),
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 
     private function safeDownloadMime(?string $storedMime, ?string $detectedMime, string $filename, string $path): string

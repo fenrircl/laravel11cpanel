@@ -59,7 +59,7 @@ class ExistingInvoicePdfsController extends Controller
         return view('admin.existing-invoice-pdfs.index', compact('files', 'status'));
     }
 
-    public function process(Request $request, int $file): RedirectResponse
+    public function process(Request $request, int $file, bool $force = false): RedirectResponse
     {
         $record = DB::table('files_registry')->where('id', $file)->where('model_type', 'App\\Invoice')->first();
         abort_unless($record, 404, 'PDF asociado a una factura no encontrado.');
@@ -90,7 +90,7 @@ class ExistingInvoicePdfsController extends Controller
         $externalVersion = (string) ($record->created_at ?? '');
         $identity = ['source' => 'registered_pdf', 'external_id' => $externalId, 'external_version' => $externalVersion];
         $ingestion = DB::table('document_ingestions')->where($identity)->first();
-        if ($ingestion && $ingestion->status === 'processing' && $ingestion->lease_until && now()->lt($ingestion->lease_until)) {
+        if (!$force && $ingestion && $ingestion->status === 'processing' && $ingestion->lease_until && now()->lt($ingestion->lease_until)) {
             return back()->with('success', 'Este PDF ya está en proceso.');
         }
 
@@ -134,5 +134,37 @@ class ExistingInvoicePdfsController extends Controller
             'Solicitó a n8n extraer ítems del PDF de la factura #' . $record->model_id . '.');
 
         return back()->with('success', 'PDF enviado a n8n. Los ítems se guardarán solo si la extracción supera las validaciones; de lo contrario quedará en revisión.');
+    }
+
+    public function retry(Request $request, int $file): RedirectResponse
+    {
+        return $this->process($request, $file, true);
+    }
+
+    public function cancel(Request $request, int $file): RedirectResponse
+    {
+        $record = DB::table('files_registry')->where('id', $file)->where('model_type', 'App\\Invoice')->first();
+        abort_unless($record, 404, 'PDF asociado a una factura no encontrado.');
+
+        $identity = [
+            'source' => 'registered_pdf',
+            'external_id' => (string) $record->id,
+            'external_version' => (string) ($record->created_at ?? ''),
+        ];
+        $ingestion = DB::table('document_ingestions')->where($identity)->first();
+        if (!$ingestion || $ingestion->status !== 'processing') {
+            return back()->withErrors(['process' => 'El job ya no está en estado Procesando.']);
+        }
+
+        DB::table('document_ingestions')->where('id', $ingestion->id)->update([
+            'status' => 'failed',
+            'last_error' => 'Cancelado manualmente desde el panel; n8n podría seguir ejecutando la petición actual.',
+            'lease_until' => null,
+            'updated_at' => now(),
+        ]);
+        AuditLogger::log($request, 'cancel_processing', 'invoice_documents', $record->id,
+            'Liberó manualmente el job de procesamiento de la factura #' . $record->model_id . '.');
+
+        return back()->with('success', 'Job cancelado en Laravel y liberado para reintentar. La ejecución que ya comenzó en n8n no se detiene automáticamente.');
     }
 }

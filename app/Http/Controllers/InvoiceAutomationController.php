@@ -39,9 +39,17 @@ class InvoiceAutomationController extends Controller
 
     public function existingDocumentUrl(int $file): JsonResponse
     {
-        $record = FilesRegistry::query()->whereKey($file)->where('model_type', 'App\\Invoice')->firstOrFail();
-        abort_unless(strtolower((string)$record->mime_type) === 'application/pdf' || str_ends_with(strtolower((string)$record->file_name), '.pdf'), 422, 'El archivo no es PDF.');
-        $url = Storage::disk('r2')->temporaryUrl($record->path, now()->addMinutes(15));
+        $record = DB::table('files_registry')->where('id', $file)->first();
+        abort_unless($record && DB::table('invoices')->where('id', $record->model_id)->exists(), 404, 'PDF asociado a factura no encontrado.');
+        $mime = strtolower(trim(preg_replace('/[\\x00-\\x20\\x7F-\\x9F]/', '', (string) $record->mime_type) ?? ''));
+        $fileName = preg_replace('/[\\x00-\\x1F\\x7F]/', '', (string) $record->file_name) ?? '';
+        $path = preg_replace('/[\\x00-\\x1F\\x7F]/', '', (string) $record->path) ?? '';
+        $isPdf = in_array($mime, ['application/pdf', 'application/x-pdf'], true)
+            || preg_match('/\\.pdf(?:$|[^a-z0-9])/i', $fileName) === 1
+            || preg_match('/\\.pdf(?:$|[^a-z0-9])/i', $path) === 1;
+        abort_unless($isPdf, 422, 'El archivo no es PDF.');
+        $key = app(R2Controller::class)->registeredR2Path($file);
+        $url = Storage::disk('r2')->temporaryUrl($key, now()->addMinutes(15));
         return response()->json(['file_id' => $record->id, 'download_url' => $url, 'expires_in' => 900]);
     }
 
