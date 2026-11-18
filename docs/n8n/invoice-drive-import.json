@@ -342,7 +342,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => { const result = $('Normalizar resultado OCR').item.json; const text = result.raw_text || ''; const looksLikeInvoice = result.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test(text) && !/COTIZACI[ÓO]N/i.test(text); return { adapter_version: 'pdf-api-1.0-to-invoice-v1', ...result, document_type: looksLikeInvoice ? 'invoice' : result.document_type }; })() }}",
+        "jsonBody": "={{ (() => { const result = $('Normalizar resultado OCR').item.json; const api = result.body || result; const text = api.raw_text || ''; const looksLikeInvoice = api.document_type === 'unknown' && /FACTURA\\s+ELECTR[ÓO]NICA/i.test(text) && !/COTIZACI[ÓO]N/i.test(text); return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: looksLikeInvoice ? 'invoice' : api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
         "options": {
           "timeout": 30000
         }

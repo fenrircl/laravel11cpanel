@@ -170,25 +170,23 @@ class InvoiceAutomationController extends Controller
 
     public function storeExtraction(Request $request, string $ingestion): JsonResponse
     {
-        $request->validate([
-            'adapter_version' => ['required', 'string', 'max:64'],
-            'request_id' => ['required_without:extraction', 'nullable', 'string', 'max:100'],
-            'document_type' => ['required_without:extraction', 'nullable', 'string', 'max:48'],
-            'data' => ['required_without:extraction', 'nullable', 'array'],
-            'extraction' => ['sometimes', 'array'],
-            'extraction.request_id' => ['nullable', 'string', 'max:100'],
-            'extraction.document_type' => ['nullable', 'string', 'max:48'],
-            'extraction.data' => ['nullable', 'array'],
-        ]);
-        // The PDF API returns the extraction fields at the top level. Accept the earlier
-        // wrapped form too, so existing n8n drafts can be migrated without data loss.
         $data = $request->all();
-        // The PDF service itself has an `extraction` metadata object at the top
-        // level. Detect its envelope by the actual business fields, not by key name.
-        $isApiEnvelope = isset($data['request_id'], $data['document_type'], $data['data']);
-        $ex = $isApiEnvelope ? $data : (($data['extraction']['data'] ?? null) !== null ? $data['extraction'] : $data);
-        if (!isset($ex['source']) && isset($data['source'])) $ex['source'] = $data['source'];
-        if (!isset($ex['extraction']) && isset($data['extraction_metadata'])) $ex['extraction'] = $data['extraction_metadata'];
+        // n8n HTTP Request can return the API response directly or nested in `body`
+        // (when response headers/status are included). Also tolerate the previous
+        // wrapped callback format. The PDF API itself has an `extraction` metadata
+        // object, so detect envelopes by business fields instead of that key alone.
+        $candidate = is_array($data['body'] ?? null) ? $data['body'] : $data;
+        if (is_array($candidate['result'] ?? null)) {
+            $candidate = $candidate['result'];
+        }
+        $data = array_merge($data, ['adapter_version' => $data['adapter_version'] ?? $candidate['adapter_version'] ?? 'pdf-api-1.0-to-invoice-v1']);
+        $isApiEnvelope = isset($candidate['request_id'], $candidate['document_type'], $candidate['data']);
+        $wrapped = is_array($candidate['extraction'] ?? null) && isset($candidate['extraction']['data']);
+        $ex = $isApiEnvelope ? $candidate : ($wrapped ? $candidate['extraction'] : $candidate);
+        foreach (['source', 'extraction', 'raw_text', 'confidence', 'warnings', 'schema_version', 'request_id', 'document_type', 'document_subtype', 'data'] as $field) {
+            if (!array_key_exists($field, $ex) && array_key_exists($field, $candidate)) $ex[$field] = $candidate[$field];
+        }
+        Validator::make($data, ['adapter_version' => ['required', 'string', 'max:64']])->validate();
         Validator::make($ex, [
             'request_id' => ['required', 'string', 'max:100'], 'document_type' => ['required', 'string', 'max:48'],
             'data' => ['required', 'array'], 'source.sha256' => ['nullable', 'regex:/^[a-f0-9]{64}$/i'],

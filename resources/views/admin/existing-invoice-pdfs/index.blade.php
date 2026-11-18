@@ -17,12 +17,23 @@
         @endforeach
     </div>
 
+    @if($status === 'pending')
+        <form id="bulk-process-pdfs" method="POST" action="{{ route('admin.existing-invoice-pdfs.process-bulk') }}" class="card border-primary-subtle mb-3">
+            @csrf
+            <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
+                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los pendientes de esta página</label></div>
+                <button class="btn btn-primary" type="submit" id="process-selected" disabled>Procesar seleccionados (<span id="selected-count">0</span>)</button>
+            </div>
+        </form>
+    @endif
+
     <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead><tr><th>PDF / factura</th><th>Contraparte</th><th>Estado</th><th>Extracción</th><th>Ítems</th><th>Subido</th><th>Acción</th></tr></thead>
+        <table class="table table-striped table-hover align-middle existing-pdfs-table">
+            <thead><tr>@if($status === 'pending')<th scope="col">Seleccionar</th>@endif<th>PDF / factura</th><th>Contraparte</th><th>Estado</th><th>Extracción</th><th>Ítems</th><th>Subido</th><th>Último intento</th><th>Acción</th></tr></thead>
             <tbody>
                 @forelse($files as $file)
                     <tr>
+                        @if($status === 'pending')<td><div class="form-check"><input class="form-check-input pending-pdf-checkbox" type="checkbox" name="file_ids[]" value="{{ $file->file_id }}" form="bulk-process-pdfs" aria-label="Seleccionar {{ $file->file_name ?: 'PDF '.$file->file_id }}"></div></td>@endif
                         <td>
                             <strong>{{ $file->file_name ?: basename((string)$file->path) }}</strong>
                             <div class="small text-muted">Factura #{{ $file->invoice_number }} · ID {{ $file->invoice_id }}</div>
@@ -61,6 +72,7 @@
                         </td>
                         <td>{{ (int)($file->line_count ?? 0) }}</td>
                         <td>{{ $file->uploaded_at }}</td>
+                        <td>@if($file->last_attempt_at)<span>{{ \Illuminate\Support\Carbon::parse($file->last_attempt_at)->timezone(config('app.timezone'))->format('d/m/Y H:i:s') }}</span><div class="small text-muted">Intento {{ (int)($file->processing_attempts ?? 0) }}</div>@else<span class="text-muted">Sin intentos</span>@endif</td>
                         <td>
                             @if($file->processing_status === 'processing')
                                 <div class="d-flex flex-wrap gap-1">
@@ -84,7 +96,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
+                    <tr><td colspan="{{ $status === 'pending' ? 9 : 8 }}" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -196,6 +208,27 @@
 </div>
 @endsection
 
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const boxes = [...document.querySelectorAll('.pending-pdf-checkbox')];
+    const all = document.getElementById('select-all-pending');
+    const button = document.getElementById('process-selected');
+    const count = document.getElementById('selected-count');
+    const update = () => {
+        const checked = boxes.filter(box => box.checked).length;
+        if (count) count.textContent = checked;
+        if (button) button.disabled = checked === 0;
+    };
+    all?.addEventListener('change', () => { boxes.forEach(box => box.checked = all.checked); update(); });
+    boxes.forEach(box => box.addEventListener('change', update));
+    document.getElementById('bulk-process-pdfs')?.addEventListener('submit', event => {
+        if (!confirm(`¿Enviar ${boxes.filter(box => box.checked).length} PDF(s) a procesar?`)) event.preventDefault();
+    });
+});
+</script>
+@endpush
+
 @push('styles')
 <style>
 .existing-pdf-pagination .pagination svg,
@@ -213,5 +246,7 @@
     justify-content: center;
     gap: .25rem;
 }
+.existing-pdfs-table th { white-space: nowrap; }
+.existing-pdfs-table td { min-width: 105px; }
 </style>
 @endpush

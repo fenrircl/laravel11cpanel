@@ -167,6 +167,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
         Route::get('/document-ingestions/{ingestion}/pages/{page}/recent-invoices', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'recentInvoices'])->whereNumber('ingestion')->whereNumber('page')->name('document-ingestions.recent-invoices');
         Route::delete('/document-ingestions/{ingestion}', [\App\Http\Controllers\Admin\DocumentIngestionsController::class, 'discard'])->whereNumber('ingestion')->name('document-ingestions.discard');
         Route::get('/existing-invoice-pdfs', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'index'])->name('existing-invoice-pdfs.index');
+        Route::post('/existing-invoice-pdfs/process-bulk', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'processBulk'])->name('existing-invoice-pdfs.process-bulk');
         Route::post('/existing-invoice-pdfs/{file}/process', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'process'])->name('existing-invoice-pdfs.process');
         Route::post('/existing-invoice-pdfs/{file}/retry', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'retry'])->name('existing-invoice-pdfs.retry');
         Route::post('/existing-invoice-pdfs/{file}/cancel', [\App\Http\Controllers\Admin\ExistingInvoicePdfsController::class, 'cancel'])->name('existing-invoice-pdfs.cancel');

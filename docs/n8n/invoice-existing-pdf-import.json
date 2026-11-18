@@ -208,7 +208,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {adapter_version:'pdf-api-1.0-to-invoice-v1',...$('Extraer datos PDF').item.json} }}",
+        "jsonBody": "={{ (() => { const result = $('Extraer datos PDF').item.json; const api = result.body || result; return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
         "options": {
           "timeout": 30000
         }

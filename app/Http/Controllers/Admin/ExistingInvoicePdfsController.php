@@ -45,6 +45,7 @@ class ExistingInvoicePdfsController extends Controller
                 'e.id as extraction_id', 'e.document_type', 'e.confidence', 'e.validation_status', 'e.warnings',
                 'e.normalized_data as extracted_normalized_data', 'e.payload as extraction_payload', 'e.processed_at as extraction_processed_at',
                 'j.status as ingestion_status', 'j.last_error', 'lc.line_count',
+                'j.attempts as processing_attempts', 'j.updated_at as last_attempt_at',
             ])
             ->selectRaw("CASE WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
             ->selectRaw("CASE WHEN j.status = 'processing' AND (j.lease_until IS NULL OR j.lease_until <= CURRENT_TIMESTAMP) THEN 'n8n no confirmó el resultado antes de vencer el tiempo de procesamiento.' ELSE j.last_error END as processing_error");
@@ -159,6 +160,35 @@ class ExistingInvoicePdfsController extends Controller
     public function retry(Request $request, int $file): RedirectResponse
     {
         return $this->process($request, $file, true);
+    }
+
+    public function processBulk(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['file_ids' => ['required', 'array', 'min:1', 'max:50'], 'file_ids.*' => ['required', 'integer', 'distinct']]);
+        $queued = 0;
+        foreach ($data['file_ids'] as $fileId) {
+            $record = DB::table('files_registry')->where('id', $fileId)->where('model_type', 'App\\Invoice')->first();
+            if (!$record) continue;
+            $alreadyProcessed = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->where('validation_status', 'validated')->exists();
+            if ($alreadyProcessed) continue;
+
+            $identity = ['source' => 'registered_pdf', 'external_id' => (string)$record->id, 'external_version' => (string)($record->created_at ?? '')];
+            $job = DB::table('document_ingestions')->where($identity)->first();
+            if ($job && $job->status === 'processing' && $job->lease_until && now()->lt($job->lease_until)) continue;
+            if ($job) DB::table('document_ingestions')->where('id', $job->id)->update(['status'=>'processing','attempts'=>DB::raw('attempts + 1'),'last_error'=>null,'lease_until'=>now()->addMinutes(30),'updated_at'=>now()]);
+            else DB::table('document_ingestions')->insert($identity + ['uuid'=>\Illuminate\Support\Str::uuid(),'filename'=>$record->file_name ?: basename((string)$record->path),'mime_type'=>$record->mime_type ?: 'application/pdf','size_bytes'=>$record->size,'invoice_id'=>$record->model_id,'file_registry_id'=>$record->id,'status'=>'processing','attempts'=>1,'lease_until'=>now()->addMinutes(30),'created_at'=>now(),'updated_at'=>now()]);
+
+            try {
+                $response = Http::acceptJson()->withToken((string)config('services.n8n.ingest_bearer'))->connectTimeout(5)->timeout(15)
+                    ->post((string)config('services.n8n.existing_pdf_process_webhook_url'), ['file_id'=>(int)$record->id]);
+                if ($response->successful()) $queued++;
+                else DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'n8n rechazó el inicio (HTTP '.$response->status().').','lease_until'=>null,'updated_at'=>now()]);
+            } catch (\Throwable $e) {
+                report($e);
+                DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'No se pudo conectar con n8n.','lease_until'=>null,'updated_at'=>now()]);
+            }
+        }
+        return back()->with('success', "Se enviaron {$queued} PDF(s) a n8n.");
     }
 
     public function cancel(Request $request, int $file): RedirectResponse
