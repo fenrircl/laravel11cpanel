@@ -113,7 +113,7 @@
                         </td>
                         <td>
                             @if(($log->module === 'facturas') && $log->reversible)
-                                <form method="POST" action="{{ route('admin.audit.restore', $log->id) }}" onsubmit="return confirm('¿Restaurar este cambio?');">
+                                <form method="POST" action="{{ route('admin.audit.restore', $log->id) }}" data-swal-confirm="Se aplicarán los valores anteriores registrados en la auditoría." data-swal-title="¿Restaurar este cambio?" data-swal-confirm-button="Restaurar">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-undo"></i> Revertir

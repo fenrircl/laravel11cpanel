@@ -8,9 +8,6 @@
         </div>
     </div>
     @include('admin._quick-nav', ['active' => 'pdfs'])
-    @if(session('success'))<div class="alert alert-success" role="status">{{ session('success') }}</div>@endif
-    @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-
     <div class="d-flex gap-2 flex-wrap mb-3" aria-label="Filtrar PDFs">
         @foreach(['pending'=>'Pendientes','queued'=>'En cola','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallidos','processed'=>'Procesados','all'=>'Todos'] as $key=>$label)
             <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.existing-invoice-pdfs.index', array_merge(request()->query(), ['status'=>$key])) }}">{{ $label }}</a>
@@ -18,7 +15,7 @@
     </div>
 
     @if(in_array($status, ['pending', 'failed', 'needs_review'], true))
-        <form id="bulk-process-pdfs" method="POST" action="{{ route('admin.existing-invoice-pdfs.process-bulk') }}" class="card border-primary-subtle mb-3">
+    <form id="bulk-process-pdfs" method="POST" action="{{ route('admin.existing-invoice-pdfs.process-bulk') }}" class="card border-primary-subtle mb-3" data-swal-confirm="Enviar {count} PDF(s) seleccionados a n8n?" data-swal-count-selector="#selected-count" data-swal-title="Confirmar procesamiento" data-swal-confirm-button="Enviar">
             @csrf
             <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
                 <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los {{ $status === 'failed' ? 'fallidos' : ($status === 'needs_review' ? 'pendientes de revisión' : 'pendientes') }} de esta página</label></div>
@@ -102,11 +99,11 @@
                         <td>
                             @if($file->processing_status === 'processing')
                                 <div class="d-flex flex-wrap gap-1">
-                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Iniciar otra ejecución ahora? La ejecución actual de n8n podría seguir activa.');">
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" data-swal-confirm="La ejecución actual de n8n podría seguir activa." data-swal-title="¿Iniciar otra ejecución?" data-swal-confirm-button="Reintentar">
                                         @csrf
                                         <button class="btn btn-sm btn-outline-primary" type="submit">Reintentar</button>
                                     </form>
-                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Cancelar el job en Laravel y liberar el bloqueo? Esto no detiene automáticamente n8n.');">
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" data-swal-confirm="Esto no detiene automáticamente n8n." data-swal-title="¿Cancelar el job?" data-swal-confirm-button="Cancelar job">
                                         @csrf
                                         <button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button>
                                     </form>
@@ -118,7 +115,7 @@
                                 <span class="text-muted small">Esperando respuesta del workflow</span>
                                 @if($lastActivityAt && \Illuminate\Support\Carbon::parse($lastActivityAt)->lt(now()->subMinutes(15)))
                                     <div class="small text-danger mt-1">Sin actualización hace más de 15 min. Revisa la ejecución en n8n.</div>
-                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" class="mt-1" onsubmit="return confirm('Detén primero la ejecución correspondiente en n8n. ¿Liberar este job en Laravel para que aparezca en Fallidas y puedas reintentarlo?');">
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" class="mt-1" data-swal-confirm="Detén primero la ejecución correspondiente en n8n para evitar duplicados." data-swal-title="¿Liberar este job estancado?" data-swal-confirm-button="Liberar job">
                                         @csrf
                                         <button class="btn btn-sm btn-outline-danger" type="submit">Liberar job estancado</button>
                                     </form>
@@ -129,7 +126,7 @@
                                     <button class="btn btn-sm {{ $file->processing_status==='pending'?'btn-primary':'btn-outline-primary' }}" type="submit">{{ $file->processing_status==='pending'?'Procesar':'Reintentar' }}</button>
                                 </form>
                             @elseif($file->processing_status === 'processed')
-                                <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Volver a extraer este PDF? Los ítems actuales se reemplazarán si la nueva extracción pasa las validaciones.');">
+                                <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" data-swal-confirm="Los ítems actuales se reemplazarán si la nueva extracción pasa las validaciones." data-swal-title="¿Volver a extraer este PDF?" data-swal-confirm-button="Reprocesar">
                                     @csrf
                                     <button class="btn btn-sm btn-outline-primary" type="submit">Reprocesar PDF</button>
                                 </form>
@@ -281,9 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     all?.addEventListener('change', () => { boxes.forEach(box => box.checked = all.checked); update(); });
     boxes.forEach(box => box.addEventListener('change', update));
-    document.getElementById('bulk-process-pdfs')?.addEventListener('submit', event => {
-        if (!confirm(`¿Enviar ${boxes.filter(box => box.checked).length} PDF(s) a n8n?`)) event.preventDefault();
-    });
 });
 </script>
 @endpush

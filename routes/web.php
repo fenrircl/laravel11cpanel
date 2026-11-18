@@ -146,6 +146,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
 
     // Administración
     Route::prefix('admin')->name('admin.')->middleware('admin.role')->group(function(){
+        Route::get('/kpi', [\App\Http\Controllers\Admin\KpiController::class, 'index'])->name('kpi.index');
         Route::get('/users', [\App\Http\Controllers\Admin\UsersController::class, 'index'])->name('users.index');
         Route::post('/users', [\App\Http\Controllers\Admin\UsersController::class, 'store'])->name('users.store');
         Route::put('/users/{user}', [\App\Http\Controllers\Admin\UsersController::class, 'update'])->name('users.update');

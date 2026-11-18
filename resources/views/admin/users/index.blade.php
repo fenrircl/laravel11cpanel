@@ -58,19 +58,6 @@
     </header>
     @include('admin._quick-nav', ['active' => 'users'])
 
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="status">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-        </div>
-    @endif
-    @if($errors->has('user'))
-        <div class="alert alert-danger" role="alert">{{ $errors->first('user') }}</div>
-    @endif
-    @if($errors->any() && !$errors->has('user'))
-        <div class="alert alert-danger" role="alert"><strong>Revisa los datos del formulario.</strong><ul class="mb-0 mt-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-    @endif
-
     <div class="users-stats" aria-label="Resumen de usuarios">
         <div class="users-stat"><strong>{{ $users->count() }}</strong><span>Cuentas</span></div>
         <div class="users-stat"><strong>{{ $users->where('is_active', true)->count() }}</strong><span>Habilitadas</span></div>
@@ -112,7 +99,7 @@
                                         <i class="fas {{ $user->is_active ? 'fa-user-slash' : 'fa-user-check' }}" aria-hidden="true"></i>
                                     </button>
                                 </form>
-                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('¿Eliminar definitivamente esta cuenta?')">
+                                <form method="POST" action="{{ route('admin.users.destroy', $user) }}" data-swal-confirm="Esta acción no se puede deshacer." data-swal-title="¿Eliminar definitivamente esta cuenta?" data-swal-confirm-button="Eliminar">
                                     @csrf @method('DELETE')
                                     <button class="btn btn-sm btn-outline-danger" type="submit" {{ auth()->id() === $user->id ? 'disabled' : '' }} aria-label="Eliminar {{ $user->name }}" title="Eliminar"><i class="fas fa-trash" aria-hidden="true"></i></button>
                                 </form>

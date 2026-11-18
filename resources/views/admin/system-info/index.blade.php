@@ -15,13 +15,6 @@
 
     <details class="card mb-3"><summary class="card-header">Información del despliegue</summary><div class="card-body small text-muted">Las versiones fijadas provienen de los archivos lock del repositorio. Los paquetes npm se usan durante el build y pueden no estar instalados en cPanel.</div></details>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if($errors->any())
-        <div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-    @endif
-
     <div class="card mb-4" id="assistant-config">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span class="fw-semibold">Configuración del chatbot</span>
@@ -69,9 +62,6 @@
                     <dt class="col-sm-4">Access key / Secret</dt><dd class="col-sm-8">{{ $r2Configuration['access_key_set'] ? 'Access key configurada' : 'Access key ausente' }} · {{ $r2Configuration['secret_set'] ? 'Secret configurado' : 'Secret ausente' }}</dd>
                     <dt class="col-sm-4">Caché de configuración</dt><dd class="col-sm-8">{{ $r2Configuration['config_cached'] ? 'Activa (los cambios en .env no se aplican hasta limpiar la caché)' : 'Inactiva' }}</dd>
                 </dl><p class="text-muted mt-2 mb-0">No valida la firma de carga PUT.</p></details>
-                @if(session('r2_check'))
-                    <div class="alert {{ session('r2_check.ok') ? 'alert-success' : 'alert-danger' }} mt-3 mb-0" role="status">{{ session('r2_check.message') }}</div>
-                @endif
             </div>
             <form method="POST" action="{{ route('admin.system-info.r2-check') }}">@csrf<button class="btn btn-outline-primary" type="submit">Verificar acceso a R2</button></form>
         </div>

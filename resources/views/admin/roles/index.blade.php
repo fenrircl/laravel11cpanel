@@ -59,7 +59,7 @@
                             </td>
                             <td>{{ $role->slug }}</td>
                             <td>
-                                <form method="POST" action="{{ route('admin.roles.destroy', $role) }}" onsubmit="return confirm('¿Eliminar rol?')">
+                                <form method="POST" action="{{ route('admin.roles.destroy', $role) }}" data-swal-confirm="Los usuarios asociados podrían perder los permisos de este rol." data-swal-title="¿Eliminar este rol?" data-swal-confirm-button="Eliminar">
                                     @csrf
                                     @method('DELETE')
                                     <button class="btn btn-sm btn-danger">Eliminar</button>

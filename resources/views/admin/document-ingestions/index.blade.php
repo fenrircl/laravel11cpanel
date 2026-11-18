@@ -6,8 +6,6 @@
         <div><h1 class="h3 mb-1">Jobs de importación</h1></div>
     </div>
     @include('admin._quick-nav', ['active' => 'jobs'])
-    @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
-    @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <h2 class="h6 text-muted mb-2">Tipo de documento</h2>
     <div class="d-flex gap-2 flex-wrap mb-3">
         <a class="btn btn-sm {{ !$type?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.document-ingestions.index', array_filter(['status'=>$status])) }}">Todos los tipos</a>
@@ -295,7 +293,7 @@
                     <form method="POST" action="{{ route('admin.document-ingestions.retry',$job->id) }}" class="mt-2">@csrf<button class="btn btn-outline-secondary btn-sm" type="submit">Enviar a cola de reintento</button></form>
                 @endif
                 @if(!$job->file_registry_id && !$job->invoice_id && $job->status !== 'ignored')
-                    <form method="POST" action="{{ route('admin.document-ingestions.discard', $job->id) }}" class="mt-2" onsubmit="return confirm('Se eliminará el PDF de R2 y el job quedará como omitido. ¿Quieres continuar?')">
+                                    <form method="POST" action="{{ route('admin.document-ingestions.discard', $job->id) }}" class="mt-2" data-swal-confirm="Se eliminará el PDF de R2 y el job quedará como omitido." data-swal-title="¿Descartar esta importación?" data-swal-confirm-button="Descartar">
                         @csrf @method('DELETE')
                         <button class="btn btn-outline-danger btn-sm" type="submit">Descartar PDF y eliminar de R2</button>
                     </form>

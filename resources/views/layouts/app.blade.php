@@ -100,6 +100,44 @@
     
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    document.addEventListener('submit', function (event) {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || !form.dataset.swalConfirm || !window.Swal) return;
+        if (form.dataset.swalConfirmed === 'true') {
+            delete form.dataset.swalConfirmed;
+            return;
+        }
+        event.preventDefault();
+        if (form.dataset.swalPending === 'true') return;
+        form.dataset.swalPending = 'true';
+        let text = form.dataset.swalConfirm;
+        if (form.dataset.swalCountSelector) {
+            const count = document.querySelector(form.dataset.swalCountSelector)?.textContent?.trim() || '0';
+            text = text.replace('{count}', count);
+        }
+        Swal.fire({
+            title: form.dataset.swalTitle || '¿Confirmas esta acción?',
+            text,
+            icon: form.dataset.swalIcon || 'warning',
+            showCancelButton: true,
+            confirmButtonText: form.dataset.swalConfirmButton || 'Continuar',
+            cancelButtonText: form.dataset.swalCancelButton || 'Cancelar',
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+            delete form.dataset.swalPending;
+            if (!result.isConfirmed) return;
+            form.dataset.swalConfirmed = 'true';
+            if (typeof form.requestSubmit === 'function') {
+                if (event.submitter && event.submitter.form === form) form.requestSubmit(event.submitter);
+                else form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        });
+    }, true);
+    </script>
 
     <!-- Select2 -->
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
