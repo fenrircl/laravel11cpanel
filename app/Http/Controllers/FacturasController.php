@@ -124,8 +124,20 @@ class FacturasController extends Controller
                           ->whereNotNull('provider_id')
                           ->select(['id', 'invoice', 'provider_id', 'date', 'expiry', 'pay_date', 'amount', 'payment_method_id', 'status', 'check', 'extra', 'created_at', 'updated_at','detail'])
                           ->orderBy('created_at', 'desc')
-                          ->get()
-                          ->map(function ($factura) {
+                          ->get();
+        $invoiceIds = $facturas->pluck('id');
+        $fileIds = $facturas->flatMap(fn ($factura) => $factura->archivos->pluck('id'))->unique();
+        $extractions = DB::table('invoice_extractions')
+            ->where(function ($query) use ($invoiceIds, $fileIds) {
+                $query->whereIn('invoice_id', $invoiceIds);
+                if ($fileIds->isNotEmpty()) {
+                    $query->orWhereIn('file_registry_id', $fileIds);
+                }
+            })
+            ->orderByDesc('id')
+            ->get(['invoice_id', 'file_registry_id', 'payload', 'normalized_data']);
+
+        $facturas = $facturas->map(function ($factura) use ($extractions) {
                               $arr = $factura->toArray();
                               $arr['has_file'] = $factura->archivo ? true : false;
                               $arr['has_pdf'] = $factura->has_pdf;
@@ -135,6 +147,25 @@ class FacturasController extends Controller
                               $arr['file_id'] = $factura->archivo?->id;
                               // Forzar amount entero en la respuesta
                               $arr['amount'] = (int) round($factura->amount);
+                              $facturaFileIds = $factura->archivos->pluck('id')->map(fn ($id) => (int) $id);
+                              $latestExtraction = $extractions->first(fn ($extraction) =>
+                                  (int) $extraction->invoice_id === (int) $factura->id
+                                  || ($extraction->file_registry_id !== null && $facturaFileIds->contains((int) $extraction->file_registry_id))
+                              );
+                              $payload = json_decode((string) ($latestExtraction->payload ?? '{}'), true);
+                              if (is_string($payload)) {
+                                  $payload = json_decode($payload, true);
+                              }
+                              $normalizedData = json_decode((string) ($latestExtraction->normalized_data ?? '{}'), true);
+                              if (is_string($normalizedData)) {
+                                  $normalizedData = json_decode($normalizedData, true);
+                              }
+                              $extractedData = is_array($normalizedData) && $normalizedData !== []
+                                  ? $normalizedData
+                                  : (array) data_get($payload, 'data', []);
+                              $arr['line_items'] = is_array($extractedData['line_items'] ?? null)
+                                  ? $extractedData['line_items']
+                                  : [];
                               return $arr;
                           });
         return response()->json([
