@@ -13,7 +13,7 @@
 
     <div class="d-flex gap-2 flex-wrap mb-3" aria-label="Filtrar PDFs">
         @foreach(['pending'=>'Pendientes','queued'=>'En cola','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallidos','processed'=>'Procesados','all'=>'Todos'] as $key=>$label)
-            <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.existing-invoice-pdfs.index', ['status'=>$key]) }}">{{ $label }}</a>
+            <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.existing-invoice-pdfs.index', array_merge(request()->query(), ['status'=>$key])) }}">{{ $label }}</a>
         @endforeach
     </div>
 
@@ -27,9 +27,25 @@
         </form>
     @endif
 
+    @php
+        $sortUrl = function ($column) use ($sort, $direction) {
+            $nextDirection = $sort === $column && $direction === 'asc' ? 'desc' : 'asc';
+            return route('admin.existing-invoice-pdfs.index', array_merge(request()->query(), ['sort' => $column, 'direction' => $nextDirection]));
+        };
+    @endphp
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle existing-pdfs-table">
-            <thead><tr>@if(in_array($status, ['pending','failed'], true))<th scope="col">Seleccionar</th>@endif<th>PDF / factura</th><th>Contraparte</th><th>Estado</th><th>Extracción</th><th>Ítems</th><th>Subido</th><th>Último intento</th><th>Acción</th></tr></thead>
+            <thead><tr>
+                @if(in_array($status, ['pending','failed'], true))<th scope="col">Seleccionar</th>@endif
+                <th scope="col" aria-sort="{{ $sort === 'file' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('file') }}">PDF / factura @if($sort === 'file')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'counterparty' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('counterparty') }}">Contraparte @if($sort === 'counterparty')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'status' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('status') }}">Estado @if($sort === 'status')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'extraction' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('extraction') }}">Extracción @if($sort === 'extraction')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'items' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('items') }}">Ítems @if($sort === 'items')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'uploaded' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('uploaded') }}">Subido @if($sort === 'uploaded')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col" aria-sort="{{ $sort === 'last_attempt' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('last_attempt') }}">Último intento @if($sort === 'last_attempt')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
+                <th scope="col">Acción</th>
+            </tr></thead>
             <tbody>
                 @forelse($files as $file)
                     <tr>
@@ -73,7 +89,7 @@
                         </td>
                         <td>{{ (int)($file->line_count ?? 0) }}</td>
                         <td>{{ $file->uploaded_at }}</td>
-                        <td>@if($file->last_attempt_at)<span>{{ \Illuminate\Support\Carbon::parse($file->last_attempt_at)->timezone(config('app.timezone'))->format('d/m/Y H:i:s') }}</span><div class="small text-muted">Intento {{ (int)($file->processing_attempts ?? 0) }}</div>@else<span class="text-muted">Sin intentos</span>@endif</td>
+                        <td>@php($lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at)@if($lastActivityAt)<span>{{ \Illuminate\Support\Carbon::parse($lastActivityAt)->timezone(config('app.timezone'))->format('d/m/Y H:i:s') }}</span>@if($file->processing_attempts)<div class="small text-muted">Intento {{ (int)$file->processing_attempts }}</div>@endif @else<span class="text-muted">Sin intentos</span>@endif</td>
                         <td>
                             @if($file->processing_status === 'processing')
                                 <div class="d-flex flex-wrap gap-1">
@@ -255,6 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
     gap: .25rem;
 }
 .existing-pdfs-table th { white-space: nowrap; }
+.existing-pdfs-table th a { color: inherit; text-decoration: none; }
+.existing-pdfs-table th a:hover { text-decoration: underline; }
 .existing-pdfs-table td { min-width: 105px; }
 </style>
 @endpush

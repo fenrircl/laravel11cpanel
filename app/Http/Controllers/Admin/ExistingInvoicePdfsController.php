@@ -15,6 +15,18 @@ class ExistingInvoicePdfsController extends Controller
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', 'pending');
+        $sortColumns = [
+            'file' => 'i.invoice',
+            'counterparty' => 'COALESCE(p.name, c.name)',
+            'status' => 'processing_status',
+            'extraction' => 'e.confidence',
+            'items' => 'COALESCE(lc.line_count, 0)',
+            'uploaded' => 'f.created_at',
+            'last_attempt' => 'COALESCE(j.updated_at, e.processed_at, f.created_at)',
+        ];
+        $sort = (string) $request->query('sort', 'last_attempt');
+        if (!array_key_exists($sort, $sortColumns)) $sort = 'last_attempt';
+        $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
         $latestExtraction = DB::table('invoice_extractions')
             ->selectRaw('file_registry_id, MAX(id) as extraction_id')
             ->whereNotNull('file_registry_id')->groupBy('file_registry_id');
@@ -57,7 +69,7 @@ class ExistingInvoicePdfsController extends Controller
             ->when($status === 'needs_review', fn ($q) => $q->where(fn ($sub) => $sub->whereNotNull('e.id')->where('e.validation_status', '<>', 'validated')->orWhere('j.status', 'needs_review')))
             ->when($status === 'processed', fn ($q) => $q->where('e.validation_status', 'validated'));
 
-        $files = $query->orderByDesc('f.created_at')->paginate(30)->withQueryString();
+        $files = $query->orderByRaw($sortColumns[$sort] . ' ' . $direction)->orderByDesc('f.id')->paginate(30)->withQueryString();
 
         $pageRows = $files->getCollection();
         $invoiceIds = $pageRows->pluck('invoice_id')->filter()->unique()->values();
@@ -78,7 +90,7 @@ class ExistingInvoicePdfsController extends Controller
             return $row;
         });
 
-        return view('admin.existing-invoice-pdfs.index', compact('files', 'status'));
+        return view('admin.existing-invoice-pdfs.index', compact('files', 'status', 'sort', 'direction'));
     }
 
     public function process(Request $request, int $file, bool $force = false): RedirectResponse
