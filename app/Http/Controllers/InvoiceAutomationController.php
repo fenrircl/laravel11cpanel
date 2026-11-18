@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Factura;
 use App\Models\FilesRegistry;
 use App\Models\InvoiceDocumentContext;
+use App\Support\LocalizedDecimal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -390,15 +391,17 @@ class InvoiceAutomationController extends Controller
             DB::table('invoice_line_items')->where('extraction_id', $extractionId)->delete();
             foreach ($lineItems as $index => $line) {
                 if (!is_array($line) || empty($line['description'])) continue;
-                $lineTotal = $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null;
-                if ($lineTotal === null && is_numeric($line['quantity'] ?? null) && is_numeric($line['unit_price'] ?? null)) {
-                    $lineTotal = number_format((float) $line['quantity'] * (float) $line['unit_price'], 6, '.', '');
+                $quantity = LocalizedDecimal::normalize($line['quantity'] ?? null);
+                $unitPrice = LocalizedDecimal::normalize($line['unit_price'] ?? null);
+                $lineTotal = LocalizedDecimal::normalize($line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? $line['total'] ?? null);
+                if ($lineTotal === null && $quantity !== null && $unitPrice !== null) {
+                    $lineTotal = number_format((float) $quantity * (float) $unitPrice, 6, '.', '');
                 }
                 DB::table('invoice_line_items')->insert(['invoice_id' => $invoice->id, 'extraction_id' => $extractionId,
                     'line_number' => $index + 1, 'description_original' => mb_substr((string)$line['description'], 0, 1000),
                     'description_normalized' => mb_strtolower(trim((string)$line['description'])),
                     'supplier_sku' => isset($line['code']) ? mb_substr((string)$line['code'], 0, 191) : null,
-                    'quantity' => $line['quantity'] ?? null, 'unit_price' => $line['unit_price'] ?? null,
+                    'quantity' => $quantity, 'unit_price' => $unitPrice,
                     'total_amount' => $lineTotal, 'currency' => $currency,
                     'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE), 'created_at' => now(), 'updated_at' => now()]);
             }

@@ -17,12 +17,12 @@
         @endforeach
     </div>
 
-    @if(in_array($status, ['pending', 'failed'], true))
+    @if(in_array($status, ['pending', 'failed', 'needs_review'], true))
         <form id="bulk-process-pdfs" method="POST" action="{{ route('admin.existing-invoice-pdfs.process-bulk') }}" class="card border-primary-subtle mb-3">
             @csrf
             <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
-                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los {{ $status === 'failed' ? 'fallidos' : 'pendientes' }} de esta página</label></div>
-                <button class="btn btn-primary" type="submit" id="process-selected" disabled>{{ $status === 'failed' ? 'Reintentar seleccionados' : 'Procesar seleccionados' }} (<span id="selected-count">0</span>)</button>
+                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los {{ $status === 'failed' ? 'fallidos' : ($status === 'needs_review' ? 'pendientes de revisión' : 'pendientes') }} de esta página</label></div>
+                <button class="btn btn-primary" type="submit" id="process-selected" disabled>{{ $status === 'failed' ? 'Reintentar seleccionados' : ($status === 'needs_review' ? 'Reprocesar seleccionados' : 'Procesar seleccionados') }} (<span id="selected-count">0</span>)</button>
             </div>
         </form>
     @endif
@@ -36,7 +36,7 @@
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle existing-pdfs-table">
             <thead><tr>
-                @if(in_array($status, ['pending','failed'], true))<th scope="col">Seleccionar</th>@endif
+                @if(in_array($status, ['pending','failed','needs_review'], true))<th scope="col">Seleccionar</th>@endif
                 <th scope="col" aria-sort="{{ $sort === 'file' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('file') }}">PDF / factura @if($sort === 'file')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
                 <th scope="col" aria-sort="{{ $sort === 'counterparty' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('counterparty') }}">Contraparte @if($sort === 'counterparty')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
                 <th scope="col" aria-sort="{{ $sort === 'status' ? ($direction === 'asc' ? 'ascending' : 'descending') : 'none' }}"><a href="{{ $sortUrl('status') }}">Estado @if($sort === 'status')<span aria-hidden="true">{{ $direction === 'asc' ? '▲' : '▼' }}</span>@endif</a></th>
@@ -49,7 +49,7 @@
             <tbody>
                 @forelse($files as $file)
                     <tr>
-                        @if(in_array($status, ['pending','failed'], true))<td><div class="form-check"><input class="form-check-input pending-pdf-checkbox" type="checkbox" name="file_ids[]" value="{{ $file->file_id }}" form="bulk-process-pdfs" aria-label="Seleccionar {{ $file->file_name ?: 'PDF '.$file->file_id }}"></div></td>@endif
+                        @if(in_array($status, ['pending','failed','needs_review'], true))<td><div class="form-check"><input class="form-check-input pending-pdf-checkbox" type="checkbox" name="file_ids[]" value="{{ $file->file_id }}" form="bulk-process-pdfs" aria-label="Seleccionar {{ $file->file_name ?: 'PDF '.$file->file_id }}"></div></td>@endif
                         <td>
                             <strong>{{ $file->file_name ?: basename((string)$file->path) }}</strong>
                             <div class="small text-muted">Factura #{{ $file->invoice_number }} · ID {{ $file->invoice_id }}</div>
@@ -129,7 +129,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ in_array($status, ['pending','failed'], true) ? 9 : 8 }}" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
+                    <tr><td colspan="{{ in_array($status, ['pending','failed','needs_review'], true) ? 9 : 8 }}" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
                 @endforelse
             </tbody>
         </table>

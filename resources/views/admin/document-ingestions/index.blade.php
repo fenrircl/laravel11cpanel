@@ -178,7 +178,7 @@
                                                                 <td>{{ data_get($item, 'unit') ?: '—' }}</td>
                                                                 <td>{{ data_get($item, 'unit_price') !== null ? '$ ' . number_format((float)data_get($item, 'unit_price'), 2, ',', '.') : '—' }}</td>
                                                                 @php
-                                                                    $lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount');
+                                                                    $lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount') ?? data_get($item, 'total');
                                                                     if ($lineTotal === null && is_numeric(data_get($item, 'quantity')) && is_numeric(data_get($item, 'unit_price'))) {
                                                                         $lineTotal = (float) data_get($item, 'quantity') * (float) data_get($item, 'unit_price');
                                                                     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Factura;
 use App\Services\AuditLogger;
+use App\Support\LocalizedDecimal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -262,12 +263,18 @@ class DocumentIngestionsController extends Controller
             DB::table('invoice_extractions')->where('id', $extraction->id)->update(['normalized_data' => json_encode($normalized, JSON_UNESCAPED_UNICODE)]);
             foreach ($items as $i => $line) {
                 if (!is_array($line) || empty($line['description'])) continue;
+                $quantity = LocalizedDecimal::normalize($line['quantity'] ?? null);
+                $unitPrice = LocalizedDecimal::normalize($line['unit_price'] ?? null);
+                $lineTotal = LocalizedDecimal::normalize($line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? $line['total'] ?? null);
+                if ($lineTotal === null && $quantity !== null && $unitPrice !== null) {
+                    $lineTotal = number_format((float) $quantity * (float) $unitPrice, 6, '.', '');
+                }
                 $this->addMissingInvoiceLineItem(['invoice_id' => $invoice->id, 'extraction_id' => $extraction->id,
                     'line_number' => $i + 1, 'description_original' => mb_substr((string)$line['description'], 0, 1000),
                     'description_normalized' => mb_substr(mb_strtolower(trim((string)$line['description'])), 0, 700),
                     'supplier_sku' => isset($line['code']) ? mb_substr((string)$line['code'], 0, 191) : null,
-                    'quantity' => $line['quantity'] ?? null, 'unit_price' => $line['unit_price'] ?? null,
-                    'total_amount' => $line['total_amount'] ?? null, 'currency' => $normalized['currency'] ?? null,
+                    'quantity' => $quantity, 'unit_price' => $unitPrice,
+                    'total_amount' => $lineTotal, 'currency' => $normalized['currency'] ?? null,
                     'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE)]);
             }
             $invoiceAfter = $invoice->fresh()->toArray();
@@ -435,17 +442,19 @@ class DocumentIngestionsController extends Controller
                     $description = mb_substr((string) $line['description'], 0, 1000);
                     $currency = strtoupper((string) data_get($entry, 'currency', 'CLP'));
                     if (!preg_match('/^[A-Z]{3}$/', $currency)) $currency = 'CLP';
-                    $lineTotal = $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null;
-                    if ($lineTotal === null && is_numeric($line['quantity'] ?? null) && is_numeric($line['unit_price'] ?? null)) {
-                        $lineTotal = number_format((float) $line['quantity'] * (float) $line['unit_price'], 6, '.', '');
+                    $quantity = LocalizedDecimal::normalize($line['quantity'] ?? null);
+                    $unitPrice = LocalizedDecimal::normalize($line['unit_price'] ?? null);
+                    $lineTotal = LocalizedDecimal::normalize($line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? $line['total'] ?? null);
+                    if ($lineTotal === null && $quantity !== null && $unitPrice !== null) {
+                        $lineTotal = number_format((float) $quantity * (float) $unitPrice, 6, '.', '');
                     }
                     $this->addMissingInvoiceLineItem([
                         'invoice_id' => $invoiceId, 'extraction_id' => $extraction->id, 'line_number' => $lineNumber,
                         'description_original' => $description,
                         'description_normalized' => mb_substr(mb_strtolower(trim($description)), 0, 700),
                         'supplier_sku' => isset($line['code']) ? mb_substr((string) $line['code'], 0, 191) : null,
-                        'quantity' => $line['quantity'] ?? null, 'unit_original' => isset($line['unit']) ? mb_substr((string) $line['unit'], 0, 32) : null,
-                        'unit_price' => $line['unit_price'] ?? null,
+                        'quantity' => $quantity, 'unit_original' => isset($line['unit']) ? mb_substr((string) $line['unit'], 0, 32) : null,
+                        'unit_price' => $unitPrice,
                         'total_amount' => $lineTotal,
                         'currency' => $currency, 'source_line' => json_encode($line + ['source_page' => $page], JSON_UNESCAPED_UNICODE),
                     ]);
