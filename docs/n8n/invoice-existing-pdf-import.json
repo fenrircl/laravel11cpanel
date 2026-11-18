@@ -208,7 +208,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => { const result = $('Extraer datos PDF').item.json; const api = result.body || result; return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
+        "jsonBody": "={{ (() => { let api = $('Extraer datos PDF').item.json; for (let i = 0; i < 5; i++) { if (Array.isArray(api) && api[0]) { api = api[0]; continue; } if (api.body && typeof api.body === 'object') { api = api.body; continue; } if (api.result && typeof api.result === 'object') { api = api.result; continue; } break; } return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
         "options": {
           "timeout": 30000
         }

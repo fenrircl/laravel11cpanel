@@ -17,23 +17,23 @@
         @endforeach
     </div>
 
-    @if($status === 'pending')
+    @if(in_array($status, ['pending', 'failed'], true))
         <form id="bulk-process-pdfs" method="POST" action="{{ route('admin.existing-invoice-pdfs.process-bulk') }}" class="card border-primary-subtle mb-3">
             @csrf
             <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2 py-2">
-                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los pendientes de esta página</label></div>
-                <button class="btn btn-primary" type="submit" id="process-selected" disabled>Procesar seleccionados (<span id="selected-count">0</span>)</button>
+                <div class="form-check mb-0"><input class="form-check-input" type="checkbox" id="select-all-pending"><label class="form-check-label fw-semibold" for="select-all-pending">Seleccionar todos los {{ $status === 'failed' ? 'fallidos' : 'pendientes' }} de esta página</label></div>
+                <button class="btn btn-primary" type="submit" id="process-selected" disabled>{{ $status === 'failed' ? 'Reintentar seleccionados' : 'Procesar seleccionados' }} (<span id="selected-count">0</span>)</button>
             </div>
         </form>
     @endif
 
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle existing-pdfs-table">
-            <thead><tr>@if($status === 'pending')<th scope="col">Seleccionar</th>@endif<th>PDF / factura</th><th>Contraparte</th><th>Estado</th><th>Extracción</th><th>Ítems</th><th>Subido</th><th>Último intento</th><th>Acción</th></tr></thead>
+            <thead><tr>@if(in_array($status, ['pending','failed'], true))<th scope="col">Seleccionar</th>@endif<th>PDF / factura</th><th>Contraparte</th><th>Estado</th><th>Extracción</th><th>Ítems</th><th>Subido</th><th>Último intento</th><th>Acción</th></tr></thead>
             <tbody>
                 @forelse($files as $file)
                     <tr>
-                        @if($status === 'pending')<td><div class="form-check"><input class="form-check-input pending-pdf-checkbox" type="checkbox" name="file_ids[]" value="{{ $file->file_id }}" form="bulk-process-pdfs" aria-label="Seleccionar {{ $file->file_name ?: 'PDF '.$file->file_id }}"></div></td>@endif
+                        @if(in_array($status, ['pending','failed'], true))<td><div class="form-check"><input class="form-check-input pending-pdf-checkbox" type="checkbox" name="file_ids[]" value="{{ $file->file_id }}" form="bulk-process-pdfs" aria-label="Seleccionar {{ $file->file_name ?: 'PDF '.$file->file_id }}"></div></td>@endif
                         <td>
                             <strong>{{ $file->file_name ?: basename((string)$file->path) }}</strong>
                             <div class="small text-muted">Factura #{{ $file->invoice_number }} · ID {{ $file->invoice_id }}</div>
@@ -96,7 +96,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ $status === 'pending' ? 9 : 8 }}" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
+                    <tr><td colspan="{{ in_array($status, ['pending','failed'], true) ? 9 : 8 }}" class="text-center text-muted py-4">No hay PDFs en este filtro.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
     all?.addEventListener('change', () => { boxes.forEach(box => box.checked = all.checked); update(); });
     boxes.forEach(box => box.addEventListener('change', update));
     document.getElementById('bulk-process-pdfs')?.addEventListener('submit', event => {
-        if (!confirm(`¿Enviar ${boxes.filter(box => box.checked).length} PDF(s) a procesar?`)) event.preventDefault();
+        if (!confirm(`¿Enviar ${boxes.filter(box => box.checked).length} PDF(s) a n8n?`)) event.preventDefault();
     });
 });
 </script>

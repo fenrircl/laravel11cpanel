@@ -175,9 +175,12 @@ class InvoiceAutomationController extends Controller
         // (when response headers/status are included). Also tolerate the previous
         // wrapped callback format. The PDF API itself has an `extraction` metadata
         // object, so detect envelopes by business fields instead of that key alone.
-        $candidate = is_array($data['body'] ?? null) ? $data['body'] : $data;
-        if (is_array($candidate['result'] ?? null)) {
-            $candidate = $candidate['result'];
+        $candidate = $data;
+        for ($depth = 0; $depth < 5; $depth++) {
+            if (array_is_list($candidate) && isset($candidate[0]) && is_array($candidate[0])) { $candidate = $candidate[0]; continue; }
+            if (is_array($candidate['body'] ?? null)) { $candidate = $candidate['body']; continue; }
+            if (is_array($candidate['result'] ?? null)) { $candidate = $candidate['result']; continue; }
+            break;
         }
         $data = array_merge($data, ['adapter_version' => $data['adapter_version'] ?? $candidate['adapter_version'] ?? 'pdf-api-1.0-to-invoice-v1']);
         $isApiEnvelope = isset($candidate['request_id'], $candidate['document_type'], $candidate['data']);
