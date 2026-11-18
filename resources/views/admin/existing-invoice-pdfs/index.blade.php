@@ -12,7 +12,7 @@
     @if($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
     <div class="d-flex gap-2 flex-wrap mb-3" aria-label="Filtrar PDFs">
-        @foreach(['pending'=>'Pendientes','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallidos','processed'=>'Procesados','all'=>'Todos'] as $key=>$label)
+        @foreach(['pending'=>'Pendientes','queued'=>'En cola','processing'=>'Procesando','needs_review'=>'Revisión','failed'=>'Fallidos','processed'=>'Procesados','all'=>'Todos'] as $key=>$label)
             <a class="btn btn-sm {{ $status===$key?'btn-primary':'btn-outline-primary' }}" href="{{ route('admin.existing-invoice-pdfs.index', ['status'=>$key]) }}">{{ $label }}</a>
         @endforeach
     </div>
@@ -44,11 +44,12 @@
                         <td>{{ $file->provider_name ?: $file->client_name ?: 'Sin contraparte' }}</td>
                         <td>
                             @php
-                                $statusLabel = ['pending' => 'Pendiente', 'processing' => 'Procesando', 'needs_review' => 'Revisión', 'failed' => 'Fallido', 'processed' => 'Procesado'][$file->processing_status] ?? $file->processing_status;
+                                $statusLabel = ['pending' => 'Pendiente', 'queued' => 'En cola de extracción', 'processing' => 'Procesando', 'needs_review' => 'Revisión', 'failed' => 'Fallido', 'processed' => 'Procesado'][$file->processing_status] ?? $file->processing_status;
                                 $statusClass = match ($file->processing_status) {
                                     'processed' => 'bg-success',
                                     'needs_review' => 'bg-warning text-dark',
                                     'failed' => 'bg-danger',
+                                    'queued' => 'bg-primary',
                                     'processing' => 'bg-info text-dark',
                                     default => 'bg-secondary',
                                 };
@@ -85,10 +86,17 @@
                                         <button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button>
                                     </form>
                                 </div>
+                            @elseif($file->processing_status === 'queued')
+                                <span class="text-muted small">Esperando turno en la API PDF</span>
                             @elseif($file->processing_status !== 'processed')
                                 <form method="POST" action="{{ route('admin.existing-invoice-pdfs.process', ['file'=>$file->file_id]) }}">
                                     @csrf
                                     <button class="btn btn-sm {{ $file->processing_status==='pending'?'btn-primary':'btn-outline-primary' }}" type="submit">{{ $file->processing_status==='pending'?'Procesar':'Reintentar' }}</button>
+                                </form>
+                            @elseif($file->processing_status === 'processed')
+                                <form method="POST" action="{{ route('admin.existing-invoice-pdfs.retry', ['file'=>$file->file_id]) }}" onsubmit="return confirm('¿Volver a extraer este PDF? Los ítems actuales se reemplazarán si la nueva extracción pasa las validaciones.');">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Reprocesar PDF</button>
                                 </form>
                             @else
                                 <span class="text-muted small">—</span>
@@ -148,7 +156,7 @@
                                         <thead><tr><th>#</th><th>Descripción</th><th>SKU</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario</th><th>Total</th></tr></thead>
                                         <tbody>
                                             @foreach($file->saved_line_items as $line)
-                                                <tr><td>{{ $line->line_number }}</td><td>{{ $line->description_original }}</td><td>{{ $line->supplier_sku ?: '—' }}</td><td>{{ $line->quantity ?? '—' }}</td><td>{{ $line->unit_original ?: '—' }}</td><td>{{ $line->unit_price !== null ? number_format((float)$line->unit_price, 0, ',', '.') : '—' }}</td><td>{{ $line->total_amount !== null ? number_format((float)$line->total_amount, 0, ',', '.') : '—' }} {{ $line->currency }}</td></tr>
+                                                <tr><td>{{ $line->line_number }}</td><td>{{ $line->description_original }}</td><td>{{ $line->supplier_sku ?: '—' }}</td><td>{{ $line->quantity !== null ? rtrim(rtrim(number_format((float)$line->quantity, 6, ',', '.'), '0'), ',') : '—' }}</td><td>{{ $line->unit_original ?: '—' }}</td><td>{{ $line->unit_price !== null ? number_format((float)$line->unit_price, 0, ',', '.') : '—' }}</td><td>{{ $line->total_amount !== null ? number_format((float)$line->total_amount, 0, ',', '.') : '—' }} {{ $line->currency }}</td></tr>
                                             @endforeach
                                         </tbody>
                                     </table>

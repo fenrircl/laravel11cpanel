@@ -174,11 +174,14 @@
                                                                 <td>{{ data_get($item, 'item') ?: $lineIndex + 1 }}</td>
                                                                 <td>{{ data_get($item, 'description') ?: data_get($item, 'description_original') ?: '—' }}</td>
                                                                 <td>{{ data_get($item, 'code') ?: data_get($item, 'supplier_sku') ?: '—' }}</td>
-                                                                <td>{{ data_get($item, 'quantity') ?? '—' }}</td>
+                                                                <td>{{ data_get($item, 'quantity') !== null ? rtrim(rtrim(number_format((float)data_get($item, 'quantity'), 6, ',', '.'), '0'), ',') : '—' }}</td>
                                                                 <td>{{ data_get($item, 'unit') ?: '—' }}</td>
                                                                 <td>{{ data_get($item, 'unit_price') !== null ? '$ ' . number_format((float)data_get($item, 'unit_price'), 2, ',', '.') : '—' }}</td>
                                                                 @php
                                                                     $lineTotal = data_get($item, 'total_price') ?? data_get($item, 'amount') ?? data_get($item, 'total_amount');
+                                                                    if ($lineTotal === null && is_numeric(data_get($item, 'quantity')) && is_numeric(data_get($item, 'unit_price'))) {
+                                                                        $lineTotal = (float) data_get($item, 'quantity') * (float) data_get($item, 'unit_price');
+                                                                    }
                                                                 @endphp
                                                                 <td>{{ $lineTotal !== null ? '$ ' . number_format((float)$lineTotal, 0, ',', '.') : '—' }}</td>
                                                             </tr>

@@ -47,10 +47,11 @@ class ExistingInvoicePdfsController extends Controller
                 'j.status as ingestion_status', 'j.last_error', 'lc.line_count',
                 'j.attempts as processing_attempts', 'j.updated_at as last_attempt_at',
             ])
-            ->selectRaw("CASE WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
+            ->selectRaw("CASE WHEN j.status = 'queued' THEN 'queued' WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
             ->selectRaw("CASE WHEN j.status = 'processing' AND (j.lease_until IS NULL OR j.lease_until <= CURRENT_TIMESTAMP) THEN 'n8n no confirmó el resultado antes de vencer el tiempo de procesamiento.' ELSE j.last_error END as processing_error");
 
         $query->when($status === 'pending', fn ($q) => $q->whereNull('e.id')->whereNull('j.id'))
+            ->when($status === 'queued', fn ($q) => $q->where('j.status', 'queued'))
             ->when($status === 'processing', fn ($q) => $q->where('j.status', 'processing')->where('j.lease_until', '>', now()))
             ->when($status === 'failed', fn ($q) => $q->where(fn ($failed) => $failed->where('j.status', 'failed')->orWhere(fn ($expired) => $expired->where('j.status', 'processing')->where(fn ($lease) => $lease->whereNull('j.lease_until')->orWhere('j.lease_until', '<=', now())))))
             ->when($status === 'needs_review', fn ($q) => $q->where(fn ($sub) => $sub->whereNotNull('e.id')->where('e.validation_status', '<>', 'validated')->orWhere('j.status', 'needs_review')))
@@ -103,22 +104,28 @@ class ExistingInvoicePdfsController extends Controller
             return back()->withErrors(['n8n' => 'Configura N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL y N8N_INGEST_BEARER en el .env.']);
         }
 
-        if (DB::table('invoice_extractions')->where('file_registry_id', $file)->where('validation_status', 'validated')->exists()) {
-            return back()->with('success', 'Este PDF ya tiene una extracción validada y sus ítems están guardados.');
-        }
-
         $externalId = (string) $record->id;
         $externalVersion = (string) ($record->created_at ?? '');
         $identity = ['source' => 'registered_pdf', 'external_id' => $externalId, 'external_version' => $externalVersion];
         $ingestion = DB::table('document_ingestions')->where($identity)->first();
+        if (!$force && (!$ingestion || $ingestion->status !== 'failed')
+            && DB::table('invoice_extractions')->where('file_registry_id', $file)->where('validation_status', 'validated')->exists()) {
+            return back()->with('success', 'Este PDF ya tiene una extracción validada y sus ítems están guardados.');
+        }
+        $forceExtraction = $force || DB::table('invoice_extractions')->where('file_registry_id', $file)->exists();
+        if ($ingestion && $ingestion->status === 'queued') {
+            return back()->with('success', 'Este PDF ya está en la cola de extracción de la API PDF.');
+        }
         if (!$force && $ingestion && $ingestion->status === 'processing' && $ingestion->lease_until && now()->lt($ingestion->lease_until)) {
             return back()->with('success', 'Este PDF ya está en proceso.');
         }
 
         if ($ingestion) {
             DB::table('document_ingestions')->where('id', $ingestion->id)->update([
-                'status' => 'processing', 'attempts' => DB::raw('attempts + 1'), 'last_error' => null,
-                'lease_until' => now()->addMinutes(30), 'updated_at' => now(),
+                // Keep the job marked queued while n8n submits the async PDF
+                // extraction to QStash; do not start a lease for queue wait time.
+                'status' => 'queued', 'attempts' => DB::raw('attempts + 1'), 'last_error' => null,
+                'lease_until' => null, 'updated_at' => now(),
             ]);
         } else {
             DB::table('document_ingestions')->insert($identity + [
@@ -126,14 +133,14 @@ class ExistingInvoicePdfsController extends Controller
                 'filename' => $record->file_name ?: basename((string) $record->path),
                 'mime_type' => $record->mime_type ?: 'application/pdf', 'size_bytes' => $record->size,
                 'invoice_id' => $record->model_id, 'file_registry_id' => $record->id,
-                'status' => 'processing', 'attempts' => 1, 'lease_until' => now()->addMinutes(30),
+                'status' => 'queued', 'attempts' => 1, 'lease_until' => null,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
         }
 
         try {
             $response = Http::acceptJson()->withToken($bearer)->connectTimeout(5)->timeout(15)
-                ->post($webhookUrl, ['file_id' => (int) $record->id]);
+                ->post($webhookUrl, ['file_id' => (int) $record->id, 'force' => $forceExtraction]);
             if (!$response->successful()) {
                 DB::table('document_ingestions')->where($identity)->update([
                     'status' => 'failed', 'last_error' => 'n8n rechazó el inicio del procesamiento (HTTP ' . $response->status() . ').',
@@ -154,7 +161,7 @@ class ExistingInvoicePdfsController extends Controller
         AuditLogger::log($request, 'process_pdf', 'invoice_documents', $record->id,
             'Solicitó a n8n extraer ítems del PDF de la factura #' . $record->model_id . '.');
 
-        return back()->with('success', 'PDF enviado a n8n. Los ítems se guardarán solo si la extracción supera las validaciones; de lo contrario quedará en revisión.');
+        return back()->with('success', 'PDF enviado al workflow. La extracción queda en la cola QStash de la API PDF.');
     }
 
     public function retry(Request $request, int $file): RedirectResponse
@@ -166,21 +173,27 @@ class ExistingInvoicePdfsController extends Controller
     {
         $data = $request->validate(['file_ids' => ['required', 'array', 'min:1', 'max:50'], 'file_ids.*' => ['required', 'integer', 'distinct']]);
         $queued = 0;
+        $webhookUrl = trim((string) config('services.n8n.existing_pdf_process_webhook_url', ''));
+        $bearer = trim((string) config('services.n8n.ingest_bearer', ''));
+        if ($webhookUrl === '' || $bearer === '') {
+            return back()->withErrors(['n8n' => 'Configura N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL y N8N_INGEST_BEARER en el .env.']);
+        }
         foreach ($data['file_ids'] as $fileId) {
             $record = DB::table('files_registry')->where('id', $fileId)->where('model_type', 'App\\Invoice')->first();
             if (!$record) continue;
-            $alreadyProcessed = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->where('validation_status', 'validated')->exists();
-            if ($alreadyProcessed) continue;
-
             $identity = ['source' => 'registered_pdf', 'external_id' => (string)$record->id, 'external_version' => (string)($record->created_at ?? '')];
             $job = DB::table('document_ingestions')->where($identity)->first();
+            $alreadyProcessed = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->where('validation_status', 'validated')->exists();
+            if ($alreadyProcessed && (!$job || $job->status !== 'failed')) continue;
+            $forceExtraction = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->exists();
             if ($job && $job->status === 'processing' && $job->lease_until && now()->lt($job->lease_until)) continue;
-            if ($job) DB::table('document_ingestions')->where('id', $job->id)->update(['status'=>'processing','attempts'=>DB::raw('attempts + 1'),'last_error'=>null,'lease_until'=>now()->addMinutes(30),'updated_at'=>now()]);
-            else DB::table('document_ingestions')->insert($identity + ['uuid'=>\Illuminate\Support\Str::uuid(),'filename'=>$record->file_name ?: basename((string)$record->path),'mime_type'=>$record->mime_type ?: 'application/pdf','size_bytes'=>$record->size,'invoice_id'=>$record->model_id,'file_registry_id'=>$record->id,'status'=>'processing','attempts'=>1,'lease_until'=>now()->addMinutes(30),'created_at'=>now(),'updated_at'=>now()]);
+            if ($job && $job->status === 'queued') continue;
+            if ($job) DB::table('document_ingestions')->where('id', $job->id)->update(['status'=>'queued','attempts'=>DB::raw('attempts + 1'),'last_error'=>null,'lease_until'=>null,'updated_at'=>now()]);
+            else DB::table('document_ingestions')->insert($identity + ['uuid'=>\Illuminate\Support\Str::uuid(),'filename'=>$record->file_name ?: basename((string)$record->path),'mime_type'=>$record->mime_type ?: 'application/pdf','size_bytes'=>$record->size,'invoice_id'=>$record->model_id,'file_registry_id'=>$record->id,'status'=>'queued','attempts'=>1,'lease_until'=>null,'created_at'=>now(),'updated_at'=>now()]);
 
             try {
-                $response = Http::acceptJson()->withToken((string)config('services.n8n.ingest_bearer'))->connectTimeout(5)->timeout(15)
-                    ->post((string)config('services.n8n.existing_pdf_process_webhook_url'), ['file_id'=>(int)$record->id]);
+                $response = Http::acceptJson()->withToken($bearer)->connectTimeout(5)->timeout(15)
+                    ->post($webhookUrl, ['file_id'=>(int)$record->id, 'force'=>$forceExtraction]);
                 if ($response->successful()) $queued++;
                 else DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'n8n rechazó el inicio (HTTP '.$response->status().').','lease_until'=>null,'updated_at'=>now()]);
             } catch (\Throwable $e) {
@@ -188,7 +201,7 @@ class ExistingInvoicePdfsController extends Controller
                 DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'No se pudo conectar con n8n.','lease_until'=>null,'updated_at'=>now()]);
             }
         }
-        return back()->with('success', "Se enviaron {$queued} PDF(s) a n8n.");
+        return back()->with('success', "Se enviaron {$queued} PDF(s) al workflow. La API PDF los procesará según el paralelismo de la cola QStash.");
     }
 
     public function cancel(Request $request, int $file): RedirectResponse

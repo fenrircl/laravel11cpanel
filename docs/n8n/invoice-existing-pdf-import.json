@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/pending?limit=25' + ($json.body && $json.body.file_id ? '&file_id=' + encodeURIComponent($json.body.file_id) : '') }}",
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/pending?limit=25' + ($json.body && $json.body.file_id ? '&file_id=' + encodeURIComponent($json.body.file_id) + '&force=' + ($json.body.force ? '1' : '0') : '') }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
@@ -150,6 +150,10 @@
             {
               "name": "locale",
               "value": "es-CL"
+            },
+            {
+              "name": "wait",
+              "value": "false"
             }
           ]
         },
@@ -180,7 +184,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {source:'registered_pdf',external_id:String($('Un PDF por item').item.json.file_id),external_version:String($('Un PDF por item').item.json.created_at || ''),invoice_id:$('Un PDF por item').item.json.invoice_id,file_registry_id:$('Un PDF por item').item.json.file_id,filename:$('Un PDF por item').item.json.file_name,mime_type:'application/pdf',size_bytes:$('Un PDF por item').item.json.size} }}",
+        "jsonBody": "={{ {source:'registered_pdf',external_id:String($('Un PDF por item').item.json.file_id),external_version:String($('Un PDF por item').item.json.created_at || ''),invoice_id:$('Un PDF por item').item.json.invoice_id,file_registry_id:$('Un PDF por item').item.json.file_id,filename:$('Un PDF por item').item.json.file_name,mime_type:'application/pdf',size_bytes:$('Un PDF por item').item.json.size,force:$('Un PDF por item').item.json.force === true} }}",
         "options": {
           "timeout": 30000
         }
@@ -208,7 +212,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ (() => { let api = $('Extraer datos PDF').item.json; for (let i = 0; i < 5; i++) { if (Array.isArray(api) && api[0]) { api = api[0]; continue; } if (api.body && typeof api.body === 'object') { api = api.body; continue; } if (api.result && typeof api.result === 'object') { api = api.result; continue; } break; } return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
+        "jsonBody": "={{ (() => { let api = $('Consultar resultado de extracción').item.json; for (let i = 0; i < 5; i++) { if (Array.isArray(api) && api[0]) { api = api[0]; continue; } if (api.body && typeof api.body === 'object') { api = api.body; continue; } if (api.result && typeof api.result === 'object') { api = api.result; continue; } break; } return { adapter_version: 'pdf-api-1.0-to-invoice-v1', request_id: api.request_id, document_type: api.document_type, document_subtype: api.document_subtype ?? null, data: api.data, raw_text: api.raw_text, confidence: api.confidence, warnings: api.warnings || [], source: api.source, schema_version: api.schema_version, extraction: api.extraction || {} }; })() }}",
         "options": {
           "timeout": 30000
         }
@@ -227,6 +231,73 @@
           "name": "Bearer Laravel n8n"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://pdf.solidtec.cl' + ($json.status_url || '') }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2009",
+      "name": "Consultar resultado de extracción",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1560,
+        180
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer API PDF"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "completed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2010",
+      "name": "¿Extracción terminada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1800,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2011",
+      "name": "Esperar 5 segundos",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2040,
+        300
+      ],
+      "webhookId": "9a204720-1a7c-4acb-bbef-a12355be2011"
     }
   ],
   "connections": {
@@ -300,7 +371,7 @@
       "main": [
         [
           {
-            "node": "Reservar reproceso",
+            "node": "Consultar resultado de extracción",
             "type": "main",
             "index": 0
           }
@@ -312,6 +383,46 @@
         [
           {
             "node": "Guardar JSON en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar resultado de extracción": {
+      "main": [
+        [
+          {
+            "node": "¿Extracción terminada?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Extracción terminada?": {
+      "main": [
+        [
+          {
+            "node": "Reservar reproceso",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Esperar 5 segundos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 5 segundos": {
+      "main": [
+        [
+          {
+            "node": "Consultar resultado de extracción",
             "type": "main",
             "index": 0
           }

@@ -8,7 +8,25 @@ El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.jso
 https://n8n.solidtec.cl/webhook/invoice-existing-pdfs/process
 ```
 
-En el `.env` de Laravel configura `N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL` con esa URL y `N8N_INGEST_BEARER` con el mismo token configurado en la credencial. La URL de Laravel ya está escrita en los nodos del JSON; no necesita acceso a variables de entorno de n8n. El procesamiento se ejecuta de a un PDF; los datos dudosos quedan en revisión y no generan ítems validados.
+En el `.env` de Laravel configura `N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL` con esa URL y `N8N_INGEST_BEARER` con el mismo token configurado en la credencial. La URL de Laravel ya está escrita en los nodos del JSON; no necesita acceso a variables de entorno de n8n. Cada webhook puede crear una ejecución de n8n. El workflow envía la extracción asíncrona a `api-pdf` con `wait=false`, por lo que los trabajos de extracción se encolan en QStash aunque aparezcan varias ejecuciones de n8n. La concurrencia efectiva depende de la cola de Upstash, no de Laravel ni del número de ejecuciones visibles en n8n.
+
+Para asegurar una extracción a la vez, verifica en Upstash que la cola usada por `api-pdf` tenga `parallelism: 1`. El nombre predeterminado es `api-pdf-extractions`; si el servidor tiene `QSTASH_QUEUE_NAME` configurado con otro valor, usa ese nombre:
+
+```sh
+curl "$QSTASH_URL/v2/queues/api-pdf-extractions" \
+  --header "Authorization: Bearer $QSTASH_TOKEN"
+```
+
+La respuesta debe indicar `parallelism: 1`. Para establecerlo explícitamente:
+
+```sh
+curl --request POST "$QSTASH_URL/v2/queues" \
+  --header "Authorization: Bearer $QSTASH_TOKEN" \
+  --header "Content-Type: application/json" \
+  --data '{"queueName":"api-pdf-extractions","parallelism":1}'
+```
+
+`QSTASH_PARALLELISM` no es leído por el código actual de `api-pdf`; el paralelismo se configura en la cola de Upstash. No compartas ni pegues el token en n8n o en Git. [Referencia oficial de colas QStash](https://upstash.com/docs/qstash/features/queues).
 
 ## Workflow de búsqueda por webhook
 

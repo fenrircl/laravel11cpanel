@@ -435,6 +435,10 @@ class DocumentIngestionsController extends Controller
                     $description = mb_substr((string) $line['description'], 0, 1000);
                     $currency = strtoupper((string) data_get($entry, 'currency', 'CLP'));
                     if (!preg_match('/^[A-Z]{3}$/', $currency)) $currency = 'CLP';
+                    $lineTotal = $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null;
+                    if ($lineTotal === null && is_numeric($line['quantity'] ?? null) && is_numeric($line['unit_price'] ?? null)) {
+                        $lineTotal = number_format((float) $line['quantity'] * (float) $line['unit_price'], 6, '.', '');
+                    }
                     $this->addMissingInvoiceLineItem([
                         'invoice_id' => $invoiceId, 'extraction_id' => $extraction->id, 'line_number' => $lineNumber,
                         'description_original' => $description,
@@ -442,7 +446,7 @@ class DocumentIngestionsController extends Controller
                         'supplier_sku' => isset($line['code']) ? mb_substr((string) $line['code'], 0, 191) : null,
                         'quantity' => $line['quantity'] ?? null, 'unit_original' => isset($line['unit']) ? mb_substr((string) $line['unit'], 0, 32) : null,
                         'unit_price' => $line['unit_price'] ?? null,
-                        'total_amount' => $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null,
+                        'total_amount' => $lineTotal,
                         'currency' => $currency, 'source_line' => json_encode($line + ['source_page' => $page], JSON_UNESCAPED_UNICODE),
                     ]);
                 }

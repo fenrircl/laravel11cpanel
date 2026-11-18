@@ -19,6 +19,7 @@ class InvoiceAutomationController extends Controller
     {
         $limit = min(max((int)$request->query('limit', 25), 1), 100);
         $fileId = $request->integer('file_id');
+        $force = $request->boolean('force');
         $latestExtraction = DB::table('invoice_extractions')->selectRaw('file_registry_id, MAX(id) as extraction_id')
             ->whereNotNull('file_registry_id')->groupBy('file_registry_id');
         $latestIngestion = DB::table('document_ingestions')->selectRaw('external_id, MAX(id) as ingestion_id')
@@ -31,9 +32,14 @@ class InvoiceAutomationController extends Controller
             ->leftJoin('document_ingestions as j', 'j.id', '=', 'latest_ingestion.ingestion_id')
             ->where('f.model_type', 'App\\Invoice')
             ->where(function ($q) { $q->where('f.mime_type', 'application/pdf')->orWhere('f.file_name', 'like', '%.pdf')->orWhere('f.path', 'like', '%.pdf'); })
-            ->when($fileId, fn ($q) => $q->where('f.id', $fileId), fn ($q) => $q->where(fn ($pending) => $pending->whereNull('e.id')->orWhere('j.status', 'processing')))
+            ->when($fileId, fn ($q) => $q->where('f.id', $fileId)
+                ->where(fn ($claimable) => $claimable->whereNull('j.id')->orWhereIn('j.status', ['queued', 'failed', 'discovered']))
+                ->when(!$force, fn ($q) => $q->where(fn ($notValidated) => $notValidated->whereNull('e.id')->orWhere('e.validation_status', '<>', 'validated'))),
+                fn ($q) => $q->whereNull('e.id')->whereNull('j.id'))
             ->orderBy('f.id')->limit($limit)
             ->get(['f.id as file_id', 'f.path as r2_key', 'f.file_name', 'f.mime_type', 'f.size', 'f.created_at', 'i.id as invoice_id', 'i.invoice as invoice_number']);
+        $files->each(fn ($file) => $file->force = $force);
+
         return response()->json(['count' => $files->count(), 'data' => $files]);
     }
 
@@ -79,7 +85,9 @@ class InvoiceAutomationController extends Controller
             'size_bytes' => ['nullable', 'integer', 'min:1'],
             'invoice_id' => ['nullable', 'integer'],
             'file_registry_id' => ['nullable', 'integer'],
+            'force' => ['sometimes', 'boolean'],
         ]);
+        $force = (bool) ($data['force'] ?? false);
         $key = ['source' => $data['source'], 'external_id' => $data['external_id'], 'external_version' => $data['external_version'] ?? ''];
         $row = DB::table('document_ingestions')->where($key)->first();
         if ($row) {
@@ -87,7 +95,7 @@ class InvoiceAutomationController extends Controller
                 ->where('ingestion_id', $row->id)
                 ->orderByDesc('id')
                 ->first(['payload', 'normalized_data']);
-            if (in_array($row->status, ['completed', 'ignored'], true) || ($existingExtraction && $row->status !== 'failed')) {
+            if (!$force && (in_array($row->status, ['completed', 'ignored'], true) || ($existingExtraction && $row->status !== 'failed'))) {
                 $invoice = $row->invoice_id
                     ? Factura::with(['proveedor:id,name', 'cliente:id,name'])->find($row->invoice_id)
                     : null;
@@ -125,7 +133,9 @@ class InvoiceAutomationController extends Controller
             DB::table('document_ingestions')->where('id', $row->id)->update([
                 'source_sha256' => $data['sha256'] ?? $row->source_sha256,
                 'status' => 'processing',
-                'attempts' => DB::raw('attempts + 1'),
+                'attempts' => $row->source === 'registered_pdf' && $row->status === 'queued'
+                    ? $row->attempts
+                    : DB::raw('attempts + 1'),
                 'last_error' => null,
                 'lease_until' => null,
                 'updated_at' => now(),
@@ -350,14 +360,19 @@ class InvoiceAutomationController extends Controller
             if ($fileId) {
                 DB::table('invoice_extractions')->where('file_registry_id', $fileId)->where('id', '<>', $extractionId)->update(['is_active' => false]);
             }
+            DB::table('invoice_line_items')->where('extraction_id', $extractionId)->delete();
             foreach ($lineItems as $index => $line) {
                 if (!is_array($line) || empty($line['description'])) continue;
+                $lineTotal = $line['total_amount'] ?? $line['total_price'] ?? $line['amount'] ?? null;
+                if ($lineTotal === null && is_numeric($line['quantity'] ?? null) && is_numeric($line['unit_price'] ?? null)) {
+                    $lineTotal = number_format((float) $line['quantity'] * (float) $line['unit_price'], 6, '.', '');
+                }
                 DB::table('invoice_line_items')->insert(['invoice_id' => $invoice->id, 'extraction_id' => $extractionId,
                     'line_number' => $index + 1, 'description_original' => mb_substr((string)$line['description'], 0, 1000),
                     'description_normalized' => mb_strtolower(trim((string)$line['description'])),
                     'supplier_sku' => isset($line['code']) ? mb_substr((string)$line['code'], 0, 191) : null,
                     'quantity' => $line['quantity'] ?? null, 'unit_price' => $line['unit_price'] ?? null,
-                    'total_amount' => $line['total_amount'] ?? null, 'currency' => $currency,
+                    'total_amount' => $lineTotal, 'currency' => $currency,
                     'source_line' => json_encode($line, JSON_UNESCAPED_UNICODE), 'created_at' => now(), 'updated_at' => now()]);
             }
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['invoice_id' => $invoice->id,
