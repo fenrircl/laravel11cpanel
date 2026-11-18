@@ -264,7 +264,7 @@ class InvoiceAutomationController extends Controller
         }
         $currency = $this->normalizeCurrencyCode($payload['currency'] ?? null);
         try {
-        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $counterpartyRut, $isPurchase, $currency) {
+        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $supplierRut, $counterpartyRut, $isPurchase, $currency) {
         $partyId = $this->partyIdForRut($counterpartyRut, $isPurchase);
         $counterpartyTable = $isPurchase ? 'providers' : 'clients';
         $rutMatches = DB::table($counterpartyTable)->whereRaw("REPLACE(REPLACE(REPLACE(LOWER(rut), '.', ''), '-', ''), ' ', '') = ?", [strtolower($counterpartyRut)])->count();
