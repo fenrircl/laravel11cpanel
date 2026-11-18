@@ -89,7 +89,17 @@
                         </td>
                         <td>{{ (int)($file->line_count ?? 0) }}</td>
                         <td>{{ $file->uploaded_at }}</td>
-                        <td>@php($lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at)@if($lastActivityAt)<span>{{ \Illuminate\Support\Carbon::parse($lastActivityAt)->timezone(config('app.timezone'))->format('d/m/Y H:i:s') }}</span>@if($file->processing_attempts)<div class="small text-muted">Intento {{ (int)$file->processing_attempts }}</div>@endif @else<span class="text-muted">Sin intentos</span>@endif</td>
+                        <td>
+                            @php($lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at)
+                            @if($lastActivityAt)
+                                <span>{{ \Illuminate\Support\Carbon::parse($lastActivityAt)->timezone(config('app.timezone'))->format('d/m/Y H:i:s') }}</span>
+                                @if($file->processing_attempts)
+                                    <div class="small text-muted">Intento {{ (int)$file->processing_attempts }}</div>
+                                @endif
+                            @else
+                                <span class="text-muted">Sin intentos</span>
+                            @endif
+                        </td>
                         <td>
                             @if($file->processing_status === 'processing')
                                 <div class="d-flex flex-wrap gap-1">
