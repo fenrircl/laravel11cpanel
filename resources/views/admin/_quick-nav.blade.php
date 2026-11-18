@@ -1,6 +1,10 @@
 <nav class="admin-quick-nav mb-4" aria-label="Accesos rápidos de administración">
     <ul class="nav gap-2 flex-wrap">
-        <li class="nav-item"><a class="nav-link {{ $active === 'kpi' ? 'active' : '' }}" @if($active === 'kpi') aria-current="page" @endif href="{{ route('admin.kpi.index') }}">KPI</a></li>
+        @if(\Illuminate\Support\Facades\Route::has('admin.kpi.index'))
+            <li class="nav-item"><a class="nav-link {{ $active === 'kpi' ? 'active' : '' }}" @if($active === 'kpi') aria-current="page" @endif href="{{ route('admin.kpi.index') }}">KPI</a></li>
+        @else
+            <li class="nav-item"><span class="nav-link text-muted" aria-disabled="true" title="Actualiza la caché de rutas de Laravel">KPI · actualizar rutas</span></li>
+        @endif
         <li class="nav-item"><a class="nav-link {{ $active === 'system' ? 'active' : '' }}" @if($active === 'system') aria-current="page" @endif href="{{ route('admin.system-info.index') }}">Sistema y configuración</a></li>
         <li class="nav-item"><a class="nav-link {{ $active === 'users' ? 'active' : '' }}" @if($active === 'users') aria-current="page" @endif href="{{ route('admin.users.index') }}">Usuarios</a></li>
         <li class="nav-item"><a class="nav-link {{ $active === 'roles' ? 'active' : '' }}" @if($active === 'roles') aria-current="page" @endif href="{{ route('admin.roles.index') }}">Roles</a></li>
