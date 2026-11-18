@@ -137,8 +137,24 @@
     @foreach($files as $file)
             @php
                 $extracted = $file->extracted_data ?? [];
-                $extractedParty = data_get($extracted, 'issuer') ?: data_get($extracted, 'recipient');
-                $extractedRut = data_get($extracted, 'supplier_rut') ?: data_get($extracted, 'customer_rut');
+                $displayExtractionValue = static function ($value) {
+                    if (is_scalar($value)) return (string) $value;
+                    if (!is_array($value)) return '';
+                    foreach (['name', 'value', 'text', 'rut', 'number', 'date'] as $key) {
+                        $candidate = data_get($value, $key);
+                        if (is_scalar($candidate) && (string) $candidate !== '') return (string) $candidate;
+                    }
+                    $scalars = array_filter($value, 'is_scalar');
+                    return $scalars
+                        ? implode(' · ', array_map(static fn ($item) => (string) $item, $scalars))
+                        : (json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+                };
+                $extractedParty = $displayExtractionValue(data_get($extracted, 'issuer') ?: data_get($extracted, 'recipient'));
+                $extractedRut = $displayExtractionValue(data_get($extracted, 'supplier_rut') ?: data_get($extracted, 'customer_rut'));
+                $extractedInvoiceNumber = $displayExtractionValue(data_get($extracted, 'invoice_number'));
+                $extractedDate = $displayExtractionValue(data_get($extracted, 'date'));
+                $extractedAmount = data_get($extracted, 'amount');
+                if (is_array($extractedAmount)) $extractedAmount = data_get($extractedAmount, 'value') ?? data_get($extractedAmount, 'amount');
                 $currentParty = $file->provider_name ?: $file->client_name ?: 'Sin contraparte';
             @endphp
             <div class="modal fade" id="saved-extraction-{{ $file->file_id }}" tabindex="-1" aria-labelledby="saved-extraction-title-{{ $file->file_id }}" aria-hidden="true">
@@ -166,9 +182,9 @@
                                 <table class="table table-sm table-bordered align-middle">
                                     <thead class="table-light"><tr><th>Dato</th><th>Guardado en factura</th><th>Extraído del PDF</th></tr></thead>
                                     <tbody>
-                                        <tr><th>Folio</th><td>{{ $file->invoice_number }}</td><td>{{ data_get($extracted, 'invoice_number') ?: 'No identificado' }}</td></tr>
-                                        <tr><th>Fecha</th><td>{{ $file->invoice_date ?: 'Sin fecha' }}</td><td>{{ data_get($extracted, 'date') ?: 'No identificada' }}</td></tr>
-                                        <tr><th>Monto</th><td>{{ $file->invoice_amount !== null ? '$'.number_format((float)$file->invoice_amount, 0, ',', '.') : 'Sin monto' }}</td><td>{{ data_get($extracted, 'amount') !== null ? '$'.number_format((float)data_get($extracted, 'amount'), 0, ',', '.') : 'No identificado' }}</td></tr>
+                                        <tr><th>Folio</th><td>{{ $file->invoice_number }}</td><td>{{ $extractedInvoiceNumber ?: 'No identificado' }}</td></tr>
+                                        <tr><th>Fecha</th><td>{{ $file->invoice_date ?: 'Sin fecha' }}</td><td>{{ $extractedDate ?: 'No identificada' }}</td></tr>
+                                        <tr><th>Monto</th><td>{{ $file->invoice_amount !== null ? '$'.number_format((float)$file->invoice_amount, 0, ',', '.') : 'Sin monto' }}</td><td>{{ is_numeric($extractedAmount) ? '$'.number_format((float)$extractedAmount, 0, ',', '.') : 'No identificado' }}</td></tr>
                                         <tr><th>Contraparte</th><td>{{ $currentParty }}</td><td>{{ $extractedParty ?: 'No identificada' }}{{ $extractedRut ? ' · '.$extractedRut : '' }}</td></tr>
                                     </tbody>
                                 </table>
