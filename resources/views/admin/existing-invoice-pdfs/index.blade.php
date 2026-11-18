@@ -112,7 +112,15 @@
                                     </form>
                                 </div>
                             @elseif($file->processing_status === 'queued')
-                                <span class="text-muted small">Esperando turno en la API PDF</span>
+                                @php($lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at)
+                                <span class="text-muted small">Esperando respuesta del workflow</span>
+                                @if($lastActivityAt && \Illuminate\Support\Carbon::parse($lastActivityAt)->lt(now()->subMinutes(15)))
+                                    <div class="small text-danger mt-1">Sin actualización hace más de 15 min. Revisa la ejecución en n8n.</div>
+                                    <form method="POST" action="{{ route('admin.existing-invoice-pdfs.cancel', ['file'=>$file->file_id]) }}" class="mt-1" onsubmit="return confirm('Detén primero la ejecución correspondiente en n8n. ¿Liberar este job en Laravel para que aparezca en Fallidas y puedas reintentarlo?');">
+                                        @csrf
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Liberar job estancado</button>
+                                    </form>
+                                @endif
                             @elseif($file->processing_status !== 'processed')
                                 <form method="POST" action="{{ route('admin.existing-invoice-pdfs.process', ['file'=>$file->file_id]) }}">
                                     @csrf

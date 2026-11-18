@@ -252,19 +252,22 @@ class ExistingInvoicePdfsController extends Controller
             'external_version' => (string) ($record->created_at ?? ''),
         ];
         $ingestion = DB::table('document_ingestions')->where($identity)->first();
-        if (!$ingestion || $ingestion->status !== 'processing') {
-            return back()->withErrors(['process' => 'El job ya no está en estado Procesando.']);
+        if (!$ingestion || !in_array($ingestion->status, ['queued', 'processing'], true)) {
+            return back()->withErrors(['process' => 'El job ya no está en cola ni en procesamiento.']);
         }
 
+        $wasQueued = $ingestion->status === 'queued';
         DB::table('document_ingestions')->where('id', $ingestion->id)->update([
             'status' => 'failed',
-            'last_error' => 'Cancelado manualmente desde el panel; n8n podría seguir ejecutando la petición actual.',
+            'last_error' => $wasQueued
+                ? 'Liberado manualmente desde el panel; n8n podría seguir ejecutando la solicitud actual.'
+                : 'Cancelado manualmente desde el panel; n8n podría seguir ejecutando la petición actual.',
             'lease_until' => null,
             'updated_at' => now(),
         ]);
-        AuditLogger::log($request, 'cancel_processing', 'invoice_documents', $record->id,
-            'Liberó manualmente el job de procesamiento de la factura #' . $record->model_id . '.');
+        AuditLogger::log($request, $wasQueued ? 'release_queued' : 'cancel_processing', 'invoice_documents', $record->id,
+            ($wasQueued ? 'Liberó de la cola' : 'Canceló el procesamiento de') . ' el job de la factura #' . $record->model_id . '.');
 
-        return back()->with('success', 'Job cancelado en Laravel y liberado para reintentar. La ejecución que ya comenzó en n8n no se detiene automáticamente.');
+        return back()->with('success', 'Job liberado en Laravel y disponible en Fallidas para reintentar. Esta acción no detiene la ejecución que ya comenzó en n8n; detenla allí antes de reenviar para evitar un duplicado.');
     }
 }

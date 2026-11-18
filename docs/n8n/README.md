@@ -2,7 +2,7 @@
 
 ## Procesar PDFs históricos desde administración
 
-El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.json) conserva su ejecución automática cada seis horas y también recibe lotes desde **Administración → PDF históricos**. Importa la versión actualizada del JSON, activa el workflow y asigna la credencial Header Auth **Bearer Laravel n8n** al nodo **Procesar PDF desde administración**. Cada reintento masivo inicia una sola ejecución de n8n, que procesa los archivos de uno en uno. El webhook queda en:
+El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.json) conserva su ejecución automática cada seis horas y también recibe lotes desde **Administración → PDF históricos**. Importa la versión actualizada del JSON, activa el workflow y asigna la credencial Header Auth **Bearer Laravel n8n** a los nodos Laravel. Cada reintento masivo inicia una sola ejecución de n8n, que procesa los archivos de uno en uno. La versión actual registra en Laravel los estados terminales `completed` y `failed`; si la API PDF informa un fallo, marca el job como fallido y continúa con el siguiente archivo del lote, evitando que el workflow repita la consulta indefinidamente. El webhook queda en:
 
 ```text
 https://n8n.solidtec.cl/webhook/invoice-existing-pdfs/process

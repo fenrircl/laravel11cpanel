@@ -123,7 +123,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $json.download_url }}",
+        "url": "={{ $('Solicitar enlace temporal').item.json.download_url }}",
         "options": {
           "response": {
             "response": {
@@ -274,6 +274,65 @@
       "parameters": {
         "conditions": {
           "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status === 'failed' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2017",
+      "name": "¿Extracción fallida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2040,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/ingestions/' + $('Reservar reproceso').item.json.ingestion_id + '/failure' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {job_id: $json.job_id || $json.request_id || null, error: ('La API PDF terminó con estado ' + ($json.status || 'failed') + ': ' + JSON.stringify($json)).slice(0, 1900)} }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2018",
+      "name": "Registrar fallo en Laravel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Bearer Laravel n8n"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
             "caseSensitive": true
           },
           "conditions": [
@@ -375,7 +434,7 @@
       "main": [
         [
           {
-            "node": "Descargar desde R2",
+            "node": "Reservar reproceso",
             "type": "main",
             "index": 0
           }
@@ -408,7 +467,7 @@
       "main": [
         [
           {
-            "node": "Guardar JSON en Laravel",
+            "node": "Descargar desde R2",
             "type": "main",
             "index": 0
           }
@@ -441,7 +500,25 @@
       "main": [
         [
           {
-            "node": "Reservar reproceso",
+            "node": "Guardar JSON en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Extracción fallida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Extracción fallida?": {
+      "main": [
+        [
+          {
+            "node": "Registrar fallo en Laravel",
             "type": "main",
             "index": 0
           }
@@ -449,6 +526,17 @@
         [
           {
             "node": "Esperar 5 segundos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar fallo en Laravel": {
+      "main": [
+        [
+          {
+            "node": "Procesar un PDF a la vez",
             "type": "main",
             "index": 0
           }
