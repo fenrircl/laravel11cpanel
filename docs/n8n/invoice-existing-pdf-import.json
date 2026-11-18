@@ -29,7 +29,7 @@
         "responseMode": "onReceived",
         "options": {}
       },
-      "id": "9a204720-1a7c-4acb-bbef-a12355be2009",
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2013",
       "name": "Procesar PDF desde administración",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -46,7 +46,7 @@
     },
     {
       "parameters": {
-        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/pending?limit=25' + ($json.body && $json.body.file_id ? '&file_id=' + encodeURIComponent($json.body.file_id) + '&force=' + ($json.body.force ? '1' : '0') : '') }}",
+        "url": "={{ 'https://intranet.acerosera.cl/api/v1/automation/documents/pending?limit=50' + ($json.body && Array.isArray($json.body.file_ids) ? '&file_ids=' + encodeURIComponent($json.body.file_ids.join(',')) : ($json.body && $json.body.file_id ? '&file_id=' + encodeURIComponent($json.body.file_id) + '&force=' + ($json.body.force ? '1' : '0') : '')) }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {
@@ -79,6 +79,20 @@
       "typeVersion": 1,
       "position": [
         520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2012",
+      "name": "Procesar un PDF a la vez",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        680,
         0
       ]
     },
@@ -275,7 +289,7 @@
           "combinator": "and"
         }
       },
-      "id": "9a204720-1a7c-4acb-bbef-a12355be2010",
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2014",
       "name": "¿Extracción terminada?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
@@ -289,7 +303,7 @@
         "amount": 5,
         "unit": "seconds"
       },
-      "id": "9a204720-1a7c-4acb-bbef-a12355be2011",
+      "id": "9a204720-1a7c-4acb-bbef-a12355be2015",
       "name": "Esperar 5 segundos",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
@@ -297,7 +311,7 @@
         2040,
         300
       ],
-      "webhookId": "9a204720-1a7c-4acb-bbef-a12355be2011"
+      "webhookId": "9a204720-1a7c-4acb-bbef-a12355be2016"
     }
   ],
   "connections": {
@@ -336,6 +350,18 @@
     },
     "Un PDF por item": {
       "main": [
+        [
+          {
+            "node": "Procesar un PDF a la vez",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar un PDF a la vez": {
+      "main": [
+        [],
         [
           {
             "node": "Solicitar enlace temporal",
@@ -383,6 +409,17 @@
         [
           {
             "node": "Guardar JSON en Laravel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar JSON en Laravel": {
+      "main": [
+        [
+          {
+            "node": "Procesar un PDF a la vez",
             "type": "main",
             "index": 0
           }

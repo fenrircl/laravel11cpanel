@@ -20,6 +20,12 @@ class InvoiceAutomationController extends Controller
     {
         $limit = min(max((int)$request->query('limit', 25), 1), 100);
         $fileId = $request->integer('file_id');
+        $rawFileIds = $request->query('file_ids', []);
+        $targetFileIds = collect(is_array($rawFileIds) ? $rawFileIds : explode(',', (string) $rawFileIds))
+            ->map(fn ($id) => filter_var($id, FILTER_VALIDATE_INT) ?: null)
+            ->filter(fn ($id) => $id !== null && $id > 0)
+            ->unique()->take(50)->values();
+        if ($targetFileIds->isEmpty() && $fileId > 0) $targetFileIds->push($fileId);
         $force = $request->boolean('force');
         $latestExtraction = DB::table('invoice_extractions')->selectRaw('file_registry_id, MAX(id) as extraction_id')
             ->whereNotNull('file_registry_id')->groupBy('file_registry_id');
@@ -33,13 +39,16 @@ class InvoiceAutomationController extends Controller
             ->leftJoin('document_ingestions as j', 'j.id', '=', 'latest_ingestion.ingestion_id')
             ->where('f.model_type', 'App\\Invoice')
             ->where(function ($q) { $q->where('f.mime_type', 'application/pdf')->orWhere('f.file_name', 'like', '%.pdf')->orWhere('f.path', 'like', '%.pdf'); })
-            ->when($fileId, fn ($q) => $q->where('f.id', $fileId)
+            ->when($targetFileIds->isNotEmpty(), fn ($q) => $q->whereIn('f.id', $targetFileIds)
                 ->where(fn ($claimable) => $claimable->whereNull('j.id')->orWhereIn('j.status', ['queued', 'failed', 'discovered']))
-                ->when(!$force, fn ($q) => $q->where(fn ($notValidated) => $notValidated->whereNull('e.id')->orWhere('e.validation_status', '<>', 'validated'))),
+                ->when(!$force, fn ($q) => $q->where(fn ($notValidated) => $notValidated
+                    ->whereNull('e.id')
+                    ->orWhereNull('e.validation_status')
+                    ->orWhere('e.validation_status', '<>', 'validated'))),
                 fn ($q) => $q->whereNull('e.id')->whereNull('j.id'))
             ->orderBy('f.id')->limit($limit)
-            ->get(['f.id as file_id', 'f.path as r2_key', 'f.file_name', 'f.mime_type', 'f.size', 'f.created_at', 'i.id as invoice_id', 'i.invoice as invoice_number']);
-        $files->each(fn ($file) => $file->force = $force);
+            ->get(['f.id as file_id', 'f.path as r2_key', 'f.file_name', 'f.mime_type', 'f.size', 'f.created_at', 'i.id as invoice_id', 'i.invoice as invoice_number', 'e.id as extraction_id', 'e.validation_status', 'j.uuid as ingestion_uuid', 'j.status as ingestion_status']);
+        $files->each(fn ($file) => $file->force = $force || ($file->extraction_id !== null && $file->validation_status !== 'validated'));
 
         return response()->json(['count' => $files->count(), 'data' => $files]);
     }

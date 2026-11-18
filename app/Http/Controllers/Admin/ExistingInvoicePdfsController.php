@@ -66,7 +66,9 @@ class ExistingInvoicePdfsController extends Controller
             ->when($status === 'queued', fn ($q) => $q->where('j.status', 'queued'))
             ->when($status === 'processing', fn ($q) => $q->where('j.status', 'processing')->where('j.lease_until', '>', now()))
             ->when($status === 'failed', fn ($q) => $q->where(fn ($failed) => $failed->where('j.status', 'failed')->orWhere(fn ($expired) => $expired->where('j.status', 'processing')->where(fn ($lease) => $lease->whereNull('j.lease_until')->orWhere('j.lease_until', '<=', now())))))
-            ->when($status === 'needs_review', fn ($q) => $q->where(fn ($sub) => $sub->whereNotNull('e.id')->where('e.validation_status', '<>', 'validated')->orWhere('j.status', 'needs_review')))
+            ->when($status === 'needs_review', fn ($q) => $q
+                ->where(fn ($sub) => $sub->where(fn ($extraction) => $extraction->whereNotNull('e.id')->where('e.validation_status', '<>', 'validated'))->orWhere('j.status', 'needs_review'))
+                ->where(fn ($inactive) => $inactive->whereNull('j.id')->orWhereNotIn('j.status', ['queued', 'processing', 'failed'])))
             ->when($status === 'processed', fn ($q) => $q->where('e.validation_status', 'validated'));
 
         $files = $query->orderByRaw($sortColumns[$sort] . ' ' . $direction)->orderByDesc('f.id')->paginate(30)->withQueryString();
@@ -184,7 +186,7 @@ class ExistingInvoicePdfsController extends Controller
     public function processBulk(Request $request): RedirectResponse
     {
         $data = $request->validate(['file_ids' => ['required', 'array', 'min:1', 'max:50'], 'file_ids.*' => ['required', 'integer', 'distinct']]);
-        $queued = 0;
+        $queuedFileIds = [];
         $webhookUrl = trim((string) config('services.n8n.existing_pdf_process_webhook_url', ''));
         $bearer = trim((string) config('services.n8n.ingest_bearer', ''));
         if ($webhookUrl === '' || $bearer === '') {
@@ -197,23 +199,46 @@ class ExistingInvoicePdfsController extends Controller
             $job = DB::table('document_ingestions')->where($identity)->first();
             $alreadyProcessed = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->where('validation_status', 'validated')->exists();
             if ($alreadyProcessed && (!$job || $job->status !== 'failed')) continue;
-            $forceExtraction = DB::table('invoice_extractions')->where('file_registry_id', $fileId)->exists();
             if ($job && $job->status === 'processing' && $job->lease_until && now()->lt($job->lease_until)) continue;
             if ($job && $job->status === 'queued') continue;
-            if ($job) DB::table('document_ingestions')->where('id', $job->id)->update(['status'=>'queued','attempts'=>DB::raw('attempts + 1'),'last_error'=>null,'lease_until'=>null,'updated_at'=>now()]);
-            else DB::table('document_ingestions')->insert($identity + ['uuid'=>\Illuminate\Support\Str::uuid(),'filename'=>$record->file_name ?: basename((string)$record->path),'mime_type'=>$record->mime_type ?: 'application/pdf','size_bytes'=>$record->size,'invoice_id'=>$record->model_id,'file_registry_id'=>$record->id,'status'=>'queued','attempts'=>1,'lease_until'=>null,'created_at'=>now(),'updated_at'=>now()]);
-
-            try {
-                $response = Http::acceptJson()->withToken($bearer)->connectTimeout(5)->timeout(15)
-                    ->post($webhookUrl, ['file_id'=>(int)$record->id, 'force'=>$forceExtraction]);
-                if ($response->successful()) $queued++;
-                else DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'n8n rechazó el inicio (HTTP '.$response->status().').','lease_until'=>null,'updated_at'=>now()]);
-            } catch (\Throwable $e) {
-                report($e);
-                DB::table('document_ingestions')->where($identity)->update(['status'=>'failed','last_error'=>'No se pudo conectar con n8n.','lease_until'=>null,'updated_at'=>now()]);
+            if ($job) {
+                DB::table('document_ingestions')->where('id', $job->id)->update(['status'=>'queued','attempts'=>DB::raw('attempts + 1'),'last_error'=>null,'lease_until'=>null,'updated_at'=>now()]);
+            } else {
+                DB::table('document_ingestions')->insert($identity + ['uuid'=>\Illuminate\Support\Str::uuid(),'filename'=>$record->file_name ?: basename((string)$record->path),'mime_type'=>$record->mime_type ?: 'application/pdf','size_bytes'=>$record->size,'invoice_id'=>$record->model_id,'file_registry_id'=>$record->id,'status'=>'queued','attempts'=>1,'lease_until'=>null,'created_at'=>now(),'updated_at'=>now()]);
             }
+            $queuedFileIds[] = (int) $record->id;
         }
-        return back()->with('success', "Se enviaron {$queued} PDF(s) al workflow. La API PDF los procesará según el paralelismo de la cola QStash.");
+
+        if ($queuedFileIds === []) {
+            return back()->with('success', 'No había PDFs nuevos para agregar a la cola; pueden estar ya procesándose o validados.');
+        }
+
+        try {
+            // One webhook starts one n8n execution for the entire batch. The
+            // workflow processes its file_ids sequentially to protect cPanel.
+            $response = Http::acceptJson()->withToken($bearer)->connectTimeout(5)->timeout(15)
+                ->post($webhookUrl, ['file_ids' => $queuedFileIds]);
+            if (!$response->successful()) {
+                DB::table('document_ingestions')->where('source', 'registered_pdf')
+                    ->whereIn('external_id', array_map('strval', $queuedFileIds))
+                    ->where('status', 'queued')->update([
+                        'status' => 'failed', 'last_error' => 'n8n rechazó el lote (HTTP ' . $response->status() . ').',
+                        'lease_until' => null, 'updated_at' => now(),
+                    ]);
+                return back()->withErrors(['n8n' => 'n8n rechazó el lote (HTTP ' . $response->status() . ').']);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            DB::table('document_ingestions')->where('source', 'registered_pdf')
+                ->whereIn('external_id', array_map('strval', $queuedFileIds))
+                ->where('status', 'queued')->update([
+                    'status' => 'failed', 'last_error' => 'No se pudo conectar con n8n para iniciar el lote.',
+                    'lease_until' => null, 'updated_at' => now(),
+                ]);
+            return back()->withErrors(['n8n' => 'No se pudo conectar con n8n. Revisa la URL del webhook y el servicio.']);
+        }
+
+        return back()->with('success', 'Se agregó un lote de ' . count($queuedFileIds) . ' PDF(s) a una sola ejecución de n8n. Se procesarán de a uno mediante QStash.');
     }
 
     public function cancel(Request $request, int $file): RedirectResponse

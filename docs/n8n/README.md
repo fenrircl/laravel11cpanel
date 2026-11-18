@@ -2,15 +2,21 @@
 
 ## Procesar PDFs históricos desde administración
 
-El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.json) conserva su ejecución automática cada seis horas y ahora también tiene un webhook para iniciar un solo PDF desde **Administración → PDF históricos**. Importa la versión actualizada del JSON, activa el workflow y asigna la credencial Header Auth **Bearer Laravel n8n** al nodo **Procesar PDF desde administración**. El webhook queda en:
+El workflow [`invoice-existing-pdf-import.json`](invoice-existing-pdf-import.json) conserva su ejecución automática cada seis horas y también recibe lotes desde **Administración → PDF históricos**. Importa la versión actualizada del JSON, activa el workflow y asigna la credencial Header Auth **Bearer Laravel n8n** al nodo **Procesar PDF desde administración**. Cada reintento masivo inicia una sola ejecución de n8n, que procesa los archivos de uno en uno. El webhook queda en:
 
 ```text
 https://n8n.solidtec.cl/webhook/invoice-existing-pdfs/process
 ```
 
-En el `.env` de Laravel configura `N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL` con esa URL y `N8N_INGEST_BEARER` con el mismo token configurado en la credencial. La URL de Laravel ya está escrita en los nodos del JSON; no necesita acceso a variables de entorno de n8n. Cada webhook puede crear una ejecución de n8n. El workflow envía la extracción asíncrona a `api-pdf` con `wait=false`, por lo que los trabajos de extracción se encolan en QStash aunque aparezcan varias ejecuciones de n8n. La concurrencia efectiva depende de la cola de Upstash, no de Laravel ni del número de ejecuciones visibles en n8n.
+En el `.env` de Laravel configura `N8N_EXISTING_PDF_PROCESS_WEBHOOK_URL` con esa URL y `N8N_INGEST_BEARER` con el mismo token configurado en la credencial. La URL de Laravel ya está escrita en los nodos del JSON; no necesita acceso a variables de entorno de n8n. Para impedir que varias ejecuciones del workflow (webhook o cron) compitan por CPU/memoria, configura en el entorno de **n8n autohospedado**:
 
-Para asegurar una extracción a la vez, verifica en Upstash que la cola usada por `api-pdf` tenga `parallelism: 1`. El nombre predeterminado es `api-pdf-extractions`; si el servidor tiene `QSTASH_QUEUE_NAME` configurado con otro valor, usa ese nombre:
+```dotenv
+N8N_CONCURRENCY_PRODUCTION_LIMIT=1
+```
+
+Reinicia n8n después de cambiar la variable. n8n dejará las ejecuciones de producción adicionales en espera y las ejecutará por orden; el límite cubre ejecuciones disparadas por webhook y por trigger. Esta opción es independiente del bucle por lotes del JSON, que limita a un PDF por ejecución, y de QStash, que controla la concurrencia de extracción en `api-pdf`. Consulta la [documentación oficial de control de concurrencia de n8n](https://docs.n8n.io/hosting/scaling/concurrency-control/).
+
+Para asegurar una extracción a la vez en `api-pdf`, verifica en Upstash que la cola usada por el servicio tenga `parallelism: 1`. El nombre predeterminado es `api-pdf-extractions`; si el servidor tiene `QSTASH_QUEUE_NAME` configurado con otro valor, usa ese nombre:
 
 ```sh
 curl "$QSTASH_URL/v2/queues/api-pdf-extractions" \
@@ -26,7 +32,7 @@ curl --request POST "$QSTASH_URL/v2/queues" \
   --data '{"queueName":"api-pdf-extractions","parallelism":1}'
 ```
 
-`QSTASH_PARALLELISM` no es leído por el código actual de `api-pdf`; el paralelismo se configura en la cola de Upstash. No compartas ni pegues el token en n8n o en Git. [Referencia oficial de colas QStash](https://upstash.com/docs/qstash/features/queues).
+`QSTASH_PARALLELISM` no es leído por el código actual de `api-pdf`; el paralelismo se configura en la cola de Upstash. El límite de n8n protege el workflow y el de QStash protege el servicio extractor; configura ambos. No compartas ni pegues el token en n8n o en Git. [Referencia oficial de colas QStash](https://upstash.com/docs/qstash/features/queues).
 
 ## Workflow de búsqueda por webhook
 
