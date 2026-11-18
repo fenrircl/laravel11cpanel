@@ -112,7 +112,9 @@
                                     </form>
                                 </div>
                             @elseif($file->processing_status === 'queued')
-                                @php($lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at)
+                                @php
+                                    $lastActivityAt = $file->last_attempt_at ?: $file->extraction_processed_at;
+                                @endphp
                                 <span class="text-muted small">Esperando respuesta del workflow</span>
                                 @if($lastActivityAt && \Illuminate\Support\Carbon::parse($lastActivityAt)->lt(now()->subMinutes(15)))
                                     <div class="small text-danger mt-1">Sin actualización hace más de 15 min. Revisa la ejecución en n8n.</div>
