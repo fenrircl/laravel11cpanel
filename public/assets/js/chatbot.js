@@ -7,13 +7,24 @@
   const activeConversationKey = `assistant-chat-active-${userId}`;
   if (!chatBase) return;
 
+  const launcher = document.createElement('div');
+  launcher.id = 'chatbot-launcher';
   const toggle = document.createElement('button');
   toggle.id = 'chatbot-toggle';
   toggle.type = 'button';
   toggle.setAttribute('aria-label', 'Abrir asistente');
   toggle.setAttribute('aria-controls', 'chatbot-widget');
   toggle.setAttribute('aria-expanded', 'false');
-  toggle.innerHTML = '<span aria-hidden="true">💬</span><span>Abrir asistente</span>';
+  toggle.title = 'Abrir asistente';
+  toggle.innerHTML = '<span aria-hidden="true">💬</span>';
+
+  const dismiss = document.createElement('button');
+  dismiss.id = 'chatbot-dismiss';
+  dismiss.type = 'button';
+  dismiss.setAttribute('aria-label', 'Quitar el botón del asistente');
+  dismiss.title = 'Quitar botón';
+  dismiss.textContent = '×';
+  launcher.append(toggle, dismiss);
 
   const widget = document.createElement('section');
   widget.id = 'chatbot-widget';
@@ -183,7 +194,7 @@
   window.visualViewport?.addEventListener('scroll', syncMobileViewport);
   syncMobileViewport();
 
-  document.body.append(toggle, widget);
+  document.body.append(launcher, widget);
 
   const messages = widget.querySelector('#cb-messages');
   const historyPanel = widget.querySelector('#cb-history-panel');
@@ -602,6 +613,12 @@
       }
       input.focus();
     }
+  });
+
+  dismiss.addEventListener('click', () => {
+    widget.classList.remove('is-open');
+    syncMobileViewport();
+    launcher.remove();
   });
 
   widget.querySelector('#cb-history').addEventListener('click', async () => {

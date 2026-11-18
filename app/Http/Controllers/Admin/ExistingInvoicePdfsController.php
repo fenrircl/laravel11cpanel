@@ -60,7 +60,7 @@ class ExistingInvoicePdfsController extends Controller
                 'j.attempts as processing_attempts', 'j.updated_at as last_attempt_at',
             ])
             ->selectRaw("CASE WHEN j.status = 'queued' THEN 'queued' WHEN j.status = 'processing' AND j.lease_until > CURRENT_TIMESTAMP THEN 'processing' WHEN j.status = 'processing' OR j.status = 'failed' THEN 'failed' WHEN e.validation_status = 'validated' THEN 'processed' WHEN e.id IS NOT NULL OR j.status = 'needs_review' THEN 'needs_review' ELSE 'pending' END as processing_status")
-            ->selectRaw("CASE WHEN j.status = 'processing' AND (j.lease_until IS NULL OR j.lease_until <= CURRENT_TIMESTAMP) THEN 'n8n no confirmó el resultado antes de vencer el tiempo de procesamiento.' ELSE j.last_error END as processing_error");
+            ->selectRaw("CASE WHEN j.status = 'processing' AND j.lease_until IS NULL THEN COALESCE(NULLIF(j.last_error, ''), 'El job quedó en procesamiento sin una vigencia registrada; revisa su ejecución en n8n.') WHEN j.status = 'processing' AND j.lease_until <= CURRENT_TIMESTAMP THEN COALESCE(NULLIF(j.last_error, ''), 'El plazo de procesamiento venció sin que Laravel recibiera el resultado.') ELSE j.last_error END as processing_error");
 
         $query->when($status === 'pending', fn ($q) => $q->whereNull('e.id')->whereNull('j.id'))
             ->when($status === 'queued', fn ($q) => $q->where('j.status', 'queued'))

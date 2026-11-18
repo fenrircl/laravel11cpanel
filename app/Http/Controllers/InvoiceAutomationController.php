@@ -133,7 +133,9 @@ class InvoiceAutomationController extends Controller
             }
             DB::table('document_ingestions')->where('id', $row->id)->update([
                 'source_sha256' => $data['sha256'] ?? $row->source_sha256,
-                'status' => 'processing',
+                // Extraction is asynchronous and may wait in QStash. Keep this
+                // ingestion queued until Laravel receives and stores the result.
+                'status' => 'queued',
                 'attempts' => $row->source === 'registered_pdf' && $row->status === 'queued'
                     ? $row->attempts
                     : DB::raw('attempts + 1'),
@@ -147,7 +149,7 @@ class InvoiceAutomationController extends Controller
                 'uuid' => (string) Str::uuid(), 'source_sha256' => $data['sha256'] ?? null,
                 'filename' => $data['filename'] ?? null, 'mime_type' => $data['mime_type'] ?? 'application/pdf',
                 'size_bytes' => $data['size_bytes'] ?? null, 'invoice_id' => $data['invoice_id'] ?? null,
-                'file_registry_id' => $data['file_registry_id'] ?? null, 'status' => 'processing',
+                'file_registry_id' => $data['file_registry_id'] ?? null, 'status' => 'queued',
                 'attempts' => 1, 'created_at' => now(), 'updated_at' => now(),
             ]);
             $row = DB::table('document_ingestions')->find($id);
