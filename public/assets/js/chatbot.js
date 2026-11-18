@@ -64,6 +64,13 @@
   const chatHeightKey = 'assistant-chat-height';
   const maxChatWidth = () => Math.max(420, Math.min(900, window.innerWidth - 48));
   const maxChatHeight = () => Math.max(440, Math.min(820, window.innerHeight - 128));
+  const mobileViewport = window.matchMedia('(max-width: 700px)');
+  function syncMobileViewport() {
+    const viewport = window.visualViewport;
+    widget.style.setProperty('--cb-mobile-height', `${Math.round(viewport?.height || window.innerHeight)}px`);
+    widget.style.setProperty('--cb-mobile-top', `${Math.round(viewport?.offsetTop || 0)}px`);
+    document.body.classList.toggle('cb-mobile-chat-open', widget.classList.contains('is-open') && mobileViewport.matches);
+  }
   let chatWidth = defaultChatWidth;
   let chatHeight = defaultChatHeight();
   try {
@@ -170,7 +177,11 @@
   window.addEventListener('resize', () => {
     setChatWidth(chatWidth, false);
     setChatHeight(chatHeight, false);
+    syncMobileViewport();
   });
+  window.visualViewport?.addEventListener('resize', syncMobileViewport);
+  window.visualViewport?.addEventListener('scroll', syncMobileViewport);
+  syncMobileViewport();
 
   document.body.append(toggle, widget);
 
@@ -570,6 +581,7 @@
   toggle.addEventListener('click', async () => {
     const open = widget.classList.toggle('is-open');
     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    syncMobileViewport();
     if (open) {
       try {
         await refreshQuota();
@@ -613,6 +625,8 @@
   widget.querySelector('#cb-close').addEventListener('click', () => {
     widget.classList.remove('is-open');
     toggle.setAttribute('aria-expanded', 'false');
+    syncMobileViewport();
+    toggle.focus();
   });
   form.addEventListener('submit', sendMessage);
   input.addEventListener('keydown', (event) => {

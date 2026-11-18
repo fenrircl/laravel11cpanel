@@ -252,9 +252,23 @@ class InvoiceAutomationController extends Controller
             ]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'required_fields_confidence_or_warnings']);
         }
-        $isPurchase = $customerRut === $ownRut;
-        $counterpartyRut = $isPurchase ? $supplierRut : ($supplierRut === $ownRut ? $customerRut : '');
-        if (!$counterpartyRut || ($supplierRut !== $ownRut && !$isPurchase)) {
+        $linkedInvoice = $ingest->invoice_id
+            ? Factura::with(['proveedor:id,rut', 'cliente:id,rut'])->find($ingest->invoice_id)
+            : null;
+        $linkedPartyId = $linkedInvoice?->provider_id ?: $linkedInvoice?->client_id;
+        $linkedParty = $linkedInvoice?->provider_id
+            ? $linkedInvoice->proveedor
+            : ($linkedInvoice?->client_id ? $linkedInvoice->cliente : null);
+        $linkedPartyRut = strtolower(preg_replace('/[^0-9kK]/', '', (string) ($linkedParty?->rut ?? '')));
+        $isPurchase = $linkedInvoice?->provider_id
+            ? true
+            : ($linkedInvoice?->client_id ? false : $customerRut === $ownRut);
+        $counterpartyRut = $linkedPartyId
+            ? $linkedPartyRut
+            : ($isPurchase ? $supplierRut : ($supplierRut === $ownRut ? $customerRut : ''));
+        $partyContactRoleMatches = !$linkedPartyId
+            || ($isPurchase ? $supplierRut : $customerRut) === $linkedPartyRut;
+        if (!$linkedPartyId && (!$counterpartyRut || ($supplierRut !== $ownRut && !$isPurchase))) {
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['status' => 'needs_review', 'last_error' => 'No se pudo identificar con certeza si el documento es compra o venta.', 'updated_at' => now()]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'party_identity_ambiguous']);
         }
@@ -264,10 +278,21 @@ class InvoiceAutomationController extends Controller
         }
         $currency = $this->normalizeCurrencyCode($payload['currency'] ?? null);
         try {
-        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $supplierRut, $counterpartyRut, $isPurchase, $currency) {
-        $partyId = $this->partyIdForRut($counterpartyRut, $isPurchase);
+        return DB::transaction(function () use ($request, $data, $ex, $payload, $lineItems, $ingest, $folio, $supplierRut, $counterpartyRut, $linkedPartyId, $partyContactRoleMatches, $isPurchase, $currency) {
+        $partyId = $linkedPartyId ?: $this->partyIdForRut($counterpartyRut, $isPurchase);
         $counterpartyTable = $isPurchase ? 'providers' : 'clients';
         $rutMatches = DB::table($counterpartyTable)->whereRaw("REPLACE(REPLACE(REPLACE(LOWER(rut), '.', ''), '-', ''), ' ', '') = ?", [strtolower($counterpartyRut)])->count();
+        $oppositeTable = $isPurchase ? 'clients' : 'providers';
+        $oppositeMatch = !$linkedPartyId && $counterpartyRut !== ''
+            ? DB::table($oppositeTable)->whereRaw("REPLACE(REPLACE(REPLACE(LOWER(rut), '.', ''), '-', ''), ' ', '') = ?", [strtolower($counterpartyRut)])->exists()
+            : false;
+        if (!$partyId && $oppositeMatch) {
+            $message = 'El RUT ' . $counterpartyRut . ' ya existe como ' . ($isPurchase ? 'cliente' : 'proveedor') . '; revisar el tipo de documento antes de crear la contraparte.';
+            DB::table('document_ingestions')->where('id', $ingest->id)->update([
+                'status' => 'needs_review', 'last_error' => $message, 'updated_at' => now(),
+            ]);
+            return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'counterparty_type_conflict']);
+        }
         if (!$partyId && $rutMatches === 0 && $isPurchase && config('services.invoices.auto_create_providers', true)
             && $this->isValidChileanRut($supplierRut) && !empty($payload['issuer'])) {
             $provider = \App\Models\Proveedor::query()->create([
@@ -284,7 +309,9 @@ class InvoiceAutomationController extends Controller
             DB::table('document_ingestions')->where('id', $ingest->id)->update(['status' => 'needs_review', 'last_error' => 'No existe contraparte con ese RUT y no se pudo crear automáticamente.', 'updated_at' => now()]);
             return response()->json(['ingestion_id' => $ingest->uuid, 'status' => 'needs_review', 'reason' => 'counterparty_not_found']);
         }
-        $this->fillMissingPartyContact($partyId, $isPurchase, $payload);
+        if ($partyContactRoleMatches) {
+            $this->fillMissingPartyContact($partyId, $isPurchase, $payload);
+        }
             $invoice = $ingest->invoice_id ? Factura::find($ingest->invoice_id) : null;
             if (!$invoice) {
                 $matches = Factura::query()->where('invoice', $folio)
