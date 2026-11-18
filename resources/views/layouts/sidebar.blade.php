@@ -15,18 +15,24 @@
                     <ul class="nav flex-column">
                         @foreach($section['items'] as $item)
                             @if(!$item['auth_required'] || ($item['auth_required'] && auth()->check()))
+                                @php
+                                    $itemRoute = $item['route'] ?? null;
+                                    $itemRouteExists = !$itemRoute || \Illuminate\Support\Facades\Route::has($itemRoute);
+                                @endphp
                                 <li class="nav-item">
-                                    <a class="nav-link text-white d-flex align-items-center 
-                                        {{ isset($item['route']) && $item['route'] && request()->routeIs($item['route']) ? 'active' : '' }}"
-                                       href="{{ 
-                                           isset($item['route']) && $item['route'] 
-                                               ? route($item['route']) 
-                                               : ($item['url'] ?? '#') 
-                                       }}"
-                                       title="{{ $item['tooltip'] ?? $item['title'] }}">
-                                        <i class="{{ $item['icon'] }} me-2"></i>
-                                        <span class="nav-text">{{ $item['title'] }}</span>
-                                    </a>
+                                    @if($itemRouteExists)
+                                        <a class="nav-link text-white d-flex align-items-center {{ $itemRoute && request()->routeIs($itemRoute) ? 'active' : '' }}"
+                                           href="{{ $itemRoute ? route($itemRoute) : ($item['url'] ?? '#') }}"
+                                           title="{{ $item['tooltip'] ?? $item['title'] }}">
+                                            <i class="{{ $item['icon'] }} me-2"></i>
+                                            <span class="nav-text">{{ $item['title'] }}</span>
+                                        </a>
+                                    @else
+                                        <span class="nav-link text-white-50 d-flex align-items-center" aria-disabled="true" title="Actualiza la caché de rutas de Laravel">
+                                            <i class="{{ $item['icon'] }} me-2"></i>
+                                            <span class="nav-text">{{ $item['title'] }} · actualizar rutas</span>
+                                        </span>
+                                    @endif
                                 </li>
                             @endif
                         @endforeach

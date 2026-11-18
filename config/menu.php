@@ -138,6 +138,13 @@ return [
                 'auth_required' => true
             ],
             [
+                'title' => 'KPI',
+                'icon' => 'fas fa-chart-line',
+                'route' => 'admin.kpi.index',
+                'tooltip' => 'Indicadores y métricas del sistema',
+                'auth_required' => true
+            ],
+            [
                 'title' => 'Información del sistema',
                 'icon' => 'fas fa-server',
                 'route' => 'admin.system-info.index',
