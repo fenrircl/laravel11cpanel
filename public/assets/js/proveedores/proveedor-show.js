@@ -25,7 +25,10 @@ $(function(){
             render: (data, type, row) => {
                 const opts = {};
                 if (!row.has_file || !row.file_path) { (opts.exclude || (opts.exclude=[])).push('download'); }
-                return generateActionButtons(row.id, 'facturas', opts);
+                const actionButtons = generateActionButtons(row.id, 'facturas', opts);
+                const invoiceUrl = buildApiUrl(`facturas/${encodeURIComponent(row.id)}`);
+                const viewButton = `<a href="${invoiceUrl}" class="btn btn-sm btn-outline-info" title="Ver factura #${$('<div>').text(row.invoice || row.id).html()}" aria-label="Ver factura #${$('<div>').text(row.invoice || row.id).html()}"><i class="fas fa-eye" aria-hidden="true"></i></a>`;
+                return `${viewButton} ${actionButtons}`;
             }
         }
     ];
